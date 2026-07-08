@@ -1,0 +1,53 @@
+# Windows / editor noise
+.vs/
+.vscode/
+*.user
+*.suo
+*.tmp
+*.log
+Thumbs.db
+Desktop.ini
+
+# Local/generated outputs
+outputs/
+
+# Unity generated folders
+**/Library/
+**/Temp/
+**/Obj/
+**/obj/
+**/Build/
+**/Builds/
+**/Logs/
+**/UserSettings/
+**/MemoryCaptures/
+**/Assets/_Recovery/
+**/Assets/_Recovery.meta
+**/Assets/TutorialInfo/
+**/Assets/TutorialInfo.meta
+
+# Unity generated files
+*.csproj
+*.sln
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+UpgradeLog.htm
+
+# Unity/Plastic local metadata
+**/.plastic/
+**/ignore.conf
+
+# Cocos Creator generated folders
+**/library/
+**/temp/
+**/local/
+**/build/
+**/profiles/
+
+# Node dependencies
+node_modules/
