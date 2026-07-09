@@ -252,6 +252,20 @@ public sealed class CovenState
         SavePlayerInboxItems();
     }
 
+    public void EnqueueFriendMessageForPlayer(string senderName, string detail)
+    {
+        EnqueueFriendMessageForPlayer(senderName, detail, false);
+    }
+
+    public void EnqueueFriendMessageForPlayer(string friendName, string detail, bool sentByPlayer)
+    {
+        PrototypeRewardGrant emptyReward = new PrototypeRewardGrant("Friend Message", 0, 0, 0, 0, new List<PrototypeRewardItem>());
+        string title = sentByPlayer ? $"Message to {friendName}" : $"Message from {friendName}";
+        playerInboxItems.Insert(0, PrototypeInboxItem.FromRewardGrant(PrototypeInboxCategory.Messages, title, detail, emptyReward, "Friends", null));
+        SyncLegacyPlayerInboxGifts();
+        SavePlayerInboxItems();
+    }
+
     public bool TryTakePlayerInboxGift(int index, out CovenInboxGiftInfo gift)
     {
         gift = default;
@@ -293,6 +307,32 @@ public sealed class CovenState
 
         item = playerInboxItems[index];
         playerInboxItems.RemoveAt(index);
+        SyncLegacyPlayerInboxGifts();
+        SavePlayerInboxItems();
+        return true;
+    }
+
+    public bool TryMarkPlayerInboxItemRead(int index, out PrototypeInboxItem item)
+    {
+        item = default;
+        if (index < 0 || index >= playerInboxItems.Count)
+        {
+            return false;
+        }
+
+        PrototypeInboxItem current = playerInboxItems[index];
+        item = new PrototypeInboxItem(
+            current.Id,
+            current.Category,
+            current.Title,
+            current.Detail,
+            current.Reward,
+            current.SourceLabel,
+            false,
+            current.CreatedAtUtcTicks,
+            current.ExpiresAtUtcTicks,
+            current.CovenGift);
+        playerInboxItems[index] = item;
         SyncLegacyPlayerInboxGifts();
         SavePlayerInboxItems();
         return true;

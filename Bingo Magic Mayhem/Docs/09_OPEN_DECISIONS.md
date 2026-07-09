@@ -77,15 +77,19 @@ Authority rule: locked docs and current handoffs win over older v0.1 docs and ar
 - Coven Ritual naming is strong/current: Ritual Board, Ritual Calls, Ritual Marks, Sigil, Sigil Set, Coven Points, Circle Rankings, Coven Orbs, Coven Emporium, Ritual Summary.
 - Coven Ritual cadence details, reward tiers, Emporium prices, and standings rewards remain open.
 
-## Rank and Level Systems
+## Aura, Rank, And Level Systems
 
-- Long account rank bands are locked in `LOCKED_DECISIONS.md` from Novice through Sorcerer Supreme.
+- Rank is now Aura-derived, not Level-derived. XP fills Level; Level is one input into Aura Strength; Aura Strength lifts Rank.
+- Long account rank titles are locked in `LOCKED_DECISIONS.md` from Novice through Sorcerer Supreme.
 - `11_RANK_REWARDS_V0.1.md` is the current single review surface for the rank benefit working draft.
+- Final Aura formula and source weights remain open.
+- Final Aura thresholds per rank remain open.
+- Purchase contribution to Aura must remain small, capped, and unable to independently cause rank advancement.
 - The Word handoff also contains a five-bracket benefit scale: Apprentice, Spellcaster, Wizard, Archmage, Oracle.
-- These two scales conflict in naming and granularity. Current likely interpretation: the long bands are account rank titles; the five-bracket table is a benefit/economy target that needs reconciliation.
+- Older Level-band language conflicts with the Aura model and should be treated as superseded threshold scaffolding, not final rank math.
 - Rank benefits are locked to four lanes: Identity, Daily Comfort, Social Help Capacity, and Rank-Up Chest.
 - Current rank benefit direction favors a smaller capped comfort scale instead of a universal percentage across all rewards.
-- Current working draft for rank benefit scale, not yet hard-coded:
+- Current working draft for rank benefit scale remains attached to rank titles, not final Aura thresholds:
   - Novice: 0% comfort bonus, 3 ingredient sends/day, 0 card gifts/trades/day.
   - Apprentice: 2% comfort bonus, 4 ingredient sends/day, 0 card gifts/trades/day.
   - Spellbinder: 4% comfort bonus, 5 ingredient sends/day, 1 card gift/trade/day.

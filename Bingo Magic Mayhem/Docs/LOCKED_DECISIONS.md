@@ -201,30 +201,40 @@ These decisions should not be contradicted without explicit user approval.
 - Oracle Alley should preserve scarcity around rare cards, gilded cards, ancient cards, wild assets, and special assets.
 - Oracle Alley should not become permanently open with unlimited rare access unless explicitly approved.
 
-## Rank Bands
+## Aura And Rank Bands
 
-Account rank bands are locked as:
+Aura Strength is the account-strength measure that lifts Rank. Level and XP are inputs into Aura, but Rank is not directly derived from Level alone.
 
-- Level 1-19: Novice
-- Level 20-49: Apprentice
-- Level 50-89: Spellbinder
-- Level 90-139: Mage
-- Level 140-199: Thaumaturge
-- Level 200-274: Mystic
-- Level 275-349: Enchanter
-- Level 350-424: Wizard
-- Level 425-499: Spellmaster
-- Level 500-624: Archmage
-- Level 625-774: Grand Archmage
-- Level 775-949: Paragon
-- Level 950-999: Ascendant
-- Level 1000+: Sorcerer Supreme
+Confirmed progression model:
 
-Rank bands are broad account progression eras and are separate from realm difficulty.
+- XP supports gameplay Level progression.
+- Aura Strength combines approved account progression sources, including Level/XP history, gameplay/account progress, collection/restoration progress, social contribution, and a small capped purchase contribution.
+- Rank is derived from Aura Strength.
+- Rank bands are broad account progression eras and are separate from realm difficulty.
+- Purchases may contribute to Aura, but only as a small capped support signal. Purchases cannot independently cause rank advancement or bypass gameplay, collection, or restoration progress.
+
+Current rank titles are locked as:
+
+- Novice
+- Apprentice
+- Spellbinder
+- Mage
+- Thaumaturge
+- Mystic
+- Enchanter
+- Wizard
+- Spellmaster
+- Archmage
+- Grand Archmage
+- Paragon
+- Ascendant
+- Sorcerer Supreme
+
+Previous numeric level ranges for these rank titles are superseded by the Aura model. Final Aura thresholds remain open and should be configured after the Aura formula is approved.
 
 ## Rank Benefit Principles
 
-- Rank progression rewards long-term play through four benefit lanes:
+- Rank progression rewards long-term Aura growth through four benefit lanes:
   - Identity: avatars, frames, daubs, badges, and titles.
   - Daily Comfort: small capped boosts to safe daily/account rewards.
   - Social Help Capacity: more ingredient help capacity and later card gift/trade capacity.

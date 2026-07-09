@@ -98,7 +98,10 @@ Source-of-truth order for future work:
 - Bewitchment Bazaar is the marketplace hub name.
 - Oracle Alley is the limited-time Oracle/tarot subset.
 - Madame Solange Lumiere is the Oracle/tarot NPC/event host and should not be repurposed into a general helper.
-- Account rank bands from Novice through Sorcerer Supreme are locked in `LOCKED_DECISIONS.md`.
+- Account rank titles from Novice through Sorcerer Supreme are locked in `LOCKED_DECISIONS.md`.
+- Rank is now Aura-derived, not Level-derived. XP fills Level; Level contributes to Aura Strength; Aura Strength determines Rank.
+- Aura Strength is intended to combine approved account-strength signals such as Level/XP history, gameplay/account progress, collection/restoration progress, social contribution, and a small capped purchase contribution.
+- Purchases may contribute to Aura only as a capped support signal and cannot independently cause rank advancement.
 - Rank benefits are locked to four lanes: Identity, Daily Comfort, Social Help Capacity, and Rank-Up Chest.
 - Rank benefits must not improve core gameplay odds, jackpot odds or values, rare-card odds, ingredient drop odds, trade value, competitive scoring, or room/realm progression requirements.
 - Rank benefit philosophy is confirmed: early ranks should mostly unlock identity/cosmetics, mid ranks should add modest convenience and social capacity, late ranks should increase capped daily comfort, and very late ranks should emphasize prestige/status rather than gameplay power.
@@ -135,6 +138,7 @@ Source-of-truth order for future work:
 - Final Ask for Help friend rotation schedule, request expiration, and exact ingredient eligibility limits.
 - Final Collection Assist MVP scope.
 - Final Coven roles, permissions, join settings, moderation, contribution rewards, and anti-abuse rules.
+- Final Aura formula, source weights, purchase cap, and Aura thresholds per rank.
 - Final promotion of rank benefit values from working draft to locked economy data.
 - Final rank-up chest power-up quantities, Clairvoyance durations, star frequency, cosmetic unlocks, card gift/trade eligibility, rounding rules, and per-rank implementation timing.
 - Final Realm 2+ progression, special room cadence, and replay reward rules.
@@ -172,7 +176,8 @@ Source-of-truth order for future work:
 - `applyRewardGrant`-style helpers need explicit claim semantics so Inbox gifts are not automatically granted before claim.
 - The prototype currently has many systems in `BingoPrototype.cs`; adding more social/collection features there will increase regression risk.
 - Collection Assist touches Covens, album state, ingredient state, requests, gifts, trading limits, and Inbox; it should be built in narrow passes.
-- Rank and level terminology can confuse UI and economy unless the long rank bands and benefit brackets are reconciled.
+- Existing prototype code/UI still derives Rank directly from Level and must be revised to the Aura model before production hardening.
+- Rank and level terminology can confuse UI and economy unless Level, Aura Strength, and Rank are kept separate.
 - Rank reward implementation can create unfairness if the comfort bonus is accidentally applied to gameplay odds, jackpot values, rarity odds, drop odds, trade value, or competitive scoring.
 - Grimoire card rarity, ingredient card identity, and potion inventory can blur together; UI must distinguish collection browsing from ingredient management.
 - Oracle Alley can damage scarcity if reward odds, limits, and currency sinks are not designed before implementation.

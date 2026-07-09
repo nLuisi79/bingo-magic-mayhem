@@ -13,6 +13,8 @@ public sealed class PlayerProfileState
         int manaCauldronCapacity,
         int level,
         string rankTitle,
+        string auraStrengthText,
+        string auraRankNoteText,
         string levelProgressText,
         string nextRankHintText,
         IReadOnlyList<ProfileInventoryLine> inventoryLines)
@@ -27,6 +29,8 @@ public sealed class PlayerProfileState
         ManaCauldronCapacity = manaCauldronCapacity;
         Level = level;
         RankTitle = rankTitle;
+        AuraStrengthText = auraStrengthText;
+        AuraRankNoteText = auraRankNoteText;
         LevelProgressText = levelProgressText;
         NextRankHintText = nextRankHintText;
         InventoryLines = inventoryLines;
@@ -42,6 +46,8 @@ public sealed class PlayerProfileState
     public int ManaCauldronCapacity { get; private set; }
     public int Level { get; private set; }
     public string RankTitle { get; private set; }
+    public string AuraStrengthText { get; private set; }
+    public string AuraRankNoteText { get; private set; }
     public string LevelProgressText { get; private set; }
     public string NextRankHintText { get; private set; }
     public IReadOnlyList<ProfileInventoryLine> InventoryLines { get; private set; }
@@ -74,6 +80,8 @@ public sealed class PlayerProfileState
             inventory.ManaCauldronCapacity,
             rewards.CurrentLevel,
             rewards.GetRankTitle(),
+            "Aura Strength TBD",
+            "Rank is Aura-derived; prototype still uses temporary level stand-in.",
             rewards.GetLevelProgressText(),
             rewards.GetNextRankHintText(),
             lines);

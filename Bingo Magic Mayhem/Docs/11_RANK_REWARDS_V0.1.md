@@ -4,11 +4,30 @@ Last updated: 2026-07-08
 
 Status: working draft for review. Do not hard-code these values until the user explicitly promotes them to locked economy data.
 
+Important correction: Rank is based on Aura Strength, not Level alone. The older level-band table is now a visual scaffold for rank order only, not final rank thresholds.
+
 This document gives account rank progression one clean review surface. It should be read with `LOCKED_DECISIONS.md`, `09_OPEN_DECISIONS.md`, and `10_VERIFIED_PROJECT_STATE.md`.
 
 ## Purpose
 
 Rank rewards should make long-term players feel recognized and gently supported without creating an unfair gameplay advantage.
+
+## Progression Model
+
+Use three separate concepts:
+
+- XP: gameplay-earned progress toward Level.
+- Level: gameplay progression and one input into Aura Strength.
+- Aura Strength: broader account-strength score that determines Rank.
+
+Aura Strength may include:
+
+- Level and XP history.
+- Realm, room, potion, restoration, and collection progress.
+- Healthy social/help participation.
+- Small capped purchase contribution.
+
+Purchases may contribute to Aura, but only as a capped support signal. A player must not be able to pay their way up the Rank ladder. Purchases cannot independently trigger rank advancement, bypass gameplay milestones, or become the dominant Aura source.
 
 The intended shape:
 
@@ -56,22 +75,37 @@ The comfort bonus should not apply to cards, rarity odds, jackpot outcomes, ingr
 
 ## Rank Reward Scale Draft
 
-| Level Band | Rank | Comfort Bonus | Ingredient Sends / Day | Card Gifts / Trades / Day | Rank-Up Chest Tier | Identity Unlock Direction |
+The threshold column is intentionally labeled as Aura Band TBD. Earlier level ranges are not final rank thresholds.
+
+| Aura Band | Rank | Comfort Bonus | Ingredient Sends / Day | Card Gifts / Trades / Day | Rank-Up Chest Tier | Identity Unlock Direction |
 |---|---|---:|---:|---:|---|---|
-| 1-19 | Novice | 0% | 3 | 0 | None | Starter profile identity |
-| 20-49 | Apprentice | 2% | 4 | 0 | Small | Basic frame |
-| 50-89 | Spellbinder | 4% | 5 | 1 | Small+ | First daub unlock |
-| 90-139 | Mage | 5% | 6 | 1 | Medium | Rank badge or title |
-| 140-199 | Thaumaturge | 8% | 7 | 1 | Medium+ | Avatar option |
-| 200-274 | Mystic | 10% | 8 | 2 | Strong | Premium frame |
-| 275-349 | Enchanter | 12% | 9 | 2 | Strong | Animated daub |
-| 350-424 | Wizard | 15% | 10 | 2 | Very Strong | Prestige frame |
-| 425-499 | Spellmaster | 18% | 11 | 3 | Very Strong | Advanced daub |
-| 500-624 | Archmage | 20% | 12 | 3 | Prestige | Elite title/frame |
-| 625-774 | Grand Archmage | 22% | 13 | 3 | Prestige+ | Rare avatar/robe |
-| 775-949 | Paragon | 25% | 14 | 4 | Premium | Paragon visual set |
-| 950-999 | Ascendant | 30% | 15 | 4 | Major | Ascendant visual set |
-| 1000+ | Sorcerer Supreme | 35% | 16 | 5 | Supreme | Exclusive treatment |
+| TBD | Novice | 0% | 3 | 0 | None | Starter profile identity |
+| TBD | Apprentice | 2% | 4 | 0 | Small | Basic frame |
+| TBD | Spellbinder | 4% | 5 | 1 | Small+ | First daub unlock |
+| TBD | Mage | 5% | 6 | 1 | Medium | Rank badge or title |
+| TBD | Thaumaturge | 8% | 7 | 1 | Medium+ | Avatar option |
+| TBD | Mystic | 10% | 8 | 2 | Strong | Premium frame |
+| TBD | Enchanter | 12% | 9 | 2 | Strong | Animated daub |
+| TBD | Wizard | 15% | 10 | 2 | Very Strong | Prestige frame |
+| TBD | Spellmaster | 18% | 11 | 3 | Very Strong | Advanced daub |
+| TBD | Archmage | 20% | 12 | 3 | Prestige | Elite title/frame |
+| TBD | Grand Archmage | 22% | 13 | 3 | Prestige+ | Rare avatar/robe |
+| TBD | Paragon | 25% | 14 | 4 | Premium | Paragon visual set |
+| TBD | Ascendant | 30% | 15 | 4 | Major | Ascendant visual set |
+| TBD | Sorcerer Supreme | 35% | 16 | 5 | Supreme | Exclusive treatment |
+
+## Aura Purchase Guardrail
+
+Purchases can be acknowledged by Aura but must remain small and capped.
+
+Working guardrail:
+
+- Purchases may contribute no more than a small minority of Aura progress within a rank band.
+- A purchase contribution should have diminishing returns after a low cap.
+- No direct rank-up purchase.
+- No purchase-only rank.
+- No purchase contribution that bypasses gameplay, collection, realm, potion, or restoration milestones.
+- Purchase contribution should never improve gameplay odds, jackpot odds/values, card rarity odds, ingredient drops, trade value, or competitive scoring.
 
 ## Social Capacity Rules
 
@@ -103,6 +137,9 @@ Chest contents still need exact quantities, star frequency, tier scaling, and ec
 
 - Exact rank-up chest power-up quantities, Clairvoyance durations, and star frequency.
 - Exact cosmetic unlock names and art assets.
+- Final Aura formula and source weights.
+- Final Aura thresholds per rank.
+- Exact purchase Aura cap and diminishing-return rule.
 - Whether card gifts and card trades share one daily limit or have separate limits.
 - Whether card gift/trade limits apply to sent gifts only, received gifts only, or both.
 - Whether the comfort bonus rounds up, rounds down, or uses reward-table-specific rounding.
@@ -110,7 +147,7 @@ Chest contents still need exact quantities, star frequency, tier scaling, and ec
 
 ## Implementation Notes
 
-- Keep the rank table data-driven or remote-configurable.
+- Keep the Aura/rank table data-driven or remote-configurable.
 - Do not bury rank bonuses inside individual reward grant helpers.
 - Reward grant helpers should receive explicit context so bonuses only apply to approved reward sources.
 - Inbox gifts should not auto-apply rank comfort bonuses unless the underlying reward source is explicitly eligible.
