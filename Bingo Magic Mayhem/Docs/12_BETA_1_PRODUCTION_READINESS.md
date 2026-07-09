@@ -1,6 +1,6 @@
 # Beta 1 Production Readiness
 
-Last updated: 2026-07-08
+Last updated: 2026-07-09
 
 Status: working planning checklist. This is not a gameplay/economy lock document. Use it to decide what must become real enough for Beta 1 and what can remain a labeled placeholder.
 
@@ -10,6 +10,8 @@ Read with:
 - `09_OPEN_DECISIONS.md`
 - `10_VERIFIED_PROJECT_STATE.md`
 - `11_RANK_REWARDS_V0.1.md`
+- `13_BETA_QA_CHECKLIST.md`
+- `14_UGS_PRODUCTION_OWNERSHIP_MAP.md`
 - `IMPLEMENTATION_GAPS.md`
 
 ## Goal
@@ -106,12 +108,21 @@ Candidate production paths:
 - PlayFab.
 - Custom backend.
 
+UGS is the preferred Beta backend path unless a concrete blocker appears. Implement toward these services through replaceable facades rather than scattering SDK calls through gameplay/UI code:
+
+- Authentication for anonymous first-run accounts and later Apple/Google/Facebook linking.
+- Cloud Save for durable profile/progress state.
+- Economy for server-owned balances, inventory items, album/card entries, and grant validation.
+- Remote Config for tunable room, reward, odds, event, and offer values.
+- Cloud Code for server-authoritative reward rolls, duplicate/card conversion checks, social grants, and anti-abuse validation.
+
 Decision needed before production hardening:
 
 - Which backend owns account identity?
 - Which backend owns inventory and reward grants?
 - Which values are remote-configurable?
 - Which actions must be server-authoritative?
+- Whether any concrete blocker forces the project away from the preferred UGS Beta backend path.
 
 ### Config And Tuning
 
@@ -133,6 +144,59 @@ Rules:
 - Do not hard-code unresolved economy values as final.
 - Keep draft values labeled as Beta/test config.
 - Make config readable enough for product review.
+
+### Content And Asset Delivery
+
+Production content should be planned so seasonal rooms, card art, event assets, UI skins, and future room themes can be added without app-store updates where practical.
+
+Direction to evaluate:
+
+- Use Unity Addressables for loadable room themes, card/ingredient art, seasonal event content, and large UI asset groups.
+- Store stable asset keys in content/catalog data instead of hardcoded scene references.
+- Keep catalog metadata separate from final art so temporary Beta assets can be replaced cleanly.
+- Define album/card/ingredient data so UI can instantiate reusable templates from IDs, set/page info, rarity/frame data, and Addressable asset keys.
+
+Open decisions:
+
+- Which asset groups must be bundled for first install vs downloadable.
+- Whether Addressables become required for Beta 1 or remain a production-hardening task.
+- Final naming conventions for Addressable keys, catalog IDs, and content versioning.
+
+### UI Performance And Implementation
+
+Bingo UI can become expensive once multiple active cards, daub states, animations, particles, power-up feedback, and reward overlays are visible at once.
+
+Direction to evaluate:
+
+- Keep 1/2/4/6 card play performance-safe on mobile before increasing polish.
+- Continue using UGUI where practical, but isolate frequently changing bingo-card surfaces from static layout canvases to reduce unnecessary rebuilds.
+- Evaluate UI Toolkit only for screens where its workflow and performance clearly help; do not rewrite working prototype UI solely for novelty.
+- Use Sprite Atlases for repeated UI/card/ingredient icons.
+- Use 9-sliced sprites for scalable panels, buttons, popups, and book/page surfaces.
+- Keep visual feedback, particles, audio, and animation as client-side presentation that reacts to game state rather than owning reward or gameplay truth.
+
+Open decisions:
+
+- Final UI framework split, if any, between UGUI and UI Toolkit.
+- Final asset atlas grouping and memory budget.
+- Final mobile performance targets for active multi-card play.
+
+### Network And Authority Prototype
+
+If shared rooms, synchronized number calls, competitive bingo calls, or multiplayer-adjacent social state become Beta scope, create a greybox technical prototype before visual polish.
+
+Direction to evaluate:
+
+- Test server-owned number calls, round state, and bingo verification with plain UI first.
+- Keep bingo/reward validation server-authoritative for economy-sensitive outcomes.
+- Decouple network/data packets from local presentation effects.
+- Consider UGS Lobby/Relay/Netcode or Photon only after deciding whether the product needs real-time shared rooms or mainly asynchronous social systems.
+
+Open decisions:
+
+- Whether Beta 1 needs real-time multiplayer at all.
+- Whether bingo number calls are local-simulated, backend-seeded, or live server-broadcast.
+- Which social and reward actions require server authority before external testing.
 
 ### Code Structure
 

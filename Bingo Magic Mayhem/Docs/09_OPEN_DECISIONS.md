@@ -1,6 +1,6 @@
 # Open Decisions Audit
 
-Last updated: 2026-07-08
+Last updated: 2026-07-09
 
 This file is the verified open-decision register for the current Unity prototype. It consolidates `OPEN_DECISIONS.md`, `IMPLEMENTATION_GAPS.md`, the current prototype state file, the locked-system Word handoffs, `covens.txt`, and the comprehensive June 26 handoff.
 
@@ -143,3 +143,9 @@ Authority rule: locked docs and current handoffs win over older v0.1 docs and ar
 - Remote config/data-driven reward tables are strongly required for economy and odds.
 - `BingoPrototype.cs` remains monolithic and needs future decomposition, but refactors should remain behavior-preserving.
 - Ingredient/social help state needs durable fields: eligibility, daily help used/limit, selected recipients, sources, and Wild inventory.
+- UGS is the preferred Beta backend path unless a concrete blocker appears. Begin planning and implementation around Unity Authentication, Cloud Save, Economy, Remote Config, Analytics, and Cloud Code through replaceable service facades. Firebase, PlayFab, custom backend, or hybrid remain fallback options, not equal first-pass targets.
+- Economy-sensitive actions should become server-authoritative before production use: inventory grants, reward rolls, duplicate/card conversions, social grants, Freebie redemptions, daily claims, purchases/receipts, and abuse-prone trading/gifting.
+- Unity Addressables are a strong content-delivery candidate for seasonal rooms, card/ingredient art, event assets, and large UI asset groups, but exact Beta 1 requirement and asset-bundle strategy remain open.
+- Album/card/ingredient UI should trend toward reusable data-populated templates with stable catalog IDs, set/page data, rarity/frame data, and asset keys; final metadata schema remains open.
+- Multi-card bingo UI performance needs a production pass before broad mobile testing: canvas rebuild strategy, Sprite Atlas grouping, 9-sliced scalable UI, animation/particle budget, and final UGUI vs UI Toolkit split remain open.
+- Real-time multiplayer is not locked. If live shared rooms or synchronized bingo calls become scope, build a greybox network-authority prototype before visual polish.

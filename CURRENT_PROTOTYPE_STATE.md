@@ -13,6 +13,8 @@ Use this as the short entry point for fresh Codex threads. The detailed rules ar
 - Numbered open-decision audit: `Bingo Magic Mayhem/Docs/09_OPEN_DECISIONS.md`
 - Rank rewards working draft: `Bingo Magic Mayhem/Docs/11_RANK_REWARDS_V0.1.md`
 - Beta 1 production readiness checklist: `Bingo Magic Mayhem/Docs/12_BETA_1_PRODUCTION_READINESS.md`
+- Repeatable Beta QA checklist: `Bingo Magic Mayhem/Docs/13_BETA_QA_CHECKLIST.md`
+- UGS production ownership map: `Bingo Magic Mayhem/Docs/14_UGS_PRODUCTION_OWNERSHIP_MAP.md`
 - Older baseline docs:
   - `Bingo Magic Mayhem/Docs/Gameplay Rules v0.1.md`
   - `Bingo Magic Mayhem/Docs/Game Systems Roadmap v0.1.md`
@@ -55,6 +57,7 @@ Most recent result: build succeeded with 0 errors and 2 warnings.
 - The project is intended for production and external testing.
 - Continue finishing visible Beta feature coverage, but start production hardening in parallel.
 - New planning surface: `Bingo Magic Mayhem/Docs/12_BETA_1_PRODUCTION_READINESS.md`.
+- UGS is the preferred Beta backend path unless a concrete blocker appears; implementation should proceed through replaceable service facades with local-first durable state and an action journal.
 - Key transition risks: `PlayerPrefs` local persistence, giant prototype script concentration, unresolved backend/account strategy, reward/config tuning still embedded in prototype code, and social/economy anti-abuse rules still draft.
 
 ## Current Implemented Prototype Areas

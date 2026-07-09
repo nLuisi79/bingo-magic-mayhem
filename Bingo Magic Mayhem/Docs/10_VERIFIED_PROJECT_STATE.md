@@ -1,6 +1,6 @@
 # Verified Project State
 
-Last updated: 2026-07-08
+Last updated: 2026-07-09
 
 This audit summarizes the current verified state of the Bingo Magic Mayhem repository and project documentation. It is not a gameplay/economy finalization document. It separates locked decisions from strong preferences, unresolved items, superseded ideas, and future implementation risks.
 
@@ -15,6 +15,7 @@ Active Unity docs:
 - `Bingo Magic Mayhem/Docs/LOCKED_DECISIONS.md`
 - `Bingo Magic Mayhem/Docs/OPEN_DECISIONS.md`
 - `Bingo Magic Mayhem/Docs/IMPLEMENTATION_GAPS.md`
+- `Bingo Magic Mayhem/Docs/12_BETA_1_PRODUCTION_READINESS.md`
 - `Bingo Magic Mayhem/Docs/11_RANK_REWARDS_V0.1.md`
 - `Bingo Magic Mayhem/Docs/Gameplay Rules v0.1.md`
 - `Bingo Magic Mayhem/Docs/Game Systems Roadmap v0.1.md`
@@ -30,8 +31,12 @@ Archive/reference:
 
 Expected but missing:
 
-- `AGENTS.md`
 - `docs/00_READ_ME_FIRST.md`
+
+Present at repository root rather than expected nested path:
+
+- `AGENTS.md`
+- `00_READ_ME_FIRST.md`
 
 ## Documentation Structure
 
@@ -123,6 +128,10 @@ Source-of-truth order for future work:
 - Current proposed rank comfort bonus targets only safe daily/account sources: Daily Bonus mana, Daily Spin common mana, Mana Cauldron refill/capacity, level-up currency rewards, and Enchanted Trail free-path currency.
 - Current proposed social-capacity draft reaches 16 ingredient sends/day and 5 card gifts/trades/day at Sorcerer Supreme, while keeping Coven ingredient wish-list requests at 10 total requested quantity per 48-hour refresh.
 - Current proposed rank-up chest categories are power-ups, Clairvoyance, and infrequent stars.
+- Unity Addressables are a strong technical preference for downloadable/replaceable seasonal rooms, card/ingredient art, event content, and large UI asset groups, but they are not yet a locked Beta 1 requirement.
+- UGS is the preferred Beta backend path unless a concrete blocker appears, especially Authentication, Cloud Save, Economy, Remote Config, Analytics, and Cloud Code. Firebase, PlayFab, custom backend, or hybrid remain fallback options rather than equal first-pass targets.
+- Multi-card bingo UI should receive a mobile performance pass around canvas rebuilds, Sprite Atlases, 9-slicing, animation/particle budget, and reusable data-driven UI templates.
+- Economy-sensitive reward, inventory, social, daily, Freebie, and purchase actions should trend server-authoritative before production use.
 
 ## Unresolved Decisions
 
@@ -146,6 +155,10 @@ Source-of-truth order for future work:
 - Final Oracle Alley timing, Oracle Dust economy, reward table, odds, and scarcity limits.
 - Final backend/profile persistence and remote config implementation.
 - Final visual asset pipeline and which mockups are exact layout references versus mood references.
+- Whether any concrete blocker forces a move away from the preferred UGS Beta backend path toward Firebase, PlayFab, custom backend, or hybrid.
+- Final content delivery plan: bundled assets vs Addressables/downloadable content, asset-key naming, catalog versioning, and first-install size targets.
+- Final UI technology/performance plan: UGUI-only, selective UI Toolkit use, canvas isolation strategy, atlas grouping, 9-slice standards, and mobile performance targets.
+- Whether real-time shared rooms/synchronized number calls are product scope, or whether Beta can remain local-simulated plus asynchronous social systems.
 
 ## Outdated or Replaced Ideas
 
@@ -183,4 +196,8 @@ Source-of-truth order for future work:
 - Oracle Alley can damage scarcity if reward odds, limits, and currency sinks are not designed before implementation.
 - Freebie deep links need expiration and duplicate prevention before public/social use.
 - Remote-tunable economy tables should be introduced before locking final values into code.
+- Backend guidance should treat UGS as the preferred Beta backend path, but should not deeply couple gameplay/economy/social code to UGS SDK calls without service facades and should not lock Photon, Netcode, or true multiplayer before the product scope decision is made.
+- Addressables and remote content need catalog/versioning discipline, otherwise seasonal assets and card art can become difficult to migrate.
+- Multi-card UI effects can become a mobile performance bottleneck if daub animations, particles, and reward overlays rebuild too much static UI.
+- Client-side visuals, animation, sound, and daub feedback should stay decoupled from server-owned gameplay/reward truth.
 - Documentation may drift again unless `CURRENT_PROTOTYPE_STATE.md` and the numbered verified docs are updated after major decisions.
