@@ -42,6 +42,7 @@ namespace BingoMagicMayhem.Infrastructure
         public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
         public IdentitySafetySnapshot IdentitySafety = new IdentitySafetySnapshot();
         public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
+        public AnalyticsSafetySnapshot AnalyticsSafety = new AnalyticsSafetySnapshot();
         public CloudProfileSyncStatus ProfileCloudSync = new CloudProfileSyncStatus();
         public RemoteConfigSafetySnapshot RemoteConfigSafety = new RemoteConfigSafetySnapshot();
         public List<DiagnosticsEventCount> EventCounts = new List<DiagnosticsEventCount>();
@@ -105,6 +106,7 @@ namespace BingoMagicMayhem.Infrastructure
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
                 IdentitySafety = IdentitySafetyDiagnostics.Capture(identity, remoteConfigSafety),
                 JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
+                AnalyticsSafety = AnalyticsSafetyDiagnostics.Capture(records, remoteConfigSafety),
                 ProfileCloudSync = profileSettingsCloudSync.Status,
                 RemoteConfigSafety = remoteConfigSafety,
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")

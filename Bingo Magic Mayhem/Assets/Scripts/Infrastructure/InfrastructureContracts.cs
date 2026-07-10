@@ -112,10 +112,27 @@ namespace BingoMagicMayhem.Infrastructure
         public bool UgsAdaptersEnabled;
         public bool CloudProfileSyncEnabled;
         public bool JournalUploadEnabled;
+        public bool AnalyticsUploadEnabled;
         public bool DiagnosticsExportEnabled;
         public bool LiveRuntimeChangeAllowed;
         public string Reason = "";
         public List<RemoteConfigSafetyEntry> Entries = new List<RemoteConfigSafetyEntry>();
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
+    [Serializable]
+    public sealed class AnalyticsSafetySnapshot
+    {
+        public string PolicyVersion = "";
+        public bool AdapterCompiled;
+        public bool ConsentApproved;
+        public bool LiveUploadEnabled;
+        public bool AllowsRuntimeUpload;
+        public bool RemoteFlagsRequestUpload;
+        public int TotalAnalyticsRecordCount;
+        public int AllowlistedAnalyticsRecordCount;
+        public int BlockedAnalyticsRecordCount;
+        public string Reason = "";
         public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
     }
 

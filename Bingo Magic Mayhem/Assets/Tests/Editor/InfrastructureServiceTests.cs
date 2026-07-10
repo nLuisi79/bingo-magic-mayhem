@@ -131,6 +131,7 @@ public sealed class InfrastructureServiceTests
                 new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.UgsAdaptersEnabledKey, "true"),
                 new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.CloudProfileSyncEnabledKey, "true"),
                 new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.JournalUploadEnabledKey, "true"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.AnalyticsUploadEnabledKey, "true"),
                 new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.DiagnosticsExportEnabledKey, "true")
             }));
 
@@ -171,6 +172,7 @@ public sealed class InfrastructureServiceTests
         Assert.That(safety.UgsAdaptersEnabled, Is.False);
         Assert.That(safety.CloudProfileSyncEnabled, Is.False);
         Assert.That(safety.JournalUploadEnabled, Is.False);
+        Assert.That(safety.AnalyticsUploadEnabled, Is.False);
         Assert.That(safety.DiagnosticsExportEnabled, Is.True);
         Assert.That(safety.LiveRuntimeChangeAllowed, Is.False);
         Assert.That(safety.MissingRequiredKeyCount, Is.EqualTo(0));
@@ -188,6 +190,7 @@ public sealed class InfrastructureServiceTests
             new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.UgsAdaptersEnabledKey, "true"),
             new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.CloudProfileSyncEnabledKey, "true"),
             new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.JournalUploadEnabledKey, "true"),
+            new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.AnalyticsUploadEnabledKey, "true"),
             new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.DiagnosticsExportEnabledKey, "false"),
             new RemoteConfigEntry("economy.hidden_tuning", "999")
         });
@@ -197,9 +200,10 @@ public sealed class InfrastructureServiceTests
         Assert.That(safety.UgsAdaptersEnabled, Is.True);
         Assert.That(safety.CloudProfileSyncEnabled, Is.True);
         Assert.That(safety.JournalUploadEnabled, Is.True);
+        Assert.That(safety.AnalyticsUploadEnabled, Is.True);
         Assert.That(safety.DiagnosticsExportEnabled, Is.False);
         Assert.That(safety.LiveRuntimeChangeAllowed, Is.False);
-        Assert.That(safety.RiskyEnabledKeyCount, Is.EqualTo(3));
+        Assert.That(safety.RiskyEnabledKeyCount, Is.EqualTo(4));
         Assert.That(safety.UnknownKeyCount, Is.EqualTo(1));
         Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
             check.Name == "Risky enable flags" && check.Status == BackendPreflightStatus.Blocked));
@@ -222,6 +226,7 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.RemoteConfigSafety.UgsAdaptersEnabled, Is.False);
         Assert.That(diagnostics.RemoteConfigSafety.CloudProfileSyncEnabled, Is.False);
         Assert.That(diagnostics.RemoteConfigSafety.JournalUploadEnabled, Is.False);
+        Assert.That(diagnostics.RemoteConfigSafety.AnalyticsUploadEnabled, Is.False);
     }
 
     [Test]
@@ -239,6 +244,67 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.IdentitySafety.AllowsCloudSignIn, Is.False);
         Assert.That(diagnostics.IdentitySafety.AllowsAccountLink, Is.False);
         Assert.That(diagnostics.IdentitySafety.AllowsRecovery, Is.False);
+    }
+
+    [Test]
+    public void AnalyticsSafety_DefaultsKeepUploadBlocked()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.AnalyticsSafety, Is.Not.Null);
+        Assert.That(diagnostics.AnalyticsSafety.PolicyVersion, Is.EqualTo("analytics_safety_v0.1"));
+        Assert.That(diagnostics.AnalyticsSafety.LiveUploadEnabled, Is.False);
+        Assert.That(diagnostics.AnalyticsSafety.AllowsRuntimeUpload, Is.False);
+        Assert.That(diagnostics.AnalyticsSafety.RemoteFlagsRequestUpload, Is.False);
+        Assert.That(diagnostics.AnalyticsSafety.AllowlistedAnalyticsRecordCount, Is.GreaterThanOrEqualTo(1));
+        Assert.That(diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void AnalyticsSafety_FlagsNonAllowlistedEventsAsLocalOnly()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        services.Analytics.Track("custom_debug_marker", "{}");
+
+        AnalyticsSafetySnapshot safety = AnalyticsSafetyDiagnostics.Capture(
+            services.ActionJournal.ReadAll(),
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults())));
+
+        Assert.That(safety.TotalAnalyticsRecordCount, Is.GreaterThanOrEqualTo(2));
+        Assert.That(safety.BlockedAnalyticsRecordCount, Is.EqualTo(1));
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Event allowlist" && check.Status == BackendPreflightStatus.Warning));
+    }
+
+    [Test]
+    public void AnalyticsSafety_RemoteConfigCannotEnableUpload()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        AnalyticsSafetySnapshot safety = AnalyticsSafetyDiagnostics.Capture(
+            services.ActionJournal.ReadAll(),
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(new[]
+            {
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.UgsAdaptersEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.CloudProfileSyncEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.JournalUploadEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.AnalyticsUploadEnabledKey, "true"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.DiagnosticsExportEnabledKey, "true")
+            })));
+
+        Assert.That(safety.RemoteFlagsRequestUpload, Is.True);
+        Assert.That(safety.LiveUploadEnabled, Is.False);
+        Assert.That(safety.AllowsRuntimeUpload, Is.False);
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Remote Config bypass" && check.Status == BackendPreflightStatus.Blocked));
     }
 
     [Test]

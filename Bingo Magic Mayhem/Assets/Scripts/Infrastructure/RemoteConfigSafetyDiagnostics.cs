@@ -9,6 +9,7 @@ namespace BingoMagicMayhem.Infrastructure
         public const string UgsAdaptersEnabledKey = "infra_ugs_adapters_enabled";
         public const string CloudProfileSyncEnabledKey = "infra_cloud_profile_sync_enabled";
         public const string JournalUploadEnabledKey = "infra_journal_upload_enabled";
+        public const string AnalyticsUploadEnabledKey = "infra_analytics_upload_enabled";
         public const string DiagnosticsExportEnabledKey = "infra_diagnostics_export_enabled";
 
         private static readonly string[] RequiredKeys =
@@ -16,6 +17,7 @@ namespace BingoMagicMayhem.Infrastructure
             UgsAdaptersEnabledKey,
             CloudProfileSyncEnabledKey,
             JournalUploadEnabledKey,
+            AnalyticsUploadEnabledKey,
             DiagnosticsExportEnabledKey
         };
 
@@ -29,6 +31,7 @@ namespace BingoMagicMayhem.Infrastructure
                 new RemoteConfigEntry(UgsAdaptersEnabledKey, "false"),
                 new RemoteConfigEntry(CloudProfileSyncEnabledKey, "false"),
                 new RemoteConfigEntry(JournalUploadEnabledKey, "false"),
+                new RemoteConfigEntry(AnalyticsUploadEnabledKey, "false"),
                 new RemoteConfigEntry(DiagnosticsExportEnabledKey, "true")
             };
         }
@@ -49,9 +52,10 @@ namespace BingoMagicMayhem.Infrastructure
                 UgsAdaptersEnabled = remoteConfig.GetBool(UgsAdaptersEnabledKey, false),
                 CloudProfileSyncEnabled = remoteConfig.GetBool(CloudProfileSyncEnabledKey, false),
                 JournalUploadEnabled = remoteConfig.GetBool(JournalUploadEnabledKey, false),
+                AnalyticsUploadEnabled = remoteConfig.GetBool(AnalyticsUploadEnabledKey, false),
                 DiagnosticsExportEnabled = remoteConfig.GetBool(DiagnosticsExportEnabledKey, true),
                 LiveRuntimeChangeAllowed = false,
-                Reason = "Remote Config is diagnostics-only for infrastructure flags; live UGS, Cloud Save sync, and journal upload remain disabled by code gates."
+                Reason = "Remote Config is diagnostics-only for infrastructure flags; live UGS, Cloud Save sync, analytics upload, and journal upload remain disabled by code gates."
             };
 
             foreach (string key in RequiredKeys)
@@ -130,7 +134,7 @@ namespace BingoMagicMayhem.Infrastructure
                 "Risky enable flags",
                 snapshot.RiskyEnabledKeyCount == 0 ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
                 snapshot.RiskyEnabledKeyCount == 0
-                    ? "UGS adapters, Cloud Save profile sync, and journal upload flags are off."
+                    ? "UGS adapters, Cloud Save profile sync, analytics upload, and journal upload flags are off."
                     : "One or more live/cloud infrastructure flags are true, but runtime remains code-gated off until approved.");
 
             AddCheck(
@@ -148,7 +152,8 @@ namespace BingoMagicMayhem.Infrastructure
         {
             return key == UgsAdaptersEnabledKey ||
                    key == CloudProfileSyncEnabledKey ||
-                   key == JournalUploadEnabledKey;
+                   key == JournalUploadEnabledKey ||
+                   key == AnalyticsUploadEnabledKey;
         }
 
         private static void AddCheck(

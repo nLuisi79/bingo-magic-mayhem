@@ -5836,6 +5836,11 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"Identity safety: {diagnostics.IdentitySafety.PolicyVersion} | provider {diagnostics.IdentitySafety.Provider} | cloud auth {(diagnostics.IdentitySafety.IsCloudAuthenticated ? "on" : "off")} | account link {(diagnostics.IdentitySafety.AllowsAccountLink ? "ready" : "blocked")}");
         }
 
+        if (diagnostics.AnalyticsSafety != null)
+        {
+            builder.AppendLine($"Analytics safety: {diagnostics.AnalyticsSafety.PolicyVersion} | upload {(diagnostics.AnalyticsSafety.LiveUploadEnabled ? "on" : "off")} | allowlisted {diagnostics.AnalyticsSafety.AllowlistedAnalyticsRecordCount} | blocked {diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount}");
+        }
+
         if (diagnostics.ProfileCloudSync != null)
         {
             builder.AppendLine($"Profile Cloud Save: live sync {(diagnostics.ProfileCloudSync.LiveSyncEnabled ? "on" : "off")} | upload {(diagnostics.ProfileCloudSync.CanUpload ? "ready" : "blocked")} | download {(diagnostics.ProfileCloudSync.CanDownload ? "ready" : "blocked")}");
@@ -5865,6 +5870,20 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"- retain local: {diagnostics.JournalSyncPolicy.RetainLocalRecordCount}, summary-export allowed: {diagnostics.JournalSyncPolicy.ExportSummaryAllowedRecordCount}");
             builder.AppendLine($"- status rows: pending {diagnostics.JournalSyncPolicy.PendingRecordCount}, applied {diagnostics.JournalSyncPolicy.AppliedLocalRecordCount}, synced {diagnostics.JournalSyncPolicy.SyncedRecordCount}, rejected {diagnostics.JournalSyncPolicy.RejectedRecordCount}, compensated {diagnostics.JournalSyncPolicy.CompensatedRecordCount}");
             builder.AppendLine("- live upload queue is disabled; no journal rows are uploaded in this build.");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("ANALYTICS SAFETY");
+        if (diagnostics.AnalyticsSafety != null)
+        {
+            builder.AppendLine($"- adapter compiled {diagnostics.AnalyticsSafety.AdapterCompiled}, consent approved {diagnostics.AnalyticsSafety.ConsentApproved}, live upload enabled {diagnostics.AnalyticsSafety.LiveUploadEnabled}");
+            builder.AppendLine($"- total analytics rows {diagnostics.AnalyticsSafety.TotalAnalyticsRecordCount}, allowlisted {diagnostics.AnalyticsSafety.AllowlistedAnalyticsRecordCount}, blocked {diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount}");
+            builder.AppendLine($"- remote flags request upload {diagnostics.AnalyticsSafety.RemoteFlagsRequestUpload}, runtime upload allowed {diagnostics.AnalyticsSafety.AllowsRuntimeUpload}");
+            builder.AppendLine($"- reason: {diagnostics.AnalyticsSafety.Reason}");
+            foreach (BackendPreflightCheck check in diagnostics.AnalyticsSafety.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
         }
 
         builder.AppendLine();

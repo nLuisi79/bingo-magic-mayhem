@@ -222,7 +222,8 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm status changes append transition records rather than rewriting existing actions.
 - Confirm a local guest id remains stable across facade recreation.
 - Confirm local Remote Config reads typed supplied defaults and returns explicit fallbacks for missing values.
-- Confirm Remote Config safety diagnostics show policy `infra_remote_config_safety_v0.1`, UGS adapters off, profile Cloud Save sync off, journal upload off, diagnostics export on, risky enabled count 0, missing required key count 0, and unknown key count 0 for the default local composition.
+- Confirm Remote Config safety diagnostics show policy `infra_remote_config_safety_v0.1`, UGS adapters off, profile Cloud Save sync off, journal upload off, analytics upload off, diagnostics export on, risky enabled count 0, missing required key count 0, and unknown key count 0 for the default local composition.
+- Confirm analytics safety diagnostics show policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted infrastructure analytics rows counted separately from local-only blocked rows, and Remote Config bypass blocked.
 - Confirm test-only risky Remote Config values are reported as blocked diagnostics and do not enable live UGS, Cloud Save upload/download, or journal upload.
 - Confirm UGS packages are resolved but no live cloud calls, analytics uploads, adapter define, or gameplay-state migrations are active in this pass.
 - Confirm profile/settings changes append local journal records and malformed profile snapshots recover through the last-known-good backup.
@@ -241,7 +242,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds.
+- Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds. Analytics safety scaffolding adds three more EditMode tests for the next Unity Test Runner pass.
 
 ## Documentation Follow-Up After Each Pass
 
