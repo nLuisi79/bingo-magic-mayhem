@@ -42,6 +42,7 @@ namespace BingoMagicMayhem.Infrastructure
         public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
         public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
         public CloudProfileSyncStatus ProfileCloudSync = new CloudProfileSyncStatus();
+        public RemoteConfigSafetySnapshot RemoteConfigSafety = new RemoteConfigSafetySnapshot();
         public List<DiagnosticsEventCount> EventCounts = new List<DiagnosticsEventCount>();
         public string CapturedAtUtc = "";
     }
@@ -64,6 +65,7 @@ namespace BingoMagicMayhem.Infrastructure
         private readonly JsonLinesActionJournal journal;
         private readonly IIdentityFacade identity;
         private readonly IProfileSettingsCloudSync profileSettingsCloudSync;
+        private readonly IRemoteConfigFacade remoteConfig;
 
         public InfrastructureDiagnosticsFacade(
             ServiceEnvironment environment,
@@ -71,7 +73,8 @@ namespace BingoMagicMayhem.Infrastructure
             JsonFileDurableStateStore stateStore,
             JsonLinesActionJournal journal,
             IIdentityFacade identity,
-            IProfileSettingsCloudSync profileSettingsCloudSync)
+            IProfileSettingsCloudSync profileSettingsCloudSync,
+            IRemoteConfigFacade remoteConfig)
         {
             this.environment = environment;
             this.exportDirectory = exportDirectory ?? throw new ArgumentNullException(nameof(exportDirectory));
@@ -79,6 +82,7 @@ namespace BingoMagicMayhem.Infrastructure
             this.journal = journal ?? throw new ArgumentNullException(nameof(journal));
             this.identity = identity ?? throw new ArgumentNullException(nameof(identity));
             this.profileSettingsCloudSync = profileSettingsCloudSync ?? throw new ArgumentNullException(nameof(profileSettingsCloudSync));
+            this.remoteConfig = remoteConfig ?? throw new ArgumentNullException(nameof(remoteConfig));
         }
 
         public InfrastructureDiagnosticsSnapshot Capture()
@@ -99,6 +103,7 @@ namespace BingoMagicMayhem.Infrastructure
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
                 JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
                 ProfileCloudSync = profileSettingsCloudSync.Status,
+                RemoteConfigSafety = RemoteConfigSafetyDiagnostics.Capture(remoteConfig),
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")
             };
             snapshot.SnapshotCount = snapshot.Snapshots.Count;

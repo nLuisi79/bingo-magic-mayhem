@@ -69,6 +69,18 @@ namespace BingoMagicMayhem.Infrastructure
             return TryGet(key, out string value) && bool.TryParse(value, out bool parsed) ? parsed : fallback;
         }
 
+        public IReadOnlyList<RemoteConfigEntry> GetAllEntries()
+        {
+            List<RemoteConfigEntry> entries = new List<RemoteConfigEntry>();
+            foreach (KeyValuePair<string, string> pair in values)
+            {
+                entries.Add(new RemoteConfigEntry(pair.Key, pair.Value));
+            }
+
+            entries.Sort((left, right) => string.CompareOrdinal(left.Key, right.Key));
+            return entries;
+        }
+
         private bool TryGet(string key, out string value)
         {
             value = "";

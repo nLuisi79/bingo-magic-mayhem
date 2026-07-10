@@ -5841,6 +5841,11 @@ public class BingoPrototype : MonoBehaviour
             }
         }
 
+        if (diagnostics.RemoteConfigSafety != null)
+        {
+            builder.AppendLine($"Remote Config safety: {diagnostics.RemoteConfigSafety.PolicyVersion} | risky enabled {diagnostics.RemoteConfigSafety.RiskyEnabledKeyCount} | missing {diagnostics.RemoteConfigSafety.MissingRequiredKeyCount} | unknown {diagnostics.RemoteConfigSafety.UnknownKeyCount}");
+        }
+
         builder.AppendLine();
         builder.AppendLine("SNAPSHOT HEALTH");
         foreach (SnapshotDiagnosticsEntry entry in diagnostics.Snapshots)
@@ -5875,6 +5880,20 @@ public class BingoPrototype : MonoBehaviour
                 }
             }
             foreach (BackendPreflightCheck check in diagnostics.ProfileCloudSync.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("REMOTE CONFIG SAFETY");
+        if (diagnostics.RemoteConfigSafety != null)
+        {
+            builder.AppendLine($"- source: {diagnostics.RemoteConfigSafety.Source}, revision {diagnostics.RemoteConfigSafety.Revision}, live runtime changes allowed {diagnostics.RemoteConfigSafety.LiveRuntimeChangeAllowed}");
+            builder.AppendLine($"- UGS adapters {diagnostics.RemoteConfigSafety.UgsAdaptersEnabled}, Cloud profile sync {diagnostics.RemoteConfigSafety.CloudProfileSyncEnabled}, journal upload {diagnostics.RemoteConfigSafety.JournalUploadEnabled}, diagnostics export {diagnostics.RemoteConfigSafety.DiagnosticsExportEnabled}");
+            builder.AppendLine($"- required keys: {diagnostics.RemoteConfigSafety.PresentRequiredKeyCount}/{diagnostics.RemoteConfigSafety.RequiredKeyCount}, risky enabled {diagnostics.RemoteConfigSafety.RiskyEnabledKeyCount}, unknown {diagnostics.RemoteConfigSafety.UnknownKeyCount}");
+            builder.AppendLine($"- reason: {diagnostics.RemoteConfigSafety.Reason}");
+            foreach (BackendPreflightCheck check in diagnostics.RemoteConfigSafety.Checks)
             {
                 builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
             }

@@ -110,6 +110,70 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void RemoteConfigSafety_DefaultsKeepLiveInfrastructureDisabled()
+    {
+        LocalRemoteConfigFacade config = new LocalRemoteConfigFacade(RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults());
+
+        RemoteConfigSafetySnapshot safety = RemoteConfigSafetyDiagnostics.Capture(config);
+
+        Assert.That(safety.PolicyVersion, Is.EqualTo("infra_remote_config_safety_v0.1"));
+        Assert.That(safety.UgsAdaptersEnabled, Is.False);
+        Assert.That(safety.CloudProfileSyncEnabled, Is.False);
+        Assert.That(safety.JournalUploadEnabled, Is.False);
+        Assert.That(safety.DiagnosticsExportEnabled, Is.True);
+        Assert.That(safety.LiveRuntimeChangeAllowed, Is.False);
+        Assert.That(safety.MissingRequiredKeyCount, Is.EqualTo(0));
+        Assert.That(safety.UnknownKeyCount, Is.EqualTo(0));
+        Assert.That(safety.RiskyEnabledKeyCount, Is.EqualTo(0));
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Risky enable flags" && check.Status == BackendPreflightStatus.Pass));
+    }
+
+    [Test]
+    public void RemoteConfigSafety_FlagsRiskyAndUnknownKeysWithoutEnablingRuntime()
+    {
+        LocalRemoteConfigFacade config = new LocalRemoteConfigFacade(new[]
+        {
+            new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.UgsAdaptersEnabledKey, "true"),
+            new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.CloudProfileSyncEnabledKey, "true"),
+            new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.JournalUploadEnabledKey, "true"),
+            new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.DiagnosticsExportEnabledKey, "false"),
+            new RemoteConfigEntry("economy.hidden_tuning", "999")
+        });
+
+        RemoteConfigSafetySnapshot safety = RemoteConfigSafetyDiagnostics.Capture(config);
+
+        Assert.That(safety.UgsAdaptersEnabled, Is.True);
+        Assert.That(safety.CloudProfileSyncEnabled, Is.True);
+        Assert.That(safety.JournalUploadEnabled, Is.True);
+        Assert.That(safety.DiagnosticsExportEnabled, Is.False);
+        Assert.That(safety.LiveRuntimeChangeAllowed, Is.False);
+        Assert.That(safety.RiskyEnabledKeyCount, Is.EqualTo(3));
+        Assert.That(safety.UnknownKeyCount, Is.EqualTo(1));
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Risky enable flags" && check.Status == BackendPreflightStatus.Blocked));
+        Assert.That(safety.Entries, Has.Some.Matches<RemoteConfigSafetyEntry>(entry =>
+            entry.Key == "economy.hidden_tuning" && entry.IsKnownInfrastructureKey == false));
+    }
+
+    [Test]
+    public void Diagnostics_ReportsRemoteConfigSafetyDefaults()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.RemoteConfigSafety, Is.Not.Null);
+        Assert.That(diagnostics.RemoteConfigSafety.MissingRequiredKeyCount, Is.EqualTo(0));
+        Assert.That(diagnostics.RemoteConfigSafety.RiskyEnabledKeyCount, Is.EqualTo(0));
+        Assert.That(diagnostics.RemoteConfigSafety.UgsAdaptersEnabled, Is.False);
+        Assert.That(diagnostics.RemoteConfigSafety.CloudProfileSyncEnabled, Is.False);
+        Assert.That(diagnostics.RemoteConfigSafety.JournalUploadEnabled, Is.False);
+    }
+
+    [Test]
     public void ProfileSettings_MigratesCompatibilityStateAndResetsOnlyCosmetics()
     {
         string root = CreateTemporaryRoot();

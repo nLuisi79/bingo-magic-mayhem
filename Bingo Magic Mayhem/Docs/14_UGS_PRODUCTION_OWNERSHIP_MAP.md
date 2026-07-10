@@ -37,14 +37,14 @@ The first SDK-free infrastructure pass is implemented under `Assets/Scripts/Infr
 - append-only JSON-lines action journal with monotonic sequence and status-transition records;
 - stable local guest identity facade;
 - local-only analytics facade backed by the journal;
-- typed local Remote Config facade with no embedded gameplay/economy defaults;
+- typed local Remote Config facade with infrastructure safety defaults and no embedded gameplay/economy tuning defaults;
 - one composition root designed for future UGS adapters.
 
 Existing gameplay `PlayerPrefs` state is unchanged. The approved UGS packages are resolved, but no live services are connected. See `15_UGS_READY_SERVICE_LAYER.md` for the implementation contract and adoption rules.
 
 The first consumer migration is now active for profile cosmetics and Sound/Notifications. It uses stable cosmetic ids, a versioned local snapshot, compatibility `PlayerPrefs` writes, and journaled change/recovery events. No inventory, currency, reward, progress, social, or economy state moved in this pass.
 
-Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, a local UGS preflight summary, disabled profile/settings Cloud Save sync status, blocked conflict/offline policy gates, and local journal sync-staging counts. Journal retention, compaction, clearing, and live upload remain open and inactive.
+Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, a local UGS preflight summary, Remote Config infrastructure safety counts, disabled profile/settings Cloud Save sync status, blocked conflict/offline policy gates, and local journal sync-staging counts. Journal retention, compaction, clearing, and live upload remain open and inactive.
 
 The journal diagnostics policy now has a conservative future-upload allowlist for infrastructure/profile events and a sensitive-marker blocklist for payloads. This is a planning surface only: no journal rows are uploaded, active upload eligibility remains 0, and no row deletion/retention control is exposed.
 
@@ -180,6 +180,8 @@ Conflict rule direction:
 
 5. Remote Config facade
    - Create typed config objects with local defaults.
+   - Current safety scaffold only covers infrastructure flags: UGS adapters, profile Cloud Save sync, journal upload, and diagnostics export.
+   - Risky live/cloud flags default off and diagnostics-only; config cannot enable runtime behavior without approved code composition.
    - Later fetch UGS Remote Config.
    - Keep all draft values labeled Beta/test.
 

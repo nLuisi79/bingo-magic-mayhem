@@ -372,6 +372,7 @@ namespace BingoMagicMayhem.Infrastructure
         public int GetInt(string key, int fallback = 0) => HasKey(key) ? RemoteConfigService.Instance.appConfig.GetInt(key) : fallback;
         public float GetFloat(string key, float fallback = 0f) => HasKey(key) ? RemoteConfigService.Instance.appConfig.GetFloat(key) : fallback;
         public bool GetBool(string key, bool fallback = false) => HasKey(key) ? RemoteConfigService.Instance.appConfig.GetBool(key) : fallback;
+        public IReadOnlyList<RemoteConfigEntry> GetAllEntries() => new List<RemoteConfigEntry>();
     }
 
     public sealed class UgsCloudSaveProfileSettingsSync : IProfileSettingsCloudSync

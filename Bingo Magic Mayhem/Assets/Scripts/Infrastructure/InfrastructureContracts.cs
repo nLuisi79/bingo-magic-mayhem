@@ -68,6 +68,37 @@ namespace BingoMagicMayhem.Infrastructure
         }
     }
 
+    [Serializable]
+    public sealed class RemoteConfigSafetyEntry
+    {
+        public string Key = "";
+        public string Value = "";
+        public bool IsKnownInfrastructureKey;
+        public bool IsPresent;
+        public bool IsRiskyEnabled;
+    }
+
+    [Serializable]
+    public sealed class RemoteConfigSafetySnapshot
+    {
+        public string PolicyVersion = "";
+        public string Source = "";
+        public string Revision = "";
+        public int RequiredKeyCount;
+        public int PresentRequiredKeyCount;
+        public int MissingRequiredKeyCount;
+        public int UnknownKeyCount;
+        public int RiskyEnabledKeyCount;
+        public bool UgsAdaptersEnabled;
+        public bool CloudProfileSyncEnabled;
+        public bool JournalUploadEnabled;
+        public bool DiagnosticsExportEnabled;
+        public bool LiveRuntimeChangeAllowed;
+        public string Reason = "";
+        public List<RemoteConfigSafetyEntry> Entries = new List<RemoteConfigSafetyEntry>();
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
     public enum BackendPreflightStatus
     {
         Pass,
@@ -220,6 +251,7 @@ namespace BingoMagicMayhem.Infrastructure
         int GetInt(string key, int fallback = 0);
         float GetFloat(string key, float fallback = 0f);
         bool GetBool(string key, bool fallback = false);
+        IReadOnlyList<RemoteConfigEntry> GetAllEntries();
     }
 
     public interface IProfileSettingsCloudSync

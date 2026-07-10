@@ -58,7 +58,7 @@ namespace BingoMagicMayhem.Infrastructure
             JsonFileDurableStateStore durableState = new JsonFileDurableStateStore(Path.Combine(root, "state"), migrations);
             JsonLinesActionJournal actionJournal = new JsonLinesActionJournal(Path.Combine(root, "journal", "actions.jsonl"));
             IIdentityFacade identity = new LocalIdentityFacade(durableState);
-            IRemoteConfigFacade remoteConfig = new LocalRemoteConfigFacade(configDefaults);
+            IRemoteConfigFacade remoteConfig = new LocalRemoteConfigFacade(MergeRemoteConfigDefaults(configDefaults));
             IAnalyticsFacade analytics = new LocalAnalyticsFacade(actionJournal, identity);
             IProfileSettingsCloudSync profileSettingsCloudSync = new DisabledProfileSettingsCloudSync();
             IInfrastructureDiagnosticsFacade diagnostics = new InfrastructureDiagnosticsFacade(
@@ -67,7 +67,8 @@ namespace BingoMagicMayhem.Infrastructure
                 durableState,
                 actionJournal,
                 identity,
-                profileSettingsCloudSync);
+                profileSettingsCloudSync,
+                remoteConfig);
 
             durableState.StateRecovered += stateName => actionJournal.RecordAction(
                 identity.Current?.PlayerId ?? "uninitialized_local_guest",
@@ -97,6 +98,30 @@ namespace BingoMagicMayhem.Infrastructure
                 remoteConfig,
                 profileSettingsCloudSync,
                 diagnostics);
+        }
+
+        private static IEnumerable<RemoteConfigEntry> MergeRemoteConfigDefaults(IEnumerable<RemoteConfigEntry> configDefaults)
+        {
+            Dictionary<string, RemoteConfigEntry> entries = new Dictionary<string, RemoteConfigEntry>(StringComparer.Ordinal);
+            foreach (RemoteConfigEntry entry in RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults())
+            {
+                entries[entry.Key] = entry;
+            }
+
+            if (configDefaults != null)
+            {
+                foreach (RemoteConfigEntry entry in configDefaults)
+                {
+                    if (entry != null && !string.IsNullOrWhiteSpace(entry.Key))
+                    {
+                        entries[entry.Key.Trim()] = new RemoteConfigEntry(entry.Key.Trim(), entry.Value ?? "");
+                    }
+                }
+            }
+
+            List<RemoteConfigEntry> merged = new List<RemoteConfigEntry>(entries.Values);
+            merged.Sort((left, right) => string.CompareOrdinal(left.Key, right.Key));
+            return merged;
         }
 
         public async Task InitializeAsync(CancellationToken cancellationToken = default)
