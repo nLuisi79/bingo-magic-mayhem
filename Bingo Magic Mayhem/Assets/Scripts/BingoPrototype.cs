@@ -5835,6 +5835,10 @@ public class BingoPrototype : MonoBehaviour
         {
             builder.AppendLine($"Profile Cloud Save: live sync {(diagnostics.ProfileCloudSync.LiveSyncEnabled ? "on" : "off")} | upload {(diagnostics.ProfileCloudSync.CanUpload ? "ready" : "blocked")} | download {(diagnostics.ProfileCloudSync.CanDownload ? "ready" : "blocked")}");
             builder.AppendLine($"Profile Cloud key: {diagnostics.ProfileCloudSync.CloudKey}");
+            if (diagnostics.ProfileCloudSync.ConflictPolicy != null)
+            {
+                builder.AppendLine($"Conflict policy: {diagnostics.ProfileCloudSync.ConflictPolicy.PolicyVersion} | mode {diagnostics.ProfileCloudSync.ConflictPolicy.ConflictMode} | local authoritative {(diagnostics.ProfileCloudSync.ConflictPolicy.LocalSnapshotAuthoritative ? "yes" : "no")}");
+            }
         }
 
         builder.AppendLine();
@@ -5860,6 +5864,16 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"- service: {diagnostics.ProfileCloudSync.Service}, adapter compiled {(diagnostics.ProfileCloudSync.AdapterCompiled ? "yes" : "no")}");
             builder.AppendLine($"- local snapshots remain authoritative; upload {diagnostics.ProfileCloudSync.CanUpload}, download {diagnostics.ProfileCloudSync.CanDownload}");
             builder.AppendLine($"- reason: {diagnostics.ProfileCloudSync.Reason}");
+            if (diagnostics.ProfileCloudSync.ConflictPolicy != null)
+            {
+                builder.AppendLine($"- policy: {diagnostics.ProfileCloudSync.ConflictPolicy.PolicyVersion}, required approvals {diagnostics.ProfileCloudSync.ConflictPolicy.RequiredApprovalCount}, blocked gates {diagnostics.ProfileCloudSync.ConflictPolicy.BlockedGateCount}");
+                builder.AppendLine($"- cloud overwrite allowed: {diagnostics.ProfileCloudSync.ConflictPolicy.AllowsRemoteOverwrite}, auto-merge allowed: {diagnostics.ProfileCloudSync.ConflictPolicy.AllowsAutomaticMerge}, gameplay sync allowed: {diagnostics.ProfileCloudSync.ConflictPolicy.AllowsGameplayStateSync}");
+                builder.AppendLine($"- next approval: {diagnostics.ProfileCloudSync.ConflictPolicy.NextRequiredApproval}");
+                foreach (BackendPreflightCheck check in diagnostics.ProfileCloudSync.ConflictPolicy.Checks)
+                {
+                    builder.AppendLine($"- policy/{check.Name}: {check.Status} - {check.Detail}");
+                }
+            }
             foreach (BackendPreflightCheck check in diagnostics.ProfileCloudSync.Checks)
             {
                 builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");

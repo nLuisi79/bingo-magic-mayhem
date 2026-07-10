@@ -44,7 +44,7 @@ Existing gameplay `PlayerPrefs` state is unchanged. The approved UGS packages ar
 
 The first consumer migration is now active for profile cosmetics and Sound/Notifications. It uses stable cosmetic ids, a versioned local snapshot, compatibility `PlayerPrefs` writes, and journaled change/recovery events. No inventory, currency, reward, progress, social, or economy state moved in this pass.
 
-Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, a local UGS preflight summary, disabled profile/settings Cloud Save sync status, and local journal sync-staging counts. Journal retention, compaction, clearing, and live upload remain open and inactive.
+Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, a local UGS preflight summary, disabled profile/settings Cloud Save sync status, blocked conflict/offline policy gates, and local journal sync-staging counts. Journal retention, compaction, clearing, and live upload remain open and inactive.
 
 The journal diagnostics policy now has a conservative future-upload allowlist for infrastructure/profile events and a sensitive-marker blocklist for payloads. This is a planning surface only: no journal rows are uploaded, active upload eligibility remains 0, and no row deletion/retention control is exposed.
 
@@ -185,7 +185,7 @@ Conflict rule direction:
 
 6. Cloud Save sync prototype
    - Start with profile/settings/cosmetic selections only.
-   - Current scaffold declares key `bmm.profile_settings.v2` and keeps upload/download blocked until project link, consent/privacy, conflict policy, and offline fallback are approved.
+   - Current scaffold declares key `bmm.profile_settings.v2` and policy `profile_cloud_conflict_policy_v0.1`, keeping upload/download/merge/remote overwrite blocked until project link, consent/privacy, timestamp authority, merge/overwrite behavior, and offline retry/idempotency are approved.
    - Add progress/inventory only after conflict policy is implemented.
 
 7. Cloud Code claim prototypes

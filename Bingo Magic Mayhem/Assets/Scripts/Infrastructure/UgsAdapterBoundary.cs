@@ -117,9 +117,11 @@ namespace BingoMagicMayhem.Infrastructure
     {
         public const string ProfileSettingsCloudKey = "bmm.profile_settings.v2";
         public const string ServiceName = "ugs_cloud_save_profile_settings";
+        public const string ConflictPolicyVersion = "profile_cloud_conflict_policy_v0.1";
 
         public static CloudProfileSyncStatus Capture(bool adapterCompiled)
         {
+            CloudProfileConflictPolicySnapshot conflictPolicy = CaptureConflictPolicy();
             CloudProfileSyncStatus status = new CloudProfileSyncStatus
             {
                 Service = ServiceName,
@@ -133,7 +135,8 @@ namespace BingoMagicMayhem.Infrastructure
                 OfflineFallbackTested = false,
                 CanUpload = false,
                 CanDownload = false,
-                Reason = "Disabled: local profile/settings snapshots remain authoritative until project link, consent/privacy, conflict policy, and offline fallback are approved."
+                Reason = "Disabled: local profile/settings snapshots remain authoritative until project link, consent/privacy, conflict policy, and offline fallback are approved.",
+                ConflictPolicy = conflictPolicy
             };
 
             AddCheck(
@@ -183,6 +186,71 @@ namespace BingoMagicMayhem.Infrastructure
             return status;
         }
 
+        public static CloudProfileConflictPolicySnapshot CaptureConflictPolicy()
+        {
+            CloudProfileConflictPolicySnapshot policy = new CloudProfileConflictPolicySnapshot
+            {
+                PolicyVersion = ConflictPolicyVersion,
+                StateName = ProfileSettingsPersistence.StateName,
+                CloudKey = ProfileSettingsCloudKey,
+                ConflictMode = "blocked_until_product_policy",
+                LocalSnapshotAuthoritative = true,
+                AllowsUpload = false,
+                AllowsDownload = false,
+                AllowsAutomaticMerge = false,
+                AllowsRemoteOverwrite = false,
+                AllowsGameplayStateSync = false,
+                RequiredApprovalCount = 5,
+                ApprovedGateCount = 0,
+                BlockedGateCount = 5,
+                LocalWinsRule = "OPEN: do not prefer local snapshot over cloud until timestamp and device-authority rules are approved.",
+                RemoteWinsRule = "OPEN: do not overwrite local snapshot from cloud until recovery and user-visible fallback rules are approved.",
+                SameTimestampRule = "OPEN: equal timestamps/device collisions require a deterministic rule before sync can run.",
+                StaleRemoteRule = "OPEN: stale remote data handling must be approved before download is enabled.",
+                OfflineRetryRule = "OPEN: queued retry/backoff and duplicate-write idempotency must be approved before upload is enabled.",
+                BackupRecoveryRule = "OPEN: local backup recovery remains the only active recovery path until cloud restore behavior is tested.",
+                NextRequiredApproval = "Approve profile/settings conflict policy before enabling Cloud Save upload or download."
+            };
+
+            AddPolicyCheck(
+                policy,
+                "Project/environment link",
+                BackendPreflightStatus.Blocked,
+                "Cloud Save sync cannot run until the intended Unity project and development environment are linked.");
+
+            AddPolicyCheck(
+                policy,
+                "Consent/privacy",
+                BackendPreflightStatus.Blocked,
+                "Cross-device profile/settings storage needs approved consent, privacy copy, and data deletion expectations.");
+
+            AddPolicyCheck(
+                policy,
+                "Timestamp authority",
+                BackendPreflightStatus.Blocked,
+                "No final rule exists for client timestamp, server timestamp, or device id tie-breaking.");
+
+            AddPolicyCheck(
+                policy,
+                "Merge/overwrite behavior",
+                BackendPreflightStatus.Blocked,
+                "No automatic merge or remote overwrite is permitted until product approves local-vs-cloud outcomes.");
+
+            AddPolicyCheck(
+                policy,
+                "Offline retry/idempotency",
+                BackendPreflightStatus.Blocked,
+                "No upload retry queue is active until duplicate write and stale retry behavior are tested.");
+
+            AddPolicyCheck(
+                policy,
+                "Gameplay/economy isolation",
+                BackendPreflightStatus.Pass,
+                "This policy only covers profile/settings; gameplay, economy, rewards, album, jackpot, progression, Coven, and monetization state stay out of scope.");
+
+            return policy;
+        }
+
         private static void AddCheck(
             CloudProfileSyncStatus status,
             string name,
@@ -190,6 +258,20 @@ namespace BingoMagicMayhem.Infrastructure
             string detail)
         {
             status.Checks.Add(new BackendPreflightCheck
+            {
+                Name = name ?? "",
+                Status = checkStatus,
+                Detail = detail ?? ""
+            });
+        }
+
+        private static void AddPolicyCheck(
+            CloudProfileConflictPolicySnapshot policy,
+            string name,
+            BackendPreflightStatus checkStatus,
+            string detail)
+        {
+            policy.Checks.Add(new BackendPreflightCheck
             {
                 Name = name ?? "",
                 Status = checkStatus,

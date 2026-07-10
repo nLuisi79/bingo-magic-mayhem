@@ -27,9 +27,9 @@ When enabled after package resolution and environment review, the adapters provi
 
 `GameInfrastructureServices.CreateLocal()` does not construct these adapters. Local snapshot, journal, identity fallback, and local config remain the default path until an explicit composition change is approved.
 
-The local diagnostics panel now includes a UGS preflight summary and a profile/settings Cloud Save sync status section. They are informational only: package resolution is marked pass, the future profile/settings key is `bmm.profile_settings.v2`, and project environment link, consent/privacy, Cloud Save conflict policy, and offline fallback remain blocked before live adapter enablement.
+The local diagnostics panel now includes a UGS preflight summary and a profile/settings Cloud Save sync status section. They are informational only: package resolution is marked pass, the future profile/settings key is `bmm.profile_settings.v2`, conflict policy is labeled `profile_cloud_conflict_policy_v0.1`, and project environment link, consent/privacy, Cloud Save conflict policy, timestamp authority, merge/overwrite behavior, and offline retry/idempotency remain blocked before live adapter enablement.
 
-The `IProfileSettingsCloudSync` seam is deliberately disabled in local composition. Its upload and download methods return blocked/no-op results until an approved composition root replaces it and the enablement checks below pass.
+The `IProfileSettingsCloudSync` seam is deliberately disabled in local composition. Its upload and download methods return blocked/no-op results until an approved composition root replaces it and the enablement checks below pass. Local snapshots remain authoritative; automatic merge, remote overwrite, and gameplay/economy sync are not permitted by the scaffold.
 
 ## Required Enablement Checks
 

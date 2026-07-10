@@ -140,6 +140,33 @@ namespace BingoMagicMayhem.Infrastructure
         public bool CanUpload;
         public bool CanDownload;
         public string Reason = "";
+        public CloudProfileConflictPolicySnapshot ConflictPolicy = new CloudProfileConflictPolicySnapshot();
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
+    [Serializable]
+    public sealed class CloudProfileConflictPolicySnapshot
+    {
+        public string PolicyVersion = "";
+        public string StateName = "";
+        public string CloudKey = "";
+        public string ConflictMode = "blocked_until_product_policy";
+        public bool LocalSnapshotAuthoritative = true;
+        public bool AllowsUpload;
+        public bool AllowsDownload;
+        public bool AllowsAutomaticMerge;
+        public bool AllowsRemoteOverwrite;
+        public bool AllowsGameplayStateSync;
+        public int RequiredApprovalCount;
+        public int ApprovedGateCount;
+        public int BlockedGateCount;
+        public string LocalWinsRule = "open";
+        public string RemoteWinsRule = "open";
+        public string SameTimestampRule = "open";
+        public string StaleRemoteRule = "open";
+        public string OfflineRetryRule = "open";
+        public string BackupRecoveryRule = "open";
+        public string NextRequiredApproval = "";
         public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
     }
 

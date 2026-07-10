@@ -303,6 +303,10 @@ public sealed class InfrastructureServiceTests
             check.Name == "Conflict policy" && check.Status == BackendPreflightStatus.Blocked));
         Assert.That(status.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
             check.Name == "Gameplay/economy scope" && check.Status == BackendPreflightStatus.Pass));
+        Assert.That(status.ConflictPolicy.LocalSnapshotAuthoritative, Is.True);
+        Assert.That(status.ConflictPolicy.AllowsRemoteOverwrite, Is.False);
+        Assert.That(status.ConflictPolicy.AllowsAutomaticMerge, Is.False);
+        Assert.That(status.ConflictPolicy.AllowsGameplayStateSync, Is.False);
     }
 
     [Test]
@@ -319,6 +323,32 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.ProfileCloudSync.CanUpload, Is.False);
         Assert.That(diagnostics.ProfileCloudSync.CanDownload, Is.False);
         Assert.That(diagnostics.ProfileCloudSync.CloudKey, Is.EqualTo("bmm.profile_settings.v2"));
+        Assert.That(diagnostics.ProfileCloudSync.ConflictPolicy.PolicyVersion, Is.EqualTo("profile_cloud_conflict_policy_v0.1"));
+        Assert.That(diagnostics.ProfileCloudSync.ConflictPolicy.ConflictMode, Is.EqualTo("blocked_until_product_policy"));
+    }
+
+    [Test]
+    public void CloudProfileConflictPolicy_BlocksRiskySyncPathsUntilApproved()
+    {
+        CloudProfileConflictPolicySnapshot policy = CloudProfileSyncDiagnostics.CaptureConflictPolicy();
+
+        Assert.That(policy.StateName, Is.EqualTo(ProfileSettingsPersistence.StateName));
+        Assert.That(policy.CloudKey, Is.EqualTo("bmm.profile_settings.v2"));
+        Assert.That(policy.LocalSnapshotAuthoritative, Is.True);
+        Assert.That(policy.AllowsUpload, Is.False);
+        Assert.That(policy.AllowsDownload, Is.False);
+        Assert.That(policy.AllowsAutomaticMerge, Is.False);
+        Assert.That(policy.AllowsRemoteOverwrite, Is.False);
+        Assert.That(policy.AllowsGameplayStateSync, Is.False);
+        Assert.That(policy.RequiredApprovalCount, Is.EqualTo(5));
+        Assert.That(policy.BlockedGateCount, Is.EqualTo(5));
+        Assert.That(policy.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Timestamp authority" && check.Status == BackendPreflightStatus.Blocked));
+        Assert.That(policy.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Gameplay/economy isolation" && check.Status == BackendPreflightStatus.Pass));
+        Assert.That(policy.LocalWinsRule, Does.Contain("OPEN"));
+        Assert.That(policy.RemoteWinsRule, Does.Contain("OPEN"));
+        Assert.That(policy.OfflineRetryRule, Does.Contain("OPEN"));
     }
 
     [Test]

@@ -21,7 +21,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `InfrastructureDiagnosticsFacade`: redacted snapshot/journal health capture and payload-free export.
 - `UgsPreflightDiagnostics`: local package/adapter/cloud-readiness checks with live calls disabled by default.
 - `JournalPolicyDiagnostics`: read-only local journal policy counts for retain/export/future-upload staging, sensitive payload blocking, and unapproved source/type blocking.
-- `DisabledProfileSettingsCloudSync` / `CloudProfileSyncDiagnostics`: profile/settings Cloud Save seam that declares future key `bmm.profile_settings.v2` while keeping upload/download blocked.
+- `DisabledProfileSettingsCloudSync` / `CloudProfileSyncDiagnostics`: profile/settings Cloud Save seam that declares future key `bmm.profile_settings.v2` and conflict policy `profile_cloud_conflict_policy_v0.1` while keeping upload/download/merge/remote overwrite blocked.
 
 The approved UGS SDK packages are resolved into the project lockfile/cache, but no project environment, cloud endpoint, authentication call, analytics upload, or Remote Config fetch is connected in this pass.
 
@@ -73,7 +73,7 @@ Prototype Settings includes a Persistence panel with:
 - journal record count, pending action-row count, byte size, and latest sequence;
 - last observed recovery and migration;
 - UGS preflight package/adapter/cloud-readiness state;
-- profile/settings Cloud Save sync state: live sync off, adapter compile gate, key `bmm.profile_settings.v2`, upload blocked, and download blocked;
+- profile/settings Cloud Save sync state: live sync off, adapter compile gate, key `bmm.profile_settings.v2`, upload blocked, download blocked, local snapshots authoritative, automatic merge blocked, remote overwrite blocked, and gameplay sync blocked;
 - journal sync-staging state: live uploads off, active upload eligible 0, future-upload candidates, sensitive/unapproved blocked rows, and status counts;
 - safe summary export.
 
@@ -137,15 +137,16 @@ Edit-mode tests cover:
 - stable cosmetic ids and logical asset keys with placeholder-safe sprite resolution.
 - journal policy staging for safe future-upload candidates, sensitive payload blocking, and live uploads disabled.
 - disabled profile/settings Cloud Save sync status and blocked upload/download behavior.
+- conflict/offline policy gates for timestamp authority, merge/overwrite behavior, stale remote handling, offline retry/idempotency, and gameplay/economy isolation.
 
-Unity EditMode `InfrastructureServiceTests` passed 12/12 on 2026-07-10. The disabled Cloud Save profile/settings scaffold adds two EditMode tests for the next Unity Test Runner pass.
+Unity EditMode `InfrastructureServiceTests` passed 16/16 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync and conflict/offline policy scaffolds.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 
 ## Next Narrow Infrastructure Passes
 
 1. Run the full edit-mode suite through Unity Test Runner when the project is not held by another Unity process.
-2. Define Cloud Save conflict/offline policy for profile/settings before enabling upload/download.
+2. Product-approve the Cloud Save conflict/offline policy for profile/settings before enabling upload/download.
 3. Define journal retention, archive/compaction, privacy, and upload allowlists.
 4. Decide whether diagnostics exports need an in-app share flow for external Beta; current export is local only.
 5. Decide whether profile display-name editing belongs in the next Beta slice; it remains a placeholder now.
