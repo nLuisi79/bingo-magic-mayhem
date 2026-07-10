@@ -5,6 +5,40 @@ using System.Threading.Tasks;
 
 namespace BingoMagicMayhem.Infrastructure
 {
+    public static class PrototypeAnalyticsEvents
+    {
+        public const string InfrastructureInitialized = "infrastructure_initialized";
+        public const string RoomEntered = "prototype_room_entered";
+        public const string RoundStarted = "prototype_round_started";
+        public const string BingoClaimed = "prototype_bingo_claimed";
+        public const string RoundCompleted = "prototype_round_completed";
+        public const string DailyBonusClaimed = "prototype_daily_bonus_claimed";
+        public const string DailySpinClaimed = "prototype_daily_spin_claimed";
+        public const string InboxItemClaimed = "prototype_inbox_item_claimed";
+        public const string InboxMessageRead = "prototype_inbox_message_read";
+        public const string InboxCategoryCleared = "prototype_inbox_category_cleared";
+
+        private static readonly HashSet<string> AllowlistedEventNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                InfrastructureInitialized,
+                RoomEntered,
+                RoundStarted,
+                BingoClaimed,
+                RoundCompleted,
+                DailyBonusClaimed,
+                DailySpinClaimed,
+                InboxItemClaimed,
+                InboxMessageRead,
+                InboxCategoryCleared
+            };
+
+        public static bool IsAllowlisted(string eventName)
+        {
+            return !string.IsNullOrWhiteSpace(eventName) && AllowlistedEventNames.Contains(eventName.Trim());
+        }
+    }
+
     /// <summary>
     /// Consent-safe local analytics seam. Events stay in the local journal until
     /// a future analytics adapter and upload policy are approved.
@@ -49,7 +83,16 @@ namespace BingoMagicMayhem.Infrastructure
         private static readonly HashSet<string> AllowlistedAnalyticsEvents =
             new HashSet<string>(StringComparer.Ordinal)
             {
-                "analytics/infrastructure_initialized"
+                "analytics/" + PrototypeAnalyticsEvents.InfrastructureInitialized,
+                "analytics/" + PrototypeAnalyticsEvents.RoomEntered,
+                "analytics/" + PrototypeAnalyticsEvents.RoundStarted,
+                "analytics/" + PrototypeAnalyticsEvents.BingoClaimed,
+                "analytics/" + PrototypeAnalyticsEvents.RoundCompleted,
+                "analytics/" + PrototypeAnalyticsEvents.DailyBonusClaimed,
+                "analytics/" + PrototypeAnalyticsEvents.DailySpinClaimed,
+                "analytics/" + PrototypeAnalyticsEvents.InboxItemClaimed,
+                "analytics/" + PrototypeAnalyticsEvents.InboxMessageRead,
+                "analytics/" + PrototypeAnalyticsEvents.InboxCategoryCleared
             };
 
         public static AnalyticsSafetySnapshot Capture(

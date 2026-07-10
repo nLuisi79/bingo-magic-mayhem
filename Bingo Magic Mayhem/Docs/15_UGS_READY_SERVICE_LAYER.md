@@ -16,6 +16,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `IdentitySafetyDiagnostics`: identity/auth readiness policy that keeps local guest authority and reports sign-in/link/recovery blockers.
 - `LocalAnalyticsFacade`: local-only safe event recording through the action journal.
 - `AnalyticsSafetyDiagnostics`: analytics consent/upload policy that keeps live upload blocked and reports allowlisted versus local-only analytics rows.
+- first-pass local-only feature analytics instrumentation for room enter, round start, bingo claim, round completion, daily bonus claim, daily spin claim, inbox reward claim, inbox message read, and inbox bulk clear.
 - `LocalRemoteConfigFacade`: typed reads from explicitly supplied local defaults.
 - `RemoteConfigSafetyDiagnostics`: infrastructure-only Remote Config safety policy for live/cloud enablement flags.
 - `ExportSafetyDiagnostics`: local-file-only diagnostics export/share policy that keeps support exports payload-free and external share flows blocked.
@@ -78,7 +79,7 @@ Prototype Settings includes a Persistence panel with:
 - last observed recovery and migration;
 - UGS preflight package/adapter/cloud-readiness state;
 - identity safety state: policy `identity_safety_v0.1`, local guest provider, cloud-auth blocked state, account-link/recovery blockers, and Remote Config bypass blocking;
-- analytics safety state: policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted analytics rows, local-only blocked rows, and Remote Config bypass blocking;
+- analytics safety state: policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted analytics rows across infrastructure and first-pass feature events, local-only blocked rows, and Remote Config bypass blocking;
 - diagnostics export/share safety state: policy `diagnostics_export_safety_v0.1`, local-file export enabled, payload-free-only contract, external share blocked, clipboard blocked, and advisory-only Remote Config export flag status;
 - Remote Config safety state: policy `infra_remote_config_safety_v0.1`, required infra key coverage, risky enable flags, unknown keys, and local-only runtime-change blocking;
 - profile/settings Cloud Save sync state: live sync off, adapter compile gate, key `bmm.profile_settings.v2`, upload blocked, download blocked, local snapshots authoritative, automatic merge blocked, remote overwrite blocked, and gameplay sync blocked;
@@ -149,11 +150,11 @@ Edit-mode tests cover:
 - disabled profile/settings Cloud Save sync status and blocked upload/download behavior.
 - conflict/offline policy gates for timestamp authority, merge/overwrite behavior, stale remote handling, offline retry/idempotency, and gameplay/economy isolation.
 - Remote Config safety defaults, risky enable-flag blocking, unknown key visibility, and diagnostics capture.
-- analytics safety defaults, consent/upload blocking, allowlisted-event capture, and Remote Config bypass blocking.
+- analytics safety defaults, first-pass feature-event allowlisting, consent/upload blocking, and Remote Config bypass blocking.
 - journal retention/privacy defaults, blocked retention/archive/compaction/delete controls, and export-redaction planning counts.
 - diagnostics export/share safety defaults, external-share blocking, and advisory-only Remote Config export disable handling.
 
-Unity EditMode `InfrastructureServiceTests` last passed 28/28 on 2026-07-10 after the journal retention/privacy pass. Diagnostics export/share safety scaffolding adds three EditMode tests for the next Unity Test Runner pass.
+Unity EditMode `InfrastructureServiceTests` last passed 31/31 on 2026-07-10 after the diagnostics export/share safety pass. Local-only feature analytics instrumentation adds three EditMode tests for the next Unity Test Runner pass.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 

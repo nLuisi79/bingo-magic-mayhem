@@ -199,6 +199,104 @@ public class BingoPrototype : MonoBehaviour
         public bool ResetPot { get; private set; }
     }
 
+    [System.Serializable]
+    private class PrototypeRoomAnalyticsPayload
+    {
+        public int RealmIndex;
+        public int RoomIndex;
+        public string RoomName = "";
+        public string RoomMode = "";
+        public int SelectedCardCount;
+        public int ManaBetPerCard;
+        public bool RoomRestored;
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeRoundStartedAnalyticsPayload : PrototypeRoomAnalyticsPayload
+    {
+        public int EntryCost;
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeBingoClaimedAnalyticsPayload : PrototypeRoomAnalyticsPayload
+    {
+        public int CardIndex;
+        public int BingoDelta;
+        public int ClaimedCount;
+        public int RoomBingosClaimed;
+        public int RoomBingoPool;
+        public bool BlackoutRoom;
+        public string Trigger = "";
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeRoundCompletedAnalyticsPayload : PrototypeRoomAnalyticsPayload
+    {
+        public string Reason = "";
+        public int PlayerBingos;
+        public int SimulatedBingos;
+        public int RoomBingos;
+        public int BestCardBingos;
+        public int JackpotCards;
+        public int ManaReward;
+        public int PlayerXp;
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeDailyRewardAnalyticsPayload
+    {
+        public string ClaimSurface = "";
+        public int StreakDay;
+        public int Mana;
+        public int Crystals;
+        public string ItemName = "";
+        public int ItemQuantity;
+        public string Label = "";
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeDailySpinAnalyticsPayload
+    {
+        public string ClaimSurface = "";
+        public int RewardIndex;
+        public int Mana;
+        public int Crystals;
+        public int ClairvoyanceMinutes;
+        public string ItemName = "";
+        public int ItemQuantity;
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeInboxAnalyticsPayload
+    {
+        public string Category = "";
+        public bool ClaimAll;
+        public bool HasCovenGift;
+        public string RewardSource = "";
+        public int Mana;
+        public int Crystals;
+        public int ClairvoyanceMinutes;
+        public int JackpotSpins;
+        public string ItemName = "";
+        public int ItemQuantity;
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeInboxMessageReadAnalyticsPayload
+    {
+        public string Category = "";
+        public string ReadSource = "";
+        public int UnreadRemaining;
+        public int ClaimableRemaining;
+    }
+
+    [System.Serializable]
+    private sealed class PrototypeInboxCategoryClearedAnalyticsPayload
+    {
+        public string Category = "";
+        public int ClearedCount;
+    }
+
     private async void Start()
     {
         EnsureRuntimeState();
@@ -911,6 +1009,9 @@ public class BingoPrototype : MonoBehaviour
         RealmContentCatalog.SetActivePrototypeRoom(roomIndex);
         inventory.RefreshActiveRoomState();
         ApplySavedManaBetForActiveRoom();
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.RoomEntered,
+            JsonUtility.ToJson(BuildPrototypeRoomAnalyticsPayload()));
         BuildLobbyUi();
     }
 
@@ -2939,6 +3040,18 @@ public class BingoPrototype : MonoBehaviour
     private void ClaimDailyBonusFromDen()
     {
         DailyBonusRewardDefinition reward = inventory.ClaimDailyBonus();
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.DailyBonusClaimed,
+            JsonUtility.ToJson(new PrototypeDailyRewardAnalyticsPayload
+            {
+                ClaimSurface = "daily_bonus_den",
+                StreakDay = inventory.DailyBonusStreak,
+                Mana = reward.Mana,
+                Crystals = reward.Crystals,
+                ItemName = reward.ItemName ?? "",
+                ItemQuantity = reward.ItemQuantity,
+                Label = reward.Label ?? ""
+            }));
         coven.AddPrototypeChatLine($"Daily bonus collected: {reward.Summary}");
         RefreshPowerUpDisplays();
         BuildDailyBonusUi();
@@ -3086,6 +3199,18 @@ public class BingoPrototype : MonoBehaviour
         string summary = BuildRewardGrantSummary(reward);
         lastDailySpinRewardIndex = FindDailySpinRewardIndex(reward);
         lastDailySpinSummary = "Wheel spinning...";
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.DailySpinClaimed,
+            JsonUtility.ToJson(new PrototypeDailySpinAnalyticsPayload
+            {
+                ClaimSurface = "daily_spin_den",
+                RewardIndex = lastDailySpinRewardIndex,
+                Mana = reward.Mana,
+                Crystals = reward.Crystals,
+                ClairvoyanceMinutes = reward.ClairvoyanceMinutes,
+                ItemName = reward.Items.Count > 0 ? reward.Items[0].Name : "",
+                ItemQuantity = reward.Items.Count > 0 ? reward.Items[0].Quantity : 0
+            }));
         coven.AddPrototypeChatLine($"Daily Spin collected: {summary}");
         RefreshPowerUpDisplays();
         dailySpinAnimating = true;
@@ -3276,6 +3401,15 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.InboxMessageRead,
+            JsonUtility.ToJson(new PrototypeInboxMessageReadAnalyticsPayload
+            {
+                Category = PrototypeInboxCategory.Messages.ToString(),
+                ReadSource = "open",
+                UnreadRemaining = coven.PlayerInboxUnreadCount,
+                ClaimableRemaining = coven.PlayerInboxClaimableCount
+            }));
         BuildInboxMessageDetailUi(message);
     }
 
@@ -3377,6 +3511,15 @@ public class BingoPrototype : MonoBehaviour
                 return;
             }
 
+            TrackPrototypeAnalytics(
+                PrototypeAnalyticsEvents.InboxMessageRead,
+                JsonUtility.ToJson(new PrototypeInboxMessageReadAnalyticsPayload
+                {
+                    Category = PrototypeInboxCategory.Messages.ToString(),
+                    ReadSource = "claim_button",
+                    UnreadRemaining = coven.PlayerInboxUnreadCount,
+                    ClaimableRemaining = coven.PlayerInboxClaimableCount
+                }));
             lastInboxClaimSummary = $"Read: {message.Title}";
             coven.AddPrototypeChatLine($"You read inbox message: {message.Title}");
             BuildInboxUi();
@@ -3388,6 +3531,9 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.InboxItemClaimed,
+            JsonUtility.ToJson(BuildInboxAnalyticsPayload(item, false)));
         string summary = ApplyInboxItem(item);
         lastInboxClaimSummary = $"Claimed: {summary}";
 
@@ -3416,9 +3562,69 @@ public class BingoPrototype : MonoBehaviour
             collected++;
         }
 
+        if (collected > 0)
+        {
+            TrackPrototypeAnalytics(
+                PrototypeAnalyticsEvents.InboxCategoryCleared,
+                JsonUtility.ToJson(new PrototypeInboxCategoryClearedAnalyticsPayload
+                {
+                    Category = inboxActiveCategory.ToString(),
+                    ClearedCount = collected
+                }));
+        }
+
         lastInboxClaimSummary = collected > 0 ? $"{(inboxActiveCategory == PrototypeInboxCategory.Messages ? "Cleared" : "Claimed")} {collected}: {BuildCompactInboxClaimSummary(summaries)}" : "No rewards claimed.";
         coven.AddPrototypeChatLine(inboxActiveCategory == PrototypeInboxCategory.Messages ? $"Clear All read {collected} inbox messages." : $"Claim All collected {collected} inbox rewards.");
         BuildInboxUi();
+    }
+
+    private void TrackPrototypeAnalytics(string eventName, string safePayloadJson = "{}")
+    {
+        if (!GameInfrastructureRuntime.IsInitialized || GameInfrastructureRuntime.Current?.Analytics == null)
+        {
+            return;
+        }
+
+        GameInfrastructureRuntime.Current.Analytics.Track(eventName, string.IsNullOrWhiteSpace(safePayloadJson) ? "{}" : safePayloadJson);
+    }
+
+    private PrototypeRoomAnalyticsPayload BuildPrototypeRoomAnalyticsPayload()
+    {
+        return new PrototypeRoomAnalyticsPayload
+        {
+            RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
+            RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
+            RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
+            RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
+            SelectedCardCount = selectedCardCount,
+            ManaBetPerCard = manaBetPerCard,
+            RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom)
+        };
+    }
+
+    private PrototypeInboxAnalyticsPayload BuildInboxAnalyticsPayload(PrototypeInboxItem item, bool claimAll)
+    {
+        PrototypeInboxAnalyticsPayload payload = new PrototypeInboxAnalyticsPayload
+        {
+            Category = item.Category.ToString(),
+            ClaimAll = claimAll,
+            RewardSource = item.Reward.Source ?? "",
+            Mana = item.Reward.Mana,
+            Crystals = item.Reward.Crystals,
+            ClairvoyanceMinutes = item.Reward.ClairvoyanceMinutes,
+            JackpotSpins = item.Reward.JackpotSpins,
+            ItemName = item.Reward.Items.Count > 0 ? item.Reward.Items[0].Name : "",
+            ItemQuantity = item.Reward.Items.Count > 0 ? item.Reward.Items[0].Quantity : 0
+        };
+
+        if (item.TryGetCovenGift(out CovenInboxGiftInfo gift))
+        {
+            payload.HasCovenGift = true;
+            payload.ItemName = gift.ItemName ?? payload.ItemName;
+            payload.ItemQuantity = gift.Quantity;
+        }
+
+        return payload;
     }
 
     private string ApplyInboxItem(PrototypeInboxItem item)
@@ -7357,6 +7563,19 @@ public class BingoPrototype : MonoBehaviour
         GenerateCards(selectedCardCount);
         cellRewards.GenerateForCards(playerCards, selectedCardCount, manaBetPerCard, GetActiveProgression());
         SelectNextBankPowerUp("Bank ready to charge.");
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.RoundStarted,
+            JsonUtility.ToJson(new PrototypeRoundStartedAnalyticsPayload
+            {
+                RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
+                RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
+                RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
+                RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
+                SelectedCardCount = selectedCardCount,
+                ManaBetPerCard = manaBetPerCard,
+                RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
+                EntryCost = entryCost
+            }));
         BuildUi();
     }
 
@@ -7480,6 +7699,25 @@ public class BingoPrototype : MonoBehaviour
             int bingoDelta = newBingoCount - previousBingoCount;
             int claimedCount = IsBlackoutRoom() ? 1 : bingoDelta;
             int bingoBonus = claimedCount * GetScaledXp(roomRules.BingoClaimXp);
+            TrackPrototypeAnalytics(
+                PrototypeAnalyticsEvents.BingoClaimed,
+                JsonUtility.ToJson(new PrototypeBingoClaimedAnalyticsPayload
+                {
+                    RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
+                    RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
+                    RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
+                    RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
+                    SelectedCardCount = selectedCardCount,
+                    ManaBetPerCard = manaBetPerCard,
+                    RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
+                    CardIndex = cardIndex + 1,
+                    BingoDelta = bingoDelta,
+                    ClaimedCount = claimedCount,
+                    RoomBingosClaimed = rewards.RoomBingosClaimed,
+                    RoomBingoPool = roomRules.RoomBingoPool,
+                    BlackoutRoom = IsBlackoutRoom(),
+                    Trigger = "daub"
+                }));
             if (!IsBlackoutRoom())
             {
                 ConsumeRoomBingos(claimedCount, false);
@@ -7756,6 +7994,26 @@ public class BingoPrototype : MonoBehaviour
 
         RewardPreview preview = RewardPreview.Build(playerCards, rewards, cellRewards, selectedCardCount, manaBetPerCard, reason, fortuneDoublePrizeActive, placedSigilBonusBingos);
         pendingRewardPreview = preview;
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.RoundCompleted,
+            JsonUtility.ToJson(new PrototypeRoundCompletedAnalyticsPayload
+            {
+                RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
+                RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
+                RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
+                RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
+                SelectedCardCount = selectedCardCount,
+                ManaBetPerCard = manaBetPerCard,
+                RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
+                Reason = reason,
+                PlayerBingos = preview.PlayerBingos,
+                SimulatedBingos = preview.SimulatedBingos,
+                RoomBingos = preview.RoomBingos,
+                BestCardBingos = preview.BestCardBingos,
+                JackpotCards = preview.JackpotCards,
+                ManaReward = preview.ManaReward,
+                PlayerXp = preview.PlayerXp
+            }));
         if (statusText != null)
         {
             statusText.text = preview.GetStatusLine();

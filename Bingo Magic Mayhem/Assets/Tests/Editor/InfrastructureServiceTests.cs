@@ -304,6 +304,31 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void AnalyticsSafety_AllowlistsFirstPrototypeFeatureEvents()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        services.Analytics.Track(PrototypeAnalyticsEvents.RoomEntered, "{\"RoomIndex\":1}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.RoundStarted, "{\"EntryCost\":100}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.BingoClaimed, "{\"ClaimedCount\":1}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.RoundCompleted, "{\"Reason\":\"test\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.DailyBonusClaimed, "{\"StreakDay\":1}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.DailySpinClaimed, "{\"RewardIndex\":2}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.InboxItemClaimed, "{\"Category\":\"Gifts\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.InboxMessageRead, "{\"Category\":\"Messages\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.InboxCategoryCleared, "{\"Category\":\"Cards\"}");
+
+        AnalyticsSafetySnapshot safety = AnalyticsSafetyDiagnostics.Capture(
+            services.ActionJournal.ReadAll(),
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults())));
+
+        Assert.That(safety.TotalAnalyticsRecordCount, Is.GreaterThanOrEqualTo(10));
+        Assert.That(safety.AllowlistedAnalyticsRecordCount, Is.EqualTo(safety.TotalAnalyticsRecordCount));
+        Assert.That(safety.BlockedAnalyticsRecordCount, Is.EqualTo(0));
+    }
+
+    [Test]
     public void AnalyticsSafety_FlagsNonAllowlistedEventsAsLocalOnly()
     {
         string root = CreateTemporaryRoot();
@@ -319,6 +344,13 @@ public sealed class InfrastructureServiceTests
         Assert.That(safety.BlockedAnalyticsRecordCount, Is.EqualTo(1));
         Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
             check.Name == "Event allowlist" && check.Status == BackendPreflightStatus.Warning));
+    }
+
+    [Test]
+    public void AnalyticsCatalog_RejectsUnknownEvents()
+    {
+        Assert.That(PrototypeAnalyticsEvents.IsAllowlisted(PrototypeAnalyticsEvents.RoundCompleted), Is.True);
+        Assert.That(PrototypeAnalyticsEvents.IsAllowlisted("custom_debug_marker"), Is.False);
     }
 
     [Test]
@@ -344,6 +376,24 @@ public sealed class InfrastructureServiceTests
         Assert.That(safety.AllowsRuntimeUpload, Is.False);
         Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
             check.Name == "Remote Config bypass" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
+    public void Diagnostics_ReportsAllowlistedFeatureAnalyticsWithoutBlocking()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        services.Analytics.Track(PrototypeAnalyticsEvents.RoomEntered, "{\"RoomIndex\":1}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.DailyBonusClaimed, "{\"StreakDay\":3}");
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.AnalyticsSafety, Is.Not.Null);
+        Assert.That(diagnostics.AnalyticsSafety.AllowlistedAnalyticsRecordCount, Is.GreaterThanOrEqualTo(3));
+        Assert.That(diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount, Is.EqualTo(0));
+        Assert.That(diagnostics.EventCounts, Has.Some.Matches<DiagnosticsEventCount>(entry =>
+            entry.Event == "analytics/" + PrototypeAnalyticsEvents.RoomEntered && entry.Count == 1));
     }
 
     [Test]

@@ -130,7 +130,7 @@ namespace BingoMagicMayhem.Infrastructure
             await RemoteConfig.LoadAsync(cancellationToken);
 
             Analytics.Track(
-                "infrastructure_initialized",
+                PrototypeAnalyticsEvents.InfrastructureInitialized,
                 JsonUtility.ToJson(new InfrastructureInitializedPayload
                 {
                     Environment = Environment.ToString().ToLowerInvariant(),

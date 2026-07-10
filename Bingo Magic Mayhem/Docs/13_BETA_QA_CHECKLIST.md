@@ -223,7 +223,8 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm a local guest id remains stable across facade recreation.
 - Confirm local Remote Config reads typed supplied defaults and returns explicit fallbacks for missing values.
 - Confirm Remote Config safety diagnostics show policy `infra_remote_config_safety_v0.1`, UGS adapters off, profile Cloud Save sync off, journal upload off, analytics upload off, diagnostics export on, risky enabled count 0, missing required key count 0, and unknown key count 0 for the default local composition.
-- Confirm analytics safety diagnostics show policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted infrastructure analytics rows counted separately from local-only blocked rows, and Remote Config bypass blocked.
+- Confirm analytics safety diagnostics show policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted infrastructure and first-pass feature analytics rows counted separately from local-only blocked rows, and Remote Config bypass blocked.
+- Trigger room entry, round start, bingo claim, round completion, daily bonus claim, daily spin claim, inbox reward claim, inbox message read, and inbox bulk clear flows, then confirm they appear as allowlisted local analytics events rather than blocked local-only rows.
 - Confirm export safety diagnostics show policy `diagnostics_export_safety_v0.1`, local file export enabled, payload-free export required, external share blocked, in-app share blocked, clipboard copy blocked, and Remote Config unable to silently disable the local support export path.
 - Confirm test-only risky Remote Config values are reported as blocked diagnostics and do not enable live UGS, Cloud Save upload/download, or journal upload.
 - Confirm UGS packages are resolved but no live cloud calls, analytics uploads, adapter define, or gameplay-state migrations are active in this pass.
@@ -245,7 +246,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` last passed 28/28 on 2026-07-10 after the journal retention/privacy pass. Diagnostics export/share safety scaffolding adds three more EditMode tests for the next Unity Test Runner pass.
+- Unity EditMode `InfrastructureServiceTests` last passed 31/31 on 2026-07-10 after the diagnostics export/share safety pass. Local-only feature analytics instrumentation adds three more EditMode tests for the next Unity Test Runner pass.
 
 ## Documentation Follow-Up After Each Pass
 

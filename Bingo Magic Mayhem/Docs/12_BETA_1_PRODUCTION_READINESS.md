@@ -251,9 +251,11 @@ These should be treated carefully before external testing:
 
 ### Analytics For Beta
 
-Infrastructure status: a local analytics facade now records safe event envelopes into the local action journal. Analytics safety policy `analytics_safety_v0.1` keeps consent and live upload blocked, reports allowlisted versus local-only analytics events, and prevents Remote Config from enabling upload at runtime. Feature-level instrumentation remains pending.
+Infrastructure status: a local analytics facade now records safe event envelopes into the local action journal. Analytics safety policy `analytics_safety_v0.1` keeps consent and live upload blocked, reports allowlisted versus local-only analytics events, and prevents Remote Config from enabling upload at runtime. The first feature-level local-only instrumentation pass is now in place for room enter, round start, bingo claim, round completion, daily bonus claim, daily spin claim, inbox reward claim, inbox message read, and inbox bulk clear.
 
 The local journal now has a read-only diagnostics policy surface. It classifies records as retained locally, safe for payload-free summary export, candidate for future upload, blocked by sensitive payload markers, or blocked because the source/type is not allowlisted. Live upload remains disabled and active upload-eligible rows remain 0.
+
+These feature events currently remain support-only local telemetry. They are useful for Beta verification and event-schema iteration, but they do not imply consent approval, server ingestion, dashboards, or production analytics ownership yet.
 
 Diagnostics export remains local-file-only. Even if `infra_diagnostics_export_enabled` is toggled false in test config, the current build treats that flag as advisory rather than authority to silently remove the local support export path.
 
