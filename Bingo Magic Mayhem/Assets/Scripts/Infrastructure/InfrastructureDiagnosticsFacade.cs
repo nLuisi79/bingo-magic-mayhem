@@ -44,6 +44,7 @@ namespace BingoMagicMayhem.Infrastructure
         public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
         public JournalRetentionPolicySnapshot JournalRetentionPolicy = new JournalRetentionPolicySnapshot();
         public AnalyticsSafetySnapshot AnalyticsSafety = new AnalyticsSafetySnapshot();
+        public DiagnosticsExportSafetySnapshot ExportSafety = new DiagnosticsExportSafetySnapshot();
         public CloudProfileSyncStatus ProfileCloudSync = new CloudProfileSyncStatus();
         public RemoteConfigSafetySnapshot RemoteConfigSafety = new RemoteConfigSafetySnapshot();
         public List<DiagnosticsEventCount> EventCounts = new List<DiagnosticsEventCount>();
@@ -92,6 +93,7 @@ namespace BingoMagicMayhem.Infrastructure
         {
             IReadOnlyList<ActionJournalRecord> records = journal.ReadAll();
             RemoteConfigSafetySnapshot remoteConfigSafety = RemoteConfigSafetyDiagnostics.Capture(remoteConfig);
+            JournalRetentionPolicySnapshot retentionPolicy = JournalPolicyDiagnostics.CaptureRetentionPolicy(records);
             InfrastructureDiagnosticsSnapshot snapshot = new InfrastructureDiagnosticsSnapshot
             {
                 Environment = environment.ToString().ToLowerInvariant(),
@@ -107,8 +109,9 @@ namespace BingoMagicMayhem.Infrastructure
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
                 IdentitySafety = IdentitySafetyDiagnostics.Capture(identity, remoteConfigSafety),
                 JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
-                JournalRetentionPolicy = JournalPolicyDiagnostics.CaptureRetentionPolicy(records),
+                JournalRetentionPolicy = retentionPolicy,
                 AnalyticsSafety = AnalyticsSafetyDiagnostics.Capture(records, remoteConfigSafety),
+                ExportSafety = ExportSafetyDiagnostics.Capture(remoteConfigSafety, retentionPolicy),
                 ProfileCloudSync = profileSettingsCloudSync.Status,
                 RemoteConfigSafety = remoteConfigSafety,
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")
@@ -160,6 +163,87 @@ namespace BingoMagicMayhem.Infrastructure
             }
 
             return playerId.Substring(0, 6) + "..." + playerId.Substring(playerId.Length - 4);
+        }
+    }
+
+    public static class ExportSafetyDiagnostics
+    {
+        public const string PolicyVersion = "diagnostics_export_safety_v0.1";
+
+        public static DiagnosticsExportSafetySnapshot Capture(
+            RemoteConfigSafetySnapshot remoteConfigSafety,
+            JournalRetentionPolicySnapshot retentionPolicy)
+        {
+            DiagnosticsExportSafetySnapshot snapshot = new DiagnosticsExportSafetySnapshot
+            {
+                PolicyVersion = PolicyVersion,
+                LocalFileExportEnabled = true,
+                PayloadFreeOnly = true,
+                SensitivePayloadRedactionRequired = true,
+                ExternalShareEnabled = false,
+                InAppShareEnabled = false,
+                ClipboardCopyEnabled = false,
+                RemoteConfigRequestsExportEnabled = remoteConfigSafety == null || remoteConfigSafety.DiagnosticsExportEnabled,
+                RemoteConfigCanDisableLocalExport = false,
+                ExportBlockedRecordCount = retentionPolicy?.ExportBlockedRecordCount ?? 0,
+                Reason = "Diagnostics export is limited to local payload-free files for support verification. In-app share, clipboard forwarding, and external Beta share flows remain blocked until privacy, support, and moderation rules are approved."
+            };
+
+            AddCheck(
+                snapshot,
+                "Local file export",
+                BackendPreflightStatus.Pass,
+                "Diagnostics can be exported only as a local redacted JSON file in this build.");
+
+            AddCheck(
+                snapshot,
+                "Payload-free contract",
+                BackendPreflightStatus.Pass,
+                "Exported diagnostics omit journal payloads, messages, tokens, credentials, idempotency keys, and full player ids.");
+
+            AddCheck(
+                snapshot,
+                "External share flow",
+                BackendPreflightStatus.Blocked,
+                "No in-app share, upload, email, or social handoff path is enabled for diagnostics exports.");
+
+            AddCheck(
+                snapshot,
+                "Clipboard/quick copy",
+                BackendPreflightStatus.Blocked,
+                "Clipboard and one-tap copy flows are disabled so support-safe export review stays explicit.");
+
+            AddCheck(
+                snapshot,
+                "Remote Config authority",
+                snapshot.RemoteConfigRequestsExportEnabled ? BackendPreflightStatus.Pass : BackendPreflightStatus.Warning,
+                snapshot.RemoteConfigRequestsExportEnabled
+                    ? "Remote Config currently allows the local support export path to remain visible."
+                    : "Remote Config requests export disabled, but the local support export remains code-authoritative until a Beta support workflow is approved.");
+
+            AddCheck(
+                snapshot,
+                "Sensitive row redaction",
+                snapshot.ExportBlockedRecordCount == 0 ? BackendPreflightStatus.Pass : BackendPreflightStatus.Warning,
+                snapshot.ExportBlockedRecordCount == 0
+                    ? "Current retained journal rows do not raise additional redaction warnings beyond the payload-free export contract."
+                    : "One or more retained journal rows include sensitive markers and require payload-free export handling.");
+
+            return snapshot;
+        }
+
+        private static void AddCheck(
+            DiagnosticsExportSafetySnapshot snapshot,
+            string name,
+            BackendPreflightStatus status,
+            string detail)
+        {
+            snapshot.Checks.Add(new BackendPreflightCheck
+            {
+                Name = name ?? "",
+                Status = status,
+                Detail = detail ?? ""
+            });
         }
     }
 

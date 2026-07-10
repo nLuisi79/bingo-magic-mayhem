@@ -18,6 +18,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `AnalyticsSafetyDiagnostics`: analytics consent/upload policy that keeps live upload blocked and reports allowlisted versus local-only analytics rows.
 - `LocalRemoteConfigFacade`: typed reads from explicitly supplied local defaults.
 - `RemoteConfigSafetyDiagnostics`: infrastructure-only Remote Config safety policy for live/cloud enablement flags.
+- `ExportSafetyDiagnostics`: local-file-only diagnostics export/share policy that keeps support exports payload-free and external share flows blocked.
 - `InfrastructureContracts`: service interfaces and transport-neutral models.
 - `ProfileSettingsPersistence`: first narrow durable-state consumer with compatibility `PlayerPrefs` writes.
 - `LocalStateMigrationRegistry`: explicit ordered state-schema upgrades with no skipped versions.
@@ -78,13 +79,14 @@ Prototype Settings includes a Persistence panel with:
 - UGS preflight package/adapter/cloud-readiness state;
 - identity safety state: policy `identity_safety_v0.1`, local guest provider, cloud-auth blocked state, account-link/recovery blockers, and Remote Config bypass blocking;
 - analytics safety state: policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted analytics rows, local-only blocked rows, and Remote Config bypass blocking;
+- diagnostics export/share safety state: policy `diagnostics_export_safety_v0.1`, local-file export enabled, payload-free-only contract, external share blocked, clipboard blocked, and advisory-only Remote Config export flag status;
 - Remote Config safety state: policy `infra_remote_config_safety_v0.1`, required infra key coverage, risky enable flags, unknown keys, and local-only runtime-change blocking;
 - profile/settings Cloud Save sync state: live sync off, adapter compile gate, key `bmm.profile_settings.v2`, upload blocked, download blocked, local snapshots authoritative, automatic merge blocked, remote overwrite blocked, and gameplay sync blocked;
 - journal sync-staging state: live uploads off, active upload eligible 0, future-upload candidates, sensitive/unapproved blocked rows, and status counts;
 - journal retention/privacy state: policy `journal_retention_policy_v0.1`, retention/archive/compaction/delete gates blocked, planning candidate counts, and export-redaction counts;
 - safe summary export.
 
-The export contains operational counts only. It excludes full player ids, action ids, idempotency keys, journal payloads, message content, tokens, receipts, and credentials. Journal clearing, compaction, automatic retention, deletion, and live upload are not available until their policies are approved.
+The export contains operational counts only. It excludes full player ids, action ids, idempotency keys, journal payloads, message content, tokens, receipts, and credentials. Journal clearing, compaction, automatic retention, deletion, live upload, clipboard forwarding, and in-app external sharing are not available until their policies are approved.
 
 ## Journal Contract
 
@@ -149,19 +151,20 @@ Edit-mode tests cover:
 - Remote Config safety defaults, risky enable-flag blocking, unknown key visibility, and diagnostics capture.
 - analytics safety defaults, consent/upload blocking, allowlisted-event capture, and Remote Config bypass blocking.
 - journal retention/privacy defaults, blocked retention/archive/compaction/delete controls, and export-redaction planning counts.
+- diagnostics export/share safety defaults, external-share blocking, and advisory-only Remote Config export disable handling.
 
-Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds. Journal retention/privacy scaffolding adds three EditMode tests for the next Unity Test Runner pass.
+Unity EditMode `InfrastructureServiceTests` last passed 28/28 on 2026-07-10 after the journal retention/privacy pass. Diagnostics export/share safety scaffolding adds three EditMode tests for the next Unity Test Runner pass.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 
 ## Next Narrow Infrastructure Passes
 
 1. Run the full edit-mode suite through Unity Test Runner when the project is not held by another Unity process.
-2. Decide whether `infra_diagnostics_export_enabled` should be remotely configurable for Beta support builds or remain a code-only local setting.
+2. Decide whether `infra_diagnostics_export_enabled` should stay advisory-only or eventually become authoritative for Beta support builds after support/privacy workflow approval.
 3. Product-approve analytics consent/privacy and upload policy before enabling live analytics.
 4. Product-approve Unity Authentication identity/link/recovery policy before enabling cloud sign-in.
 5. Product-approve the Cloud Save conflict/offline policy for profile/settings before enabling upload/download.
 6. Product-approve journal retention, archive/compaction, privacy, and upload allowlists before enabling any destructive journal controls.
-7. Decide whether diagnostics exports need an in-app share flow for external Beta; current export is local only.
+7. Decide whether diagnostics exports need an approved in-app share flow for external Beta; current export remains local-file-only.
 8. Decide whether profile display-name editing belongs in the next Beta slice; it remains a placeholder now.
 9. Add UGS Authentication/Cloud Save/Remote Config/Analytics adapters only after package installation and project connection are explicitly approved.

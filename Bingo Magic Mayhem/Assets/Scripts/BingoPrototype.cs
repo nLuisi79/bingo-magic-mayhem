@@ -5846,6 +5846,11 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"Analytics safety: {diagnostics.AnalyticsSafety.PolicyVersion} | upload {(diagnostics.AnalyticsSafety.LiveUploadEnabled ? "on" : "off")} | allowlisted {diagnostics.AnalyticsSafety.AllowlistedAnalyticsRecordCount} | blocked {diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount}");
         }
 
+        if (diagnostics.ExportSafety != null)
+        {
+            builder.AppendLine($"Export safety: {diagnostics.ExportSafety.PolicyVersion} | local file {(diagnostics.ExportSafety.LocalFileExportEnabled ? "ready" : "blocked")} | external share {(diagnostics.ExportSafety.ExternalShareEnabled ? "ready" : "blocked")} | redaction rows {diagnostics.ExportSafety.ExportBlockedRecordCount}");
+        }
+
         if (diagnostics.ProfileCloudSync != null)
         {
             builder.AppendLine($"Profile Cloud Save: live sync {(diagnostics.ProfileCloudSync.LiveSyncEnabled ? "on" : "off")} | upload {(diagnostics.ProfileCloudSync.CanUpload ? "ready" : "blocked")} | download {(diagnostics.ProfileCloudSync.CanDownload ? "ready" : "blocked")}");
@@ -5900,6 +5905,20 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"- remote flags request upload {diagnostics.AnalyticsSafety.RemoteFlagsRequestUpload}, runtime upload allowed {diagnostics.AnalyticsSafety.AllowsRuntimeUpload}");
             builder.AppendLine($"- reason: {diagnostics.AnalyticsSafety.Reason}");
             foreach (BackendPreflightCheck check in diagnostics.AnalyticsSafety.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("EXPORT SAFETY");
+        if (diagnostics.ExportSafety != null)
+        {
+            builder.AppendLine($"- local file export enabled {diagnostics.ExportSafety.LocalFileExportEnabled}, payload-free only {diagnostics.ExportSafety.PayloadFreeOnly}, sensitive redaction required {diagnostics.ExportSafety.SensitivePayloadRedactionRequired}");
+            builder.AppendLine($"- external share enabled {diagnostics.ExportSafety.ExternalShareEnabled}, in-app share enabled {diagnostics.ExportSafety.InAppShareEnabled}, clipboard copy enabled {diagnostics.ExportSafety.ClipboardCopyEnabled}");
+            builder.AppendLine($"- Remote Config requests export enabled {diagnostics.ExportSafety.RemoteConfigRequestsExportEnabled}, Remote Config can disable local export {diagnostics.ExportSafety.RemoteConfigCanDisableLocalExport}, export-blocked rows {diagnostics.ExportSafety.ExportBlockedRecordCount}");
+            builder.AppendLine($"- reason: {diagnostics.ExportSafety.Reason}");
+            foreach (BackendPreflightCheck check in diagnostics.ExportSafety.Checks)
             {
                 builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
             }

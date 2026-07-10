@@ -136,6 +136,23 @@ namespace BingoMagicMayhem.Infrastructure
         public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
     }
 
+    [Serializable]
+    public sealed class DiagnosticsExportSafetySnapshot
+    {
+        public string PolicyVersion = "";
+        public bool LocalFileExportEnabled;
+        public bool PayloadFreeOnly = true;
+        public bool SensitivePayloadRedactionRequired = true;
+        public bool ExternalShareEnabled;
+        public bool InAppShareEnabled;
+        public bool ClipboardCopyEnabled;
+        public bool RemoteConfigRequestsExportEnabled = true;
+        public bool RemoteConfigCanDisableLocalExport;
+        public int ExportBlockedRecordCount;
+        public string Reason = "";
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
     public enum BackendPreflightStatus
     {
         Pass,

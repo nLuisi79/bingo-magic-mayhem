@@ -247,6 +247,45 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void ExportSafety_DefaultsToLocalPayloadFreeFilesOnly()
+    {
+        DiagnosticsExportSafetySnapshot safety = ExportSafetyDiagnostics.Capture(
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults())),
+            new JournalRetentionPolicySnapshot());
+
+        Assert.That(safety.PolicyVersion, Is.EqualTo("diagnostics_export_safety_v0.1"));
+        Assert.That(safety.LocalFileExportEnabled, Is.True);
+        Assert.That(safety.PayloadFreeOnly, Is.True);
+        Assert.That(safety.ExternalShareEnabled, Is.False);
+        Assert.That(safety.InAppShareEnabled, Is.False);
+        Assert.That(safety.ClipboardCopyEnabled, Is.False);
+        Assert.That(safety.RemoteConfigRequestsExportEnabled, Is.True);
+        Assert.That(safety.RemoteConfigCanDisableLocalExport, Is.False);
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "External share flow" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
+    public void ExportSafety_RemoteConfigCannotSilentlyDisableLocalSupportExport()
+    {
+        DiagnosticsExportSafetySnapshot safety = ExportSafetyDiagnostics.Capture(
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(new[]
+            {
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.UgsAdaptersEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.CloudProfileSyncEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.JournalUploadEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.AnalyticsUploadEnabledKey, "false"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.DiagnosticsExportEnabledKey, "false")
+            })),
+            new JournalRetentionPolicySnapshot());
+
+        Assert.That(safety.LocalFileExportEnabled, Is.True);
+        Assert.That(safety.RemoteConfigRequestsExportEnabled, Is.False);
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Remote Config authority" && check.Status == BackendPreflightStatus.Warning));
+    }
+
+    [Test]
     public void AnalyticsSafety_DefaultsKeepUploadBlocked()
     {
         string root = CreateTemporaryRoot();
@@ -657,6 +696,24 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.JournalRetentionPolicy.CompactionEnabled, Is.False);
         Assert.That(diagnostics.JournalRetentionPolicy.DeleteEnabled, Is.False);
         Assert.That(diagnostics.JournalRetentionPolicy.TotalRecordCount, Is.GreaterThanOrEqualTo(1));
+    }
+
+    [Test]
+    public void Diagnostics_ReportsExportSafetyDefaults()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.ExportSafety, Is.Not.Null);
+        Assert.That(diagnostics.ExportSafety.LocalFileExportEnabled, Is.True);
+        Assert.That(diagnostics.ExportSafety.ExternalShareEnabled, Is.False);
+        Assert.That(diagnostics.ExportSafety.InAppShareEnabled, Is.False);
+        Assert.That(diagnostics.ExportSafety.PayloadFreeOnly, Is.True);
+        Assert.That(diagnostics.ExportSafety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Payload-free contract" && check.Status == BackendPreflightStatus.Pass));
     }
 
     [Test]

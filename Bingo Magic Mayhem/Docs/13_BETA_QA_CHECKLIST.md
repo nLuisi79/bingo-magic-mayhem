@@ -224,6 +224,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm local Remote Config reads typed supplied defaults and returns explicit fallbacks for missing values.
 - Confirm Remote Config safety diagnostics show policy `infra_remote_config_safety_v0.1`, UGS adapters off, profile Cloud Save sync off, journal upload off, analytics upload off, diagnostics export on, risky enabled count 0, missing required key count 0, and unknown key count 0 for the default local composition.
 - Confirm analytics safety diagnostics show policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted infrastructure analytics rows counted separately from local-only blocked rows, and Remote Config bypass blocked.
+- Confirm export safety diagnostics show policy `diagnostics_export_safety_v0.1`, local file export enabled, payload-free export required, external share blocked, in-app share blocked, clipboard copy blocked, and Remote Config unable to silently disable the local support export path.
 - Confirm test-only risky Remote Config values are reported as blocked diagnostics and do not enable live UGS, Cloud Save upload/download, or journal upload.
 - Confirm UGS packages are resolved but no live cloud calls, analytics uploads, adapter define, or gameplay-state migrations are active in this pass.
 - Confirm profile/settings changes append local journal records and malformed profile snapshots recover through the last-known-good backup.
@@ -239,11 +240,12 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm a snapshot newer than the client is rejected rather than silently overwritten or downgraded through its backup.
 - Confirm the panel provides no journal clear/retention action while retention policy remains unresolved.
 - Confirm journal retention diagnostics show policy `journal_retention_policy_v0.1`, retention/archive/compaction/delete all disabled, export redaction required, and planning-only candidate counts for archive/compaction/delete.
+- Confirm Prototype Settings > Persistence shows Export Safety with local-file-only export, external share blocked, and explicit checks for payload-free contract and sensitive-row redaction warnings.
 - Confirm the five approved UGS package entries resolve in Package Manager and update `packages-lock.json` before enabling the adapter define.
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds. Journal retention/privacy scaffolding adds three more EditMode tests for the next Unity Test Runner pass.
+- Unity EditMode `InfrastructureServiceTests` last passed 28/28 on 2026-07-10 after the journal retention/privacy pass. Diagnostics export/share safety scaffolding adds three more EditMode tests for the next Unity Test Runner pass.
 
 ## Documentation Follow-Up After Each Pass
 
