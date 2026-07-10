@@ -40,6 +40,7 @@ namespace BingoMagicMayhem.Infrastructure
         public string LastMigratedState = "none";
         public string LastMigration = "";
         public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
+        public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
         public List<DiagnosticsEventCount> EventCounts = new List<DiagnosticsEventCount>();
         public string CapturedAtUtc = "";
     }
@@ -92,6 +93,7 @@ namespace BingoMagicMayhem.Infrastructure
                 LastMigratedState = stateStore.LastMigratedState,
                 LastMigration = stateStore.LastMigration,
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
+                JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")
             };
             snapshot.SnapshotCount = snapshot.Snapshots.Count;
@@ -141,6 +143,144 @@ namespace BingoMagicMayhem.Infrastructure
             }
 
             return playerId.Substring(0, 6) + "..." + playerId.Substring(playerId.Length - 4);
+        }
+    }
+
+    public static class JournalPolicyDiagnostics
+    {
+        private const string PolicyVersion = "local_journal_policy_v0.1";
+        private static readonly bool LiveUploadsEnabled = false;
+
+        private static readonly HashSet<string> FutureUploadAllowlist = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "analytics/infrastructure_initialized",
+            "persistence/snapshot_recovered",
+            "persistence/snapshot_migrated",
+            "profile_settings/profile_settings_initialized",
+            "profile_settings/profile_settings_migrated",
+            "profile_settings/avatar_selected",
+            "profile_settings/frame_selected",
+            "profile_settings/dauber_selected",
+            "profile_settings/display_name_changed",
+            "profile_settings/sound_preference_changed",
+            "profile_settings/notification_preference_changed"
+        };
+
+        private static readonly string[] SensitivePayloadMarkers =
+        {
+            "\"message\"",
+            "\"displayname\"",
+            "\"display_name\"",
+            "\"email\"",
+            "\"password\"",
+            "\"secret\"",
+            "\"token\"",
+            "\"access_token\"",
+            "\"receipt\"",
+            "\"credential\"",
+            "\"idempotency\""
+        };
+
+        public static JournalSyncPolicySnapshot Capture(IReadOnlyList<ActionJournalRecord> records)
+        {
+            JournalSyncPolicySnapshot snapshot = new JournalSyncPolicySnapshot
+            {
+                PolicyVersion = PolicyVersion,
+                LiveUploadsEnabled = LiveUploadsEnabled
+            };
+            Dictionary<string, JournalPolicySourceSummary> sourceSummaries =
+                new Dictionary<string, JournalPolicySourceSummary>(StringComparer.Ordinal);
+
+            foreach (ActionJournalRecord record in records)
+            {
+                snapshot.RetainLocalRecordCount++;
+                snapshot.ExportSummaryAllowedRecordCount++;
+                CountStatus(snapshot, record.Status);
+
+                string eventKey = BuildEventKey(record);
+                if (!sourceSummaries.TryGetValue(eventKey, out JournalPolicySourceSummary sourceSummary))
+                {
+                    sourceSummary = new JournalPolicySourceSummary { Event = eventKey };
+                    sourceSummaries[eventKey] = sourceSummary;
+                }
+
+                sourceSummary.RecordCount++;
+                if (ContainsSensitivePayloadMarker(record.PayloadJson))
+                {
+                    snapshot.BlockedSensitiveRecordCount++;
+                    sourceSummary.BlockedSensitiveCount++;
+                    continue;
+                }
+
+                if (!FutureUploadAllowlist.Contains(eventKey))
+                {
+                    snapshot.BlockedUnapprovedRecordCount++;
+                    sourceSummary.BlockedUnapprovedCount++;
+                    continue;
+                }
+
+                snapshot.FutureUploadEligibleRecordCount++;
+                sourceSummary.FutureUploadEligibleCount++;
+                if (LiveUploadsEnabled)
+                {
+                    snapshot.ActiveUploadEligibleRecordCount++;
+                    sourceSummary.ActiveUploadEligibleCount++;
+                }
+            }
+
+            foreach (KeyValuePair<string, JournalPolicySourceSummary> pair in sourceSummaries)
+            {
+                snapshot.SourceSummaries.Add(pair.Value);
+            }
+
+            snapshot.SourceSummaries.Sort((left, right) => string.CompareOrdinal(left.Event, right.Event));
+            return snapshot;
+        }
+
+        private static void CountStatus(JournalSyncPolicySnapshot snapshot, JournalActionStatus status)
+        {
+            switch (status)
+            {
+                case JournalActionStatus.Pending:
+                    snapshot.PendingRecordCount++;
+                    break;
+                case JournalActionStatus.AppliedLocal:
+                    snapshot.AppliedLocalRecordCount++;
+                    break;
+                case JournalActionStatus.Synced:
+                    snapshot.SyncedRecordCount++;
+                    break;
+                case JournalActionStatus.Rejected:
+                    snapshot.RejectedRecordCount++;
+                    break;
+                case JournalActionStatus.Compensated:
+                    snapshot.CompensatedRecordCount++;
+                    break;
+            }
+        }
+
+        private static string BuildEventKey(ActionJournalRecord record)
+        {
+            return (record.Source ?? "unknown") + "/" + (record.Type ?? "unknown");
+        }
+
+        private static bool ContainsSensitivePayloadMarker(string payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson))
+            {
+                return false;
+            }
+
+            string lowered = payloadJson.ToLowerInvariant();
+            foreach (string marker in SensitivePayloadMarkers)
+            {
+                if (lowered.Contains(marker))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -44,7 +44,9 @@ Existing gameplay `PlayerPrefs` state is unchanged. The approved UGS packages ar
 
 The first consumer migration is now active for profile cosmetics and Sound/Notifications. It uses stable cosmetic ids, a versioned local snapshot, compatibility `PlayerPrefs` writes, and journaled change/recovery events. No inventory, currency, reward, progress, social, or economy state moved in this pass.
 
-Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, and a local UGS preflight summary. Journal retention, compaction, clearing, and upload allowlists remain open and inactive.
+Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, a local UGS preflight summary, and local journal sync-staging counts. Journal retention, compaction, clearing, and live upload remain open and inactive.
+
+The journal diagnostics policy now has a conservative future-upload allowlist for infrastructure/profile events and a sensitive-marker blocklist for payloads. This is a planning surface only: no journal rows are uploaded, active upload eligibility remains 0, and no row deletion/retention control is exposed.
 
 Profile settings schema 2 adds a local display name and stable cosmetic catalog ids. Display-name validation is Beta/test-only; production uniqueness/moderation requires approved backend authority. Cosmetic logical keys currently resolve through a local Resources adapter and are designed to move to Addressables without changing saved ids.
 

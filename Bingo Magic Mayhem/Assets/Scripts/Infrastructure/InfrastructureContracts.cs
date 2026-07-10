@@ -95,6 +95,36 @@ namespace BingoMagicMayhem.Infrastructure
         public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
     }
 
+    [Serializable]
+    public sealed class JournalPolicySourceSummary
+    {
+        public string Event = "";
+        public int RecordCount;
+        public int FutureUploadEligibleCount;
+        public int ActiveUploadEligibleCount;
+        public int BlockedSensitiveCount;
+        public int BlockedUnapprovedCount;
+    }
+
+    [Serializable]
+    public sealed class JournalSyncPolicySnapshot
+    {
+        public string PolicyVersion = "";
+        public bool LiveUploadsEnabled;
+        public int RetainLocalRecordCount;
+        public int ExportSummaryAllowedRecordCount;
+        public int FutureUploadEligibleRecordCount;
+        public int ActiveUploadEligibleRecordCount;
+        public int BlockedSensitiveRecordCount;
+        public int BlockedUnapprovedRecordCount;
+        public int PendingRecordCount;
+        public int AppliedLocalRecordCount;
+        public int SyncedRecordCount;
+        public int RejectedRecordCount;
+        public int CompensatedRecordCount;
+        public List<JournalPolicySourceSummary> SourceSummaries = new List<JournalPolicySourceSummary>();
+    }
+
     public interface ILocalDurableStateStore
     {
         bool TryLoad<T>(string stateName, out T value) where T : class;

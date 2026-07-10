@@ -5819,6 +5819,12 @@ public class BingoPrototype : MonoBehaviour
         builder.AppendLine($"Snapshots: {diagnostics.SnapshotCount} | Journal: {diagnostics.JournalRecordCount} records / {FormatDiagnosticBytes(diagnostics.JournalBytes)} | Pending action rows: {diagnostics.PendingActionRecordCount}");
         builder.AppendLine($"Last sequence: {diagnostics.LastJournalSequence} | Recovery: {diagnostics.LastRecoveredState} {diagnostics.LastRecoveryAtUtc}");
         builder.AppendLine($"Migration: {diagnostics.LastMigratedState} {diagnostics.LastMigration}");
+        if (diagnostics.JournalSyncPolicy != null)
+        {
+            builder.AppendLine($"Journal policy: {diagnostics.JournalSyncPolicy.PolicyVersion} | live uploads {(diagnostics.JournalSyncPolicy.LiveUploadsEnabled ? "on" : "off")} | active upload eligible {diagnostics.JournalSyncPolicy.ActiveUploadEligibleRecordCount}");
+            builder.AppendLine($"Future upload candidates: {diagnostics.JournalSyncPolicy.FutureUploadEligibleRecordCount} | blocked sensitive {diagnostics.JournalSyncPolicy.BlockedSensitiveRecordCount} | blocked unapproved {diagnostics.JournalSyncPolicy.BlockedUnapprovedRecordCount}");
+        }
+
         if (diagnostics.BackendPreflight != null)
         {
             builder.AppendLine($"UGS preflight: packages {diagnostics.BackendPreflight.PackageState}, adapters {diagnostics.BackendPreflight.AdapterDefine}, live calls {(diagnostics.BackendPreflight.LiveCloudCallsEnabled ? "on" : "off")}");
@@ -5830,6 +5836,15 @@ public class BingoPrototype : MonoBehaviour
         foreach (SnapshotDiagnosticsEntry entry in diagnostics.Snapshots)
         {
             builder.AppendLine($"- {entry.StateName} v{entry.SchemaVersion}: {entry.Health}, {FormatDiagnosticBytes(entry.Bytes)}, backup {(entry.HasBackup ? "yes" : "no")}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("JOURNAL SYNC STAGING");
+        if (diagnostics.JournalSyncPolicy != null)
+        {
+            builder.AppendLine($"- retain local: {diagnostics.JournalSyncPolicy.RetainLocalRecordCount}, summary-export allowed: {diagnostics.JournalSyncPolicy.ExportSummaryAllowedRecordCount}");
+            builder.AppendLine($"- status rows: pending {diagnostics.JournalSyncPolicy.PendingRecordCount}, applied {diagnostics.JournalSyncPolicy.AppliedLocalRecordCount}, synced {diagnostics.JournalSyncPolicy.SyncedRecordCount}, rejected {diagnostics.JournalSyncPolicy.RejectedRecordCount}, compensated {diagnostics.JournalSyncPolicy.CompensatedRecordCount}");
+            builder.AppendLine("- live upload queue is disabled; no journal rows are uploaded in this build.");
         }
 
         builder.AppendLine();

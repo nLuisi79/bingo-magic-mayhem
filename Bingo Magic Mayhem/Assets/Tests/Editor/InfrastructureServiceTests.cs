@@ -283,6 +283,40 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void JournalPolicy_StagesSafeEventsWithoutUploadingSensitivePayloads()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        string playerId = services.Identity.Current.PlayerId;
+        services.ActionJournal.RecordAction(
+            playerId,
+            "profile_settings",
+            "avatar_selected",
+            "{\"AvatarId\":\"avatar_moon_witch\"}",
+            status: JournalActionStatus.AppliedLocal);
+        services.ActionJournal.RecordAction(
+            playerId,
+            "friend_message",
+            "sent",
+            "{\"message\":\"keep-this-local\"}",
+            status: JournalActionStatus.AppliedLocal);
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.JournalSyncPolicy.LiveUploadsEnabled, Is.False);
+        Assert.That(diagnostics.JournalSyncPolicy.ActiveUploadEligibleRecordCount, Is.EqualTo(0));
+        Assert.That(diagnostics.JournalSyncPolicy.FutureUploadEligibleRecordCount, Is.GreaterThanOrEqualTo(2));
+        Assert.That(diagnostics.JournalSyncPolicy.BlockedSensitiveRecordCount, Is.EqualTo(1));
+        Assert.That(diagnostics.JournalSyncPolicy.SourceSummaries, Has.Some.Matches<JournalPolicySourceSummary>(summary =>
+            summary.Event == "friend_message/sent" && summary.BlockedSensitiveCount == 1));
+
+        string export = File.ReadAllText(services.Diagnostics.ExportSafeSummary());
+        Assert.That(export, Does.Not.Contain("keep-this-local"));
+        Assert.That(export, Does.Not.Contain(playerId));
+    }
+
+    [Test]
     public void DurableState_RejectsNewerSnapshotWithoutDowngradingToBackup()
     {
         string root = CreateTemporaryRoot();

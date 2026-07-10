@@ -20,6 +20,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `LocalStateMigrationRegistry`: explicit ordered state-schema upgrades with no skipped versions.
 - `InfrastructureDiagnosticsFacade`: redacted snapshot/journal health capture and payload-free export.
 - `UgsPreflightDiagnostics`: local package/adapter/cloud-readiness checks with live calls disabled by default.
+- `JournalPolicyDiagnostics`: read-only local journal policy counts for retain/export/future-upload staging, sensitive payload blocking, and unapproved source/type blocking.
 
 The approved UGS SDK packages are resolved into the project lockfile/cache, but no project environment, cloud endpoint, authentication call, analytics upload, or Remote Config fetch is connected in this pass.
 
@@ -71,9 +72,10 @@ Prototype Settings includes a Persistence panel with:
 - journal record count, pending action-row count, byte size, and latest sequence;
 - last observed recovery and migration;
 - UGS preflight package/adapter/cloud-readiness state;
+- journal sync-staging state: live uploads off, active upload eligible 0, future-upload candidates, sensitive/unapproved blocked rows, and status counts;
 - safe summary export.
 
-The export contains operational counts only. It excludes full player ids, action ids, idempotency keys, journal payloads, message content, tokens, receipts, and credentials. Journal clearing, compaction, automatic retention, and upload are not available until their policies are approved.
+The export contains operational counts only. It excludes full player ids, action ids, idempotency keys, journal payloads, message content, tokens, receipts, and credentials. Journal clearing, compaction, automatic retention, deletion, and live upload are not available until their policies are approved.
 
 ## Journal Contract
 
@@ -114,6 +116,7 @@ UGS Economy, Cloud Code, Cloud Save reconciliation, IAP, Leaderboards, and socia
 - Keep unresolved tuning in labeled local config defaults rather than hard-coded as final.
 - Do not upload analytics or journal records before consent, retention, and safe-payload rules are approved.
 - Do not treat the local journal as server authority.
+- Treat the current journal policy as diagnostics-only. It may identify future upload candidates, but active upload eligibility remains 0 until a live adapter, consent, retention, and upload allowlist are approved together.
 
 ## Verification
 
@@ -129,6 +132,9 @@ Edit-mode tests cover:
 - redacted diagnostics export with payload/identity exclusion.
 - profile-settings schema 1 to 2 migration for local display name;
 - stable cosmetic ids and logical asset keys with placeholder-safe sprite resolution.
+- journal policy staging for safe future-upload candidates, sensitive payload blocking, and live uploads disabled.
+
+Unity EditMode `InfrastructureServiceTests` passed 12/12 on 2026-07-10.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 
