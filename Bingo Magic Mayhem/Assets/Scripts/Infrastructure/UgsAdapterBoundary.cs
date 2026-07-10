@@ -25,6 +25,94 @@ namespace BingoMagicMayhem.Infrastructure
         public const string RequiredEnvironment = "development";
     }
 
+    public static class UgsPreflightDiagnostics
+    {
+        private const string PackageState = "resolved_lockfile_cache";
+
+        public static BackendPreflightSnapshot Capture(ServiceEnvironment environment)
+        {
+            BackendPreflightSnapshot snapshot = new BackendPreflightSnapshot
+            {
+                Environment = environment.ToString().ToLowerInvariant(),
+                PackageState = PackageState,
+                AdapterDefine = IsAdapterDefineEnabled() ? "enabled" : "absent",
+                LiveCloudCallsEnabled = false
+            };
+
+            AddCheck(
+                snapshot,
+                "UGS packages",
+                BackendPreflightStatus.Pass,
+                "Core, Authentication, Cloud Save, Remote Config, and Analytics are resolved in the lockfile/cache.");
+
+            AddCheck(
+                snapshot,
+                "Adapter define",
+                IsAdapterDefineEnabled() ? BackendPreflightStatus.Warning : BackendPreflightStatus.Pass,
+                IsAdapterDefineEnabled()
+                    ? "BMM_UGS_ADAPTERS is enabled; verify project link, consent, and offline fallback before testing."
+                    : "BMM_UGS_ADAPTERS is absent, so runtime remains on the local-first path.");
+
+            AddCheck(
+                snapshot,
+                "Project environment",
+                BackendPreflightStatus.Blocked,
+                "Development environment link is not enabled by the local composition root.");
+
+            AddCheck(
+                snapshot,
+                "Analytics consent",
+                BackendPreflightStatus.Blocked,
+                "Live Analytics collection remains disabled until consent/privacy handling is approved.");
+
+            AddCheck(
+                snapshot,
+                "Cloud Save conflict policy",
+                BackendPreflightStatus.Blocked,
+                "Cloud profile/settings sync remains disabled until write-lock and offline reconciliation policy is tested.");
+
+            AddCheck(
+                snapshot,
+                "Gameplay/economy sync",
+                BackendPreflightStatus.Pass,
+                "Economy, Cloud Code, IAP, Leaderboards, and gameplay reward sync are still out of scope.");
+
+            return snapshot;
+        }
+
+        private static void AddCheck(
+            BackendPreflightSnapshot snapshot,
+            string name,
+            BackendPreflightStatus status,
+            string detail)
+        {
+            snapshot.Checks.Add(new BackendPreflightCheck
+            {
+                Name = name ?? "",
+                Status = status,
+                Detail = detail ?? ""
+            });
+
+            if (status == BackendPreflightStatus.Blocked)
+            {
+                snapshot.BlockedCount++;
+            }
+            else if (status == BackendPreflightStatus.Warning)
+            {
+                snapshot.WarningCount++;
+            }
+        }
+
+        private static bool IsAdapterDefineEnabled()
+        {
+#if BMM_UGS_ADAPTERS
+            return true;
+#else
+            return false;
+#endif
+        }
+    }
+
 #if BMM_UGS_ADAPTERS
     /// <summary>
     /// Live UGS adapters are intentionally compile-gated. They preserve the local

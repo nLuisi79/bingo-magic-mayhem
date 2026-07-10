@@ -1,6 +1,6 @@
 # UGS-Ready Service Layer
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 Status: first infrastructure implementation pass. This document does not lock gameplay, economy, rewards, progression, monetization, album, Coven, jackpot, or Aura/rank rules.
 
@@ -19,10 +19,11 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `ProfileSettingsPersistence`: first narrow durable-state consumer with compatibility `PlayerPrefs` writes.
 - `LocalStateMigrationRegistry`: explicit ordered state-schema upgrades with no skipped versions.
 - `InfrastructureDiagnosticsFacade`: redacted snapshot/journal health capture and payload-free export.
+- `UgsPreflightDiagnostics`: local package/adapter/cloud-readiness checks with live calls disabled by default.
 
-No live UGS SDK has been resolved into the project cache, and no project environment, cloud endpoint, authentication call, analytics upload, or Remote Config fetch is connected in this pass.
+The approved UGS SDK packages are resolved into the project lockfile/cache, but no project environment, cloud endpoint, authentication call, analytics upload, or Remote Config fetch is connected in this pass.
 
-The approved package entries are now staged in `Packages/manifest.json`, but the currently open Unity editor has not resolved them into `packages-lock.json` or `Library/PackageCache`. Runtime use remains disabled until resolution and project-link checks complete.
+Runtime use remains disabled until project-link, consent, Cloud Save conflict policy, and offline fallback checks complete. `BMM_UGS_ADAPTERS` remains absent by default.
 
 ## Persistence Layout
 
@@ -69,6 +70,7 @@ Prototype Settings includes a Persistence panel with:
 - snapshot names, schema versions, health, byte size, and backup presence;
 - journal record count, pending action-row count, byte size, and latest sequence;
 - last observed recovery and migration;
+- UGS preflight package/adapter/cloud-readiness state;
 - safe summary export.
 
 The export contains operational counts only. It excludes full player ids, action ids, idempotency keys, journal payloads, message content, tokens, receipts, and credentials. Journal clearing, compaction, automatic retention, and upload are not available until their policies are approved.

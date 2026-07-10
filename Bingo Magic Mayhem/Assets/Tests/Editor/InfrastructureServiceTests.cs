@@ -269,6 +269,19 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void BackendPreflight_ReportsResolvedPackagesAndDisabledLiveAdapters()
+    {
+        BackendPreflightSnapshot preflight = UgsPreflightDiagnostics.Capture(ServiceEnvironment.Prototype);
+
+        Assert.That(preflight.PackageState, Is.EqualTo("resolved_lockfile_cache"));
+        Assert.That(preflight.AdapterDefine, Is.EqualTo("absent"));
+        Assert.That(preflight.LiveCloudCallsEnabled, Is.False);
+        Assert.That(preflight.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "UGS packages" && check.Status == BackendPreflightStatus.Pass));
+        Assert.That(preflight.BlockedCount, Is.GreaterThanOrEqualTo(1));
+    }
+
+    [Test]
     public void DurableState_RejectsNewerSnapshotWithoutDowngradingToBackup()
     {
         string root = CreateTemporaryRoot();

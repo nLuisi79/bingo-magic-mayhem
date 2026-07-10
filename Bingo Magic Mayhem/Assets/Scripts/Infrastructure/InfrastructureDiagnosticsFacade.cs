@@ -39,6 +39,7 @@ namespace BingoMagicMayhem.Infrastructure
         public string LastRecoveryAtUtc = "";
         public string LastMigratedState = "none";
         public string LastMigration = "";
+        public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
         public List<DiagnosticsEventCount> EventCounts = new List<DiagnosticsEventCount>();
         public string CapturedAtUtc = "";
     }
@@ -90,6 +91,7 @@ namespace BingoMagicMayhem.Infrastructure
                 LastRecoveryAtUtc = stateStore.LastRecoveryAtUtc,
                 LastMigratedState = stateStore.LastMigratedState,
                 LastMigration = stateStore.LastMigration,
+                BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")
             };
             snapshot.SnapshotCount = snapshot.Snapshots.Count;

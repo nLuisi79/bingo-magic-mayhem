@@ -1,6 +1,6 @@
 # UGS Production Ownership Map
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 Status: production-planning map. This is not a gameplay, economy, reward, rarity, monetization, progression, or Aura/rank lock document.
 
@@ -40,15 +40,15 @@ The first SDK-free infrastructure pass is implemented under `Assets/Scripts/Infr
 - typed local Remote Config facade with no embedded gameplay/economy defaults;
 - one composition root designed for future UGS adapters.
 
-Existing gameplay `PlayerPrefs` state is unchanged. No UGS packages or live services are connected. See `15_UGS_READY_SERVICE_LAYER.md` for the implementation contract and adoption rules.
+Existing gameplay `PlayerPrefs` state is unchanged. The approved UGS packages are resolved, but no live services are connected. See `15_UGS_READY_SERVICE_LAYER.md` for the implementation contract and adoption rules.
 
 The first consumer migration is now active for profile cosmetics and Sound/Notifications. It uses stable cosmetic ids, a versioned local snapshot, compatibility `PlayerPrefs` writes, and journaled change/recovery events. No inventory, currency, reward, progress, social, or economy state moved in this pass.
 
-Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics and payload-free export. Journal retention, compaction, clearing, and upload allowlists remain open and inactive.
+Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics, payload-free export, and a local UGS preflight summary. Journal retention, compaction, clearing, and upload allowlists remain open and inactive.
 
 Profile settings schema 2 adds a local display name and stable cosmetic catalog ids. Display-name validation is Beta/test-only; production uniqueness/moderation requires approved backend authority. Cosmetic logical keys currently resolve through a local Resources adapter and are designed to move to Addressables without changing saved ids.
 
-The five approved UGS packages are staged in the manifest, but no live UGS adapter is enabled. The gated boundary is documented in `17_UGS_ADAPTER_BOUNDARY.md`; Economy, Cloud Code, IAP, Leaderboards, and gameplay/economy sync remain out of scope.
+The five approved UGS packages are resolved in the manifest, lockfile, and package cache, but no live UGS adapter is enabled. The gated boundary is documented in `17_UGS_ADAPTER_BOUNDARY.md`; Economy, Cloud Code, IAP, Leaderboards, and gameplay/economy sync remain out of scope.
 
 ## UGS Service Roles
 

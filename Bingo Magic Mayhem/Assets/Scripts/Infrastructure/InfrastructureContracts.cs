@@ -68,6 +68,33 @@ namespace BingoMagicMayhem.Infrastructure
         }
     }
 
+    public enum BackendPreflightStatus
+    {
+        Pass,
+        Warning,
+        Blocked
+    }
+
+    [Serializable]
+    public sealed class BackendPreflightCheck
+    {
+        public string Name = "";
+        public BackendPreflightStatus Status;
+        public string Detail = "";
+    }
+
+    [Serializable]
+    public sealed class BackendPreflightSnapshot
+    {
+        public string Environment = "";
+        public string PackageState = "";
+        public string AdapterDefine = "";
+        public bool LiveCloudCallsEnabled;
+        public int BlockedCount;
+        public int WarningCount;
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
     public interface ILocalDurableStateStore
     {
         bool TryLoad<T>(string stateName, out T value) where T : class;

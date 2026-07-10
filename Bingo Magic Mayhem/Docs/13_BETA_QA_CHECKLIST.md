@@ -1,6 +1,6 @@
 # Beta QA Checklist
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 Status: working QA script for Beta readiness. This is not a gameplay, economy, reward, progression, monetization, or Aura/rank lock document.
 
@@ -222,7 +222,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm status changes append transition records rather than rewriting existing actions.
 - Confirm a local guest id remains stable across facade recreation.
 - Confirm local Remote Config reads typed supplied defaults and returns explicit fallbacks for missing values.
-- Confirm no UGS packages, cloud calls, analytics uploads, or gameplay-state migrations are active in this pass.
+- Confirm UGS packages are resolved but no live cloud calls, analytics uploads, adapter define, or gameplay-state migrations are active in this pass.
 - Confirm profile/settings changes append local journal records and malformed profile snapshots recover through the last-known-good backup.
 - Open Prototype Settings > Persistence and confirm identity is redacted, snapshot schema/health is visible, and journal counts appear.
 - Export a safe diagnostics summary and confirm it contains no full player id, journal payload, action id, idempotency key, message content, or token.
@@ -230,6 +230,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm a snapshot newer than the client is rejected rather than silently overwritten or downgraded through its backup.
 - Confirm the panel provides no journal clear/retention action while retention policy remains unresolved.
 - Confirm the five approved UGS package entries resolve in Package Manager and update `packages-lock.json` before enabling the adapter define.
+- Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
 

@@ -1,6 +1,6 @@
 # UGS Adapter Boundary
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 ## Package State
 
@@ -12,7 +12,7 @@ The approved package entries are present in `Packages/manifest.json`:
 - `com.unity.remote-config` 4.2.5
 - `com.unity.services.analytics` 6.3.0
 
-Unity’s current open editor has not yet resolved these entries into `packages-lock.json`/`Library/PackageCache`. No production environment is linked and no runtime UGS calls are active.
+Unity has resolved these entries into `packages-lock.json` and `Library/PackageCache`. No production environment is linked and no runtime UGS calls are active.
 
 ## Adapter Gate
 
@@ -26,6 +26,8 @@ When enabled after package resolution and environment review, the adapters provi
 - Cloud Save profile/settings read/write only.
 
 `GameInfrastructureServices.CreateLocal()` does not construct these adapters. Local snapshot, journal, identity fallback, and local config remain the default path until an explicit composition change is approved.
+
+The local diagnostics panel now includes a UGS preflight summary. It is informational only: package resolution is marked pass, while project environment link, Analytics consent, and Cloud Save conflict policy remain blocked before live adapter enablement.
 
 ## Required Enablement Checks
 

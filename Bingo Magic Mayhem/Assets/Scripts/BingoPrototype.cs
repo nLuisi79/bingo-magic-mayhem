@@ -5819,11 +5819,27 @@ public class BingoPrototype : MonoBehaviour
         builder.AppendLine($"Snapshots: {diagnostics.SnapshotCount} | Journal: {diagnostics.JournalRecordCount} records / {FormatDiagnosticBytes(diagnostics.JournalBytes)} | Pending action rows: {diagnostics.PendingActionRecordCount}");
         builder.AppendLine($"Last sequence: {diagnostics.LastJournalSequence} | Recovery: {diagnostics.LastRecoveredState} {diagnostics.LastRecoveryAtUtc}");
         builder.AppendLine($"Migration: {diagnostics.LastMigratedState} {diagnostics.LastMigration}");
+        if (diagnostics.BackendPreflight != null)
+        {
+            builder.AppendLine($"UGS preflight: packages {diagnostics.BackendPreflight.PackageState}, adapters {diagnostics.BackendPreflight.AdapterDefine}, live calls {(diagnostics.BackendPreflight.LiveCloudCallsEnabled ? "on" : "off")}");
+            builder.AppendLine($"Cloud enablement blockers: {diagnostics.BackendPreflight.BlockedCount} | Warnings: {diagnostics.BackendPreflight.WarningCount}");
+        }
+
         builder.AppendLine();
         builder.AppendLine("SNAPSHOT HEALTH");
         foreach (SnapshotDiagnosticsEntry entry in diagnostics.Snapshots)
         {
             builder.AppendLine($"- {entry.StateName} v{entry.SchemaVersion}: {entry.Health}, {FormatDiagnosticBytes(entry.Bytes)}, backup {(entry.HasBackup ? "yes" : "no")}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("UGS ENABLEMENT");
+        if (diagnostics.BackendPreflight != null)
+        {
+            foreach (BackendPreflightCheck check in diagnostics.BackendPreflight.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
         }
 
         builder.AppendLine();
