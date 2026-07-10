@@ -41,6 +41,7 @@ namespace BingoMagicMayhem.Infrastructure
         public string LastMigration = "";
         public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
         public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
+        public CloudProfileSyncStatus ProfileCloudSync = new CloudProfileSyncStatus();
         public List<DiagnosticsEventCount> EventCounts = new List<DiagnosticsEventCount>();
         public string CapturedAtUtc = "";
     }
@@ -62,19 +63,22 @@ namespace BingoMagicMayhem.Infrastructure
         private readonly JsonFileDurableStateStore stateStore;
         private readonly JsonLinesActionJournal journal;
         private readonly IIdentityFacade identity;
+        private readonly IProfileSettingsCloudSync profileSettingsCloudSync;
 
         public InfrastructureDiagnosticsFacade(
             ServiceEnvironment environment,
             string exportDirectory,
             JsonFileDurableStateStore stateStore,
             JsonLinesActionJournal journal,
-            IIdentityFacade identity)
+            IIdentityFacade identity,
+            IProfileSettingsCloudSync profileSettingsCloudSync)
         {
             this.environment = environment;
             this.exportDirectory = exportDirectory ?? throw new ArgumentNullException(nameof(exportDirectory));
             this.stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
             this.journal = journal ?? throw new ArgumentNullException(nameof(journal));
             this.identity = identity ?? throw new ArgumentNullException(nameof(identity));
+            this.profileSettingsCloudSync = profileSettingsCloudSync ?? throw new ArgumentNullException(nameof(profileSettingsCloudSync));
         }
 
         public InfrastructureDiagnosticsSnapshot Capture()
@@ -94,6 +98,7 @@ namespace BingoMagicMayhem.Infrastructure
                 LastMigration = stateStore.LastMigration,
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
                 JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
+                ProfileCloudSync = profileSettingsCloudSync.Status,
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")
             };
             snapshot.SnapshotCount = snapshot.Snapshots.Count;

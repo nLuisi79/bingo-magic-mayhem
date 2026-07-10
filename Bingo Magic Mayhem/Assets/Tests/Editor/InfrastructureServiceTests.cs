@@ -283,6 +283,45 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void DisabledProfileCloudSync_BlocksUploadAndDownload()
+    {
+        DisabledProfileSettingsCloudSync sync = new DisabledProfileSettingsCloudSync();
+
+        CloudProfileSyncStatus status = sync.RefreshStatusAsync().GetAwaiter().GetResult();
+        bool uploaded = sync.TryUploadAsync(new ProfileSettingsState()).GetAwaiter().GetResult();
+        ProfileSettingsState downloaded = sync.TryDownloadAsync().GetAwaiter().GetResult();
+
+        Assert.That(status.Service, Is.EqualTo("ugs_cloud_save_profile_settings"));
+        Assert.That(status.CloudKey, Is.EqualTo("bmm.profile_settings.v2"));
+        Assert.That(status.LiveSyncEnabled, Is.False);
+        Assert.That(status.AdapterCompiled, Is.False);
+        Assert.That(status.CanUpload, Is.False);
+        Assert.That(status.CanDownload, Is.False);
+        Assert.That(uploaded, Is.False);
+        Assert.That(downloaded, Is.Null);
+        Assert.That(status.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Conflict policy" && check.Status == BackendPreflightStatus.Blocked));
+        Assert.That(status.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Gameplay/economy scope" && check.Status == BackendPreflightStatus.Pass));
+    }
+
+    [Test]
+    public void Diagnostics_ReportsDisabledProfileCloudSync()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.ProfileCloudSync, Is.Not.Null);
+        Assert.That(diagnostics.ProfileCloudSync.LiveSyncEnabled, Is.False);
+        Assert.That(diagnostics.ProfileCloudSync.CanUpload, Is.False);
+        Assert.That(diagnostics.ProfileCloudSync.CanDownload, Is.False);
+        Assert.That(diagnostics.ProfileCloudSync.CloudKey, Is.EqualTo("bmm.profile_settings.v2"));
+    }
+
+    [Test]
     public void JournalPolicy_StagesSafeEventsWithoutUploadingSensitivePayloads()
     {
         string root = CreateTemporaryRoot();

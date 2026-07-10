@@ -19,6 +19,7 @@ namespace BingoMagicMayhem.Infrastructure
         public IIdentityFacade Identity { get; }
         public IAnalyticsFacade Analytics { get; }
         public IRemoteConfigFacade RemoteConfig { get; }
+        public IProfileSettingsCloudSync ProfileSettingsCloudSync { get; }
         public IInfrastructureDiagnosticsFacade Diagnostics { get; }
 
         private GameInfrastructureServices(
@@ -28,6 +29,7 @@ namespace BingoMagicMayhem.Infrastructure
             IIdentityFacade identity,
             IAnalyticsFacade analytics,
             IRemoteConfigFacade remoteConfig,
+            IProfileSettingsCloudSync profileSettingsCloudSync,
             IInfrastructureDiagnosticsFacade diagnostics)
         {
             Environment = environment;
@@ -36,6 +38,7 @@ namespace BingoMagicMayhem.Infrastructure
             Identity = identity;
             Analytics = analytics;
             RemoteConfig = remoteConfig;
+            ProfileSettingsCloudSync = profileSettingsCloudSync;
             Diagnostics = diagnostics;
         }
 
@@ -57,12 +60,14 @@ namespace BingoMagicMayhem.Infrastructure
             IIdentityFacade identity = new LocalIdentityFacade(durableState);
             IRemoteConfigFacade remoteConfig = new LocalRemoteConfigFacade(configDefaults);
             IAnalyticsFacade analytics = new LocalAnalyticsFacade(actionJournal, identity);
+            IProfileSettingsCloudSync profileSettingsCloudSync = new DisabledProfileSettingsCloudSync();
             IInfrastructureDiagnosticsFacade diagnostics = new InfrastructureDiagnosticsFacade(
                 environment,
                 Path.Combine(root, "diagnostics"),
                 durableState,
                 actionJournal,
-                identity);
+                identity,
+                profileSettingsCloudSync);
 
             durableState.StateRecovered += stateName => actionJournal.RecordAction(
                 identity.Current?.PlayerId ?? "uninitialized_local_guest",
@@ -90,6 +95,7 @@ namespace BingoMagicMayhem.Infrastructure
                 identity,
                 analytics,
                 remoteConfig,
+                profileSettingsCloudSync,
                 diagnostics);
         }
 

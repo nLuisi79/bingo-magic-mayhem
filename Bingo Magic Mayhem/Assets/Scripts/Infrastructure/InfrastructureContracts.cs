@@ -125,6 +125,24 @@ namespace BingoMagicMayhem.Infrastructure
         public List<JournalPolicySourceSummary> SourceSummaries = new List<JournalPolicySourceSummary>();
     }
 
+    [Serializable]
+    public sealed class CloudProfileSyncStatus
+    {
+        public string Service = "ugs_cloud_save_profile_settings";
+        public string CloudKey = "";
+        public bool LiveSyncEnabled;
+        public bool AdapterCompiled;
+        public bool ProjectLinked;
+        public bool EnvironmentApproved;
+        public bool ConsentApproved;
+        public bool ConflictPolicyApproved;
+        public bool OfflineFallbackTested;
+        public bool CanUpload;
+        public bool CanDownload;
+        public string Reason = "";
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
     public interface ILocalDurableStateStore
     {
         bool TryLoad<T>(string stateName, out T value) where T : class;
@@ -175,5 +193,13 @@ namespace BingoMagicMayhem.Infrastructure
         int GetInt(string key, int fallback = 0);
         float GetFloat(string key, float fallback = 0f);
         bool GetBool(string key, bool fallback = false);
+    }
+
+    public interface IProfileSettingsCloudSync
+    {
+        CloudProfileSyncStatus Status { get; }
+        Task<CloudProfileSyncStatus> RefreshStatusAsync(CancellationToken cancellationToken = default);
+        Task<bool> TryUploadAsync(ProfileSettingsState state, CancellationToken cancellationToken = default);
+        Task<ProfileSettingsState> TryDownloadAsync(CancellationToken cancellationToken = default);
     }
 }

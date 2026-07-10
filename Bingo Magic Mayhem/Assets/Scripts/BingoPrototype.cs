@@ -5831,6 +5831,12 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"Cloud enablement blockers: {diagnostics.BackendPreflight.BlockedCount} | Warnings: {diagnostics.BackendPreflight.WarningCount}");
         }
 
+        if (diagnostics.ProfileCloudSync != null)
+        {
+            builder.AppendLine($"Profile Cloud Save: live sync {(diagnostics.ProfileCloudSync.LiveSyncEnabled ? "on" : "off")} | upload {(diagnostics.ProfileCloudSync.CanUpload ? "ready" : "blocked")} | download {(diagnostics.ProfileCloudSync.CanDownload ? "ready" : "blocked")}");
+            builder.AppendLine($"Profile Cloud key: {diagnostics.ProfileCloudSync.CloudKey}");
+        }
+
         builder.AppendLine();
         builder.AppendLine("SNAPSHOT HEALTH");
         foreach (SnapshotDiagnosticsEntry entry in diagnostics.Snapshots)
@@ -5845,6 +5851,19 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"- retain local: {diagnostics.JournalSyncPolicy.RetainLocalRecordCount}, summary-export allowed: {diagnostics.JournalSyncPolicy.ExportSummaryAllowedRecordCount}");
             builder.AppendLine($"- status rows: pending {diagnostics.JournalSyncPolicy.PendingRecordCount}, applied {diagnostics.JournalSyncPolicy.AppliedLocalRecordCount}, synced {diagnostics.JournalSyncPolicy.SyncedRecordCount}, rejected {diagnostics.JournalSyncPolicy.RejectedRecordCount}, compensated {diagnostics.JournalSyncPolicy.CompensatedRecordCount}");
             builder.AppendLine("- live upload queue is disabled; no journal rows are uploaded in this build.");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("PROFILE CLOUD SAVE SYNC");
+        if (diagnostics.ProfileCloudSync != null)
+        {
+            builder.AppendLine($"- service: {diagnostics.ProfileCloudSync.Service}, adapter compiled {(diagnostics.ProfileCloudSync.AdapterCompiled ? "yes" : "no")}");
+            builder.AppendLine($"- local snapshots remain authoritative; upload {diagnostics.ProfileCloudSync.CanUpload}, download {diagnostics.ProfileCloudSync.CanDownload}");
+            builder.AppendLine($"- reason: {diagnostics.ProfileCloudSync.Reason}");
+            foreach (BackendPreflightCheck check in diagnostics.ProfileCloudSync.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
         }
 
         builder.AppendLine();

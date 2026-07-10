@@ -113,6 +113,121 @@ namespace BingoMagicMayhem.Infrastructure
         }
     }
 
+    public static class CloudProfileSyncDiagnostics
+    {
+        public const string ProfileSettingsCloudKey = "bmm.profile_settings.v2";
+        public const string ServiceName = "ugs_cloud_save_profile_settings";
+
+        public static CloudProfileSyncStatus Capture(bool adapterCompiled)
+        {
+            CloudProfileSyncStatus status = new CloudProfileSyncStatus
+            {
+                Service = ServiceName,
+                CloudKey = ProfileSettingsCloudKey,
+                LiveSyncEnabled = false,
+                AdapterCompiled = adapterCompiled,
+                ProjectLinked = false,
+                EnvironmentApproved = false,
+                ConsentApproved = false,
+                ConflictPolicyApproved = false,
+                OfflineFallbackTested = false,
+                CanUpload = false,
+                CanDownload = false,
+                Reason = "Disabled: local profile/settings snapshots remain authoritative until project link, consent/privacy, conflict policy, and offline fallback are approved."
+            };
+
+            AddCheck(
+                status,
+                "Cloud Save package",
+                BackendPreflightStatus.Pass,
+                "Cloud Save is resolved in the lockfile/cache, but no live sync client is constructed by the local composition root.");
+
+            AddCheck(
+                status,
+                "Adapter compile gate",
+                adapterCompiled ? BackendPreflightStatus.Warning : BackendPreflightStatus.Pass,
+                adapterCompiled
+                    ? "BMM_UGS_ADAPTERS is compiled; profile/settings sync still reports upload/download blocked until enablement gates pass."
+                    : "BMM_UGS_ADAPTERS is absent, so profile/settings sync uses the disabled local facade.");
+
+            AddCheck(
+                status,
+                "Project link",
+                BackendPreflightStatus.Blocked,
+                "No Unity project/environment link is accepted by this scaffold.");
+
+            AddCheck(
+                status,
+                "Consent/privacy",
+                BackendPreflightStatus.Blocked,
+                "Profile/settings cloud writes require approved consent and privacy handling.");
+
+            AddCheck(
+                status,
+                "Conflict policy",
+                BackendPreflightStatus.Blocked,
+                "Upload/download remains blocked until last-write, merge, and device conflict rules are approved and tested.");
+
+            AddCheck(
+                status,
+                "Offline fallback",
+                BackendPreflightStatus.Blocked,
+                "Offline-first retry, stale remote data, and recovery behavior must be verified before enabling Cloud Save.");
+
+            AddCheck(
+                status,
+                "Gameplay/economy scope",
+                BackendPreflightStatus.Pass,
+                "Only profile/settings is represented here; gameplay, economy, rewards, room progression, and album state are out of scope.");
+
+            return status;
+        }
+
+        private static void AddCheck(
+            CloudProfileSyncStatus status,
+            string name,
+            BackendPreflightStatus checkStatus,
+            string detail)
+        {
+            status.Checks.Add(new BackendPreflightCheck
+            {
+                Name = name ?? "",
+                Status = checkStatus,
+                Detail = detail ?? ""
+            });
+        }
+    }
+
+    public sealed class DisabledProfileSettingsCloudSync : IProfileSettingsCloudSync
+    {
+        private readonly CloudProfileSyncStatus status;
+
+        public DisabledProfileSettingsCloudSync()
+        {
+            status = CloudProfileSyncDiagnostics.Capture(false);
+        }
+
+        public CloudProfileSyncStatus Status => status;
+
+        public Task<CloudProfileSyncStatus> RefreshStatusAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(status);
+        }
+
+        public Task<bool> TryUploadAsync(ProfileSettingsState state, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(false);
+        }
+
+        public Task<ProfileSettingsState> TryDownloadAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<ProfileSettingsState>(null);
+        }
+    }
+
 #if BMM_UGS_ADAPTERS
     /// <summary>
     /// Live UGS adapters are intentionally compile-gated. They preserve the local
@@ -177,9 +292,29 @@ namespace BingoMagicMayhem.Infrastructure
         public bool GetBool(string key, bool fallback = false) => HasKey(key) ? RemoteConfigService.Instance.appConfig.GetBool(key) : fallback;
     }
 
-    public sealed class UgsCloudSaveProfileSettingsSync
+    public sealed class UgsCloudSaveProfileSettingsSync : IProfileSettingsCloudSync
     {
-        private const string ProfileSettingsKey = "bmm.profile_settings.v2";
+        private const string ProfileSettingsKey = CloudProfileSyncDiagnostics.ProfileSettingsCloudKey;
+
+        public CloudProfileSyncStatus Status => CloudProfileSyncDiagnostics.Capture(true);
+
+        public Task<CloudProfileSyncStatus> RefreshStatusAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Status);
+        }
+
+        public Task<bool> TryUploadAsync(ProfileSettingsState state, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(false);
+        }
+
+        public Task<ProfileSettingsState> TryDownloadAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<ProfileSettingsState>(null);
+        }
 
         public async Task SaveAsync(ProfileSettingsState state, CancellationToken cancellationToken = default)
         {

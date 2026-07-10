@@ -227,6 +227,8 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Open Prototype Settings > Persistence and confirm identity is redacted, snapshot schema/health is visible, and journal counts appear.
 - Export a safe diagnostics summary and confirm it contains no full player id, journal payload, action id, idempotency key, message content, or token.
 - Confirm Prototype Settings > Persistence shows journal sync staging with live uploads off, active upload eligible 0, and sensitive/unapproved row counts separated.
+- Confirm Prototype Settings > Persistence shows Profile Cloud Save Sync with live sync off, upload blocked, download blocked, adapter compiled no, and key `bmm.profile_settings.v2`.
+- Confirm the disabled profile/settings Cloud Save facade does not create remote writes or reads when changing display name, avatar, frame, dauber, sound, or notification settings.
 - Confirm safe diagnostics export includes journal policy counts only and still excludes payloads, action ids, idempotency keys, messages, tokens, receipts, and full player ids.
 - Confirm an older supported snapshot migrates one schema step at a time and records `snapshot_migrated`.
 - Confirm a snapshot newer than the client is rejected rather than silently overwritten or downgraded through its backup.
@@ -235,7 +237,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` passed 12/12 on 2026-07-10 after adding an explicit expected-log assertion for newer snapshot rejection.
+- Unity EditMode `InfrastructureServiceTests` passed 12/12 on 2026-07-10 after adding an explicit expected-log assertion for newer snapshot rejection. The disabled Cloud Save profile/settings scaffold adds two more EditMode tests that should be included in the next Unity rerun.
 
 ## Documentation Follow-Up After Each Pass
 

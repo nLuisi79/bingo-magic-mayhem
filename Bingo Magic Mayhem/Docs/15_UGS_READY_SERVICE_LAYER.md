@@ -21,10 +21,11 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `InfrastructureDiagnosticsFacade`: redacted snapshot/journal health capture and payload-free export.
 - `UgsPreflightDiagnostics`: local package/adapter/cloud-readiness checks with live calls disabled by default.
 - `JournalPolicyDiagnostics`: read-only local journal policy counts for retain/export/future-upload staging, sensitive payload blocking, and unapproved source/type blocking.
+- `DisabledProfileSettingsCloudSync` / `CloudProfileSyncDiagnostics`: profile/settings Cloud Save seam that declares future key `bmm.profile_settings.v2` while keeping upload/download blocked.
 
 The approved UGS SDK packages are resolved into the project lockfile/cache, but no project environment, cloud endpoint, authentication call, analytics upload, or Remote Config fetch is connected in this pass.
 
-Runtime use remains disabled until project-link, consent, Cloud Save conflict policy, and offline fallback checks complete. `BMM_UGS_ADAPTERS` remains absent by default.
+Runtime use remains disabled until project-link, consent/privacy, Cloud Save conflict policy, and offline fallback checks complete. `BMM_UGS_ADAPTERS` remains absent by default.
 
 ## Persistence Layout
 
@@ -72,6 +73,7 @@ Prototype Settings includes a Persistence panel with:
 - journal record count, pending action-row count, byte size, and latest sequence;
 - last observed recovery and migration;
 - UGS preflight package/adapter/cloud-readiness state;
+- profile/settings Cloud Save sync state: live sync off, adapter compile gate, key `bmm.profile_settings.v2`, upload blocked, and download blocked;
 - journal sync-staging state: live uploads off, active upload eligible 0, future-upload candidates, sensitive/unapproved blocked rows, and status counts;
 - safe summary export.
 
@@ -103,8 +105,9 @@ Future approved adapters should preserve the current contracts:
 | `IActionJournal` | Remains local; approved records become sync/upload inputs |
 | `IAnalyticsFacade` | Unity Analytics after privacy/consent policy is implemented |
 | `IRemoteConfigFacade` | UGS Remote Config with local defaults and last-known-good cache |
+| `IProfileSettingsCloudSync` | UGS Cloud Save for profile/settings only, after conflict/offline policy approval |
 
-UGS Economy, Cloud Code, Cloud Save reconciliation, IAP, Leaderboards, and social backends are intentionally outside this pass.
+UGS Economy, Cloud Code, broader Cloud Save reconciliation, IAP, Leaderboards, and social backends are intentionally outside this pass.
 
 ## Adoption Rules
 
@@ -133,15 +136,17 @@ Edit-mode tests cover:
 - profile-settings schema 1 to 2 migration for local display name;
 - stable cosmetic ids and logical asset keys with placeholder-safe sprite resolution.
 - journal policy staging for safe future-upload candidates, sensitive payload blocking, and live uploads disabled.
+- disabled profile/settings Cloud Save sync status and blocked upload/download behavior.
 
-Unity EditMode `InfrastructureServiceTests` passed 12/12 on 2026-07-10.
+Unity EditMode `InfrastructureServiceTests` passed 12/12 on 2026-07-10. The disabled Cloud Save profile/settings scaffold adds two EditMode tests for the next Unity Test Runner pass.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 
 ## Next Narrow Infrastructure Passes
 
 1. Run the full edit-mode suite through Unity Test Runner when the project is not held by another Unity process.
-2. Define journal retention, archive/compaction, privacy, and upload allowlists.
-3. Decide whether diagnostics exports need an in-app share flow for external Beta; current export is local only.
-4. Decide whether profile display-name editing belongs in the next Beta slice; it remains a placeholder now.
-5. Add UGS Authentication/Cloud Save/Remote Config/Analytics adapters only after package installation and project connection are explicitly approved.
+2. Define Cloud Save conflict/offline policy for profile/settings before enabling upload/download.
+3. Define journal retention, archive/compaction, privacy, and upload allowlists.
+4. Decide whether diagnostics exports need an in-app share flow for external Beta; current export is local only.
+5. Decide whether profile display-name editing belongs in the next Beta slice; it remains a placeholder now.
+6. Add UGS Authentication/Cloud Save/Remote Config/Analytics adapters only after package installation and project connection are explicitly approved.
