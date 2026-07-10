@@ -227,6 +227,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm UGS packages are resolved but no live cloud calls, analytics uploads, adapter define, or gameplay-state migrations are active in this pass.
 - Confirm profile/settings changes append local journal records and malformed profile snapshots recover through the last-known-good backup.
 - Open Prototype Settings > Persistence and confirm identity is redacted, snapshot schema/health is visible, and journal counts appear.
+- Confirm identity safety diagnostics show policy `identity_safety_v0.1`, provider `local_guest`, cloud auth off, account linking blocked, recovery blocked, and Remote Config bypass blocked.
 - Export a safe diagnostics summary and confirm it contains no full player id, journal payload, action id, idempotency key, message content, or token.
 - Confirm Prototype Settings > Persistence shows journal sync staging with live uploads off, active upload eligible 0, and sensitive/unapproved row counts separated.
 - Confirm Prototype Settings > Persistence shows Profile Cloud Save Sync with live sync off, upload blocked, download blocked, adapter compiled no, and key `bmm.profile_settings.v2`.
@@ -240,7 +241,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` passed 19/19 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, and Remote Config safety scaffolds.
+- Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds.
 
 ## Documentation Follow-Up After Each Pass
 

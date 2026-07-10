@@ -40,6 +40,7 @@ namespace BingoMagicMayhem.Infrastructure
         public string LastMigratedState = "none";
         public string LastMigration = "";
         public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
+        public IdentitySafetySnapshot IdentitySafety = new IdentitySafetySnapshot();
         public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
         public CloudProfileSyncStatus ProfileCloudSync = new CloudProfileSyncStatus();
         public RemoteConfigSafetySnapshot RemoteConfigSafety = new RemoteConfigSafetySnapshot();
@@ -88,6 +89,7 @@ namespace BingoMagicMayhem.Infrastructure
         public InfrastructureDiagnosticsSnapshot Capture()
         {
             IReadOnlyList<ActionJournalRecord> records = journal.ReadAll();
+            RemoteConfigSafetySnapshot remoteConfigSafety = RemoteConfigSafetyDiagnostics.Capture(remoteConfig);
             InfrastructureDiagnosticsSnapshot snapshot = new InfrastructureDiagnosticsSnapshot
             {
                 Environment = environment.ToString().ToLowerInvariant(),
@@ -101,9 +103,10 @@ namespace BingoMagicMayhem.Infrastructure
                 LastMigratedState = stateStore.LastMigratedState,
                 LastMigration = stateStore.LastMigration,
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
+                IdentitySafety = IdentitySafetyDiagnostics.Capture(identity, remoteConfigSafety),
                 JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
                 ProfileCloudSync = profileSettingsCloudSync.Status,
-                RemoteConfigSafety = RemoteConfigSafetyDiagnostics.Capture(remoteConfig),
+                RemoteConfigSafety = remoteConfigSafety,
                 CapturedAtUtc = DateTime.UtcNow.ToString("O")
             };
             snapshot.SnapshotCount = snapshot.Snapshots.Count;

@@ -5831,6 +5831,11 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"Cloud enablement blockers: {diagnostics.BackendPreflight.BlockedCount} | Warnings: {diagnostics.BackendPreflight.WarningCount}");
         }
 
+        if (diagnostics.IdentitySafety != null)
+        {
+            builder.AppendLine($"Identity safety: {diagnostics.IdentitySafety.PolicyVersion} | provider {diagnostics.IdentitySafety.Provider} | cloud auth {(diagnostics.IdentitySafety.IsCloudAuthenticated ? "on" : "off")} | account link {(diagnostics.IdentitySafety.AllowsAccountLink ? "ready" : "blocked")}");
+        }
+
         if (diagnostics.ProfileCloudSync != null)
         {
             builder.AppendLine($"Profile Cloud Save: live sync {(diagnostics.ProfileCloudSync.LiveSyncEnabled ? "on" : "off")} | upload {(diagnostics.ProfileCloudSync.CanUpload ? "ready" : "blocked")} | download {(diagnostics.ProfileCloudSync.CanDownload ? "ready" : "blocked")}");
@@ -5860,6 +5865,20 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"- retain local: {diagnostics.JournalSyncPolicy.RetainLocalRecordCount}, summary-export allowed: {diagnostics.JournalSyncPolicy.ExportSummaryAllowedRecordCount}");
             builder.AppendLine($"- status rows: pending {diagnostics.JournalSyncPolicy.PendingRecordCount}, applied {diagnostics.JournalSyncPolicy.AppliedLocalRecordCount}, synced {diagnostics.JournalSyncPolicy.SyncedRecordCount}, rejected {diagnostics.JournalSyncPolicy.RejectedRecordCount}, compensated {diagnostics.JournalSyncPolicy.CompensatedRecordCount}");
             builder.AppendLine("- live upload queue is disabled; no journal rows are uploaded in this build.");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("IDENTITY SAFETY");
+        if (diagnostics.IdentitySafety != null)
+        {
+            builder.AppendLine($"- provider: {diagnostics.IdentitySafety.Provider}, cloud authenticated {diagnostics.IdentitySafety.IsCloudAuthenticated}, anonymous {diagnostics.IdentitySafety.IsAnonymous}");
+            builder.AppendLine($"- adapter compiled {diagnostics.IdentitySafety.AdapterCompiled}, cloud sign-in allowed {diagnostics.IdentitySafety.AllowsCloudSignIn}, account link allowed {diagnostics.IdentitySafety.AllowsAccountLink}, recovery allowed {diagnostics.IdentitySafety.AllowsRecovery}");
+            builder.AppendLine($"- remote flags request live auth {diagnostics.IdentitySafety.RemoteFlagsRequestLiveAuth}, live runtime changes allowed {diagnostics.IdentitySafety.LiveRuntimeChangeAllowed}");
+            builder.AppendLine($"- reason: {diagnostics.IdentitySafety.Reason}");
+            foreach (BackendPreflightCheck check in diagnostics.IdentitySafety.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
         }
 
         builder.AppendLine();

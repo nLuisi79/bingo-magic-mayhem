@@ -94,6 +94,57 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void IdentitySafety_LocalGuestRemainsBlockedForCloudAuthUpgrade()
+    {
+        string root = CreateTemporaryRoot();
+        JsonFileDurableStateStore store = new JsonFileDurableStateStore(root);
+        LocalIdentityFacade identity = new LocalIdentityFacade(store);
+        identity.InitializeAsync().GetAwaiter().GetResult();
+        RemoteConfigSafetySnapshot remoteConfigSafety =
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults()));
+
+        IdentitySafetySnapshot safety = IdentitySafetyDiagnostics.Capture(identity, remoteConfigSafety);
+
+        Assert.That(safety.PolicyVersion, Is.EqualTo("identity_safety_v0.1"));
+        Assert.That(safety.Provider, Is.EqualTo("local_guest"));
+        Assert.That(safety.IsCloudAuthenticated, Is.False);
+        Assert.That(safety.AllowsCloudSignIn, Is.False);
+        Assert.That(safety.AllowsAccountLink, Is.False);
+        Assert.That(safety.AllowsRecovery, Is.False);
+        Assert.That(safety.RemoteFlagsRequestLiveAuth, Is.False);
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Local guest identity" && check.Status == BackendPreflightStatus.Pass));
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Account linking" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
+    public void IdentitySafety_RemoteFlagsCannotBypassLocalGuestBlockers()
+    {
+        string root = CreateTemporaryRoot();
+        JsonFileDurableStateStore store = new JsonFileDurableStateStore(root);
+        LocalIdentityFacade identity = new LocalIdentityFacade(store);
+        identity.InitializeAsync().GetAwaiter().GetResult();
+        RemoteConfigSafetySnapshot remoteConfigSafety = RemoteConfigSafetyDiagnostics.Capture(
+            new LocalRemoteConfigFacade(new[]
+            {
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.UgsAdaptersEnabledKey, "true"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.CloudProfileSyncEnabledKey, "true"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.JournalUploadEnabledKey, "true"),
+                new RemoteConfigEntry(RemoteConfigSafetyDiagnostics.DiagnosticsExportEnabledKey, "true")
+            }));
+
+        IdentitySafetySnapshot safety = IdentitySafetyDiagnostics.Capture(identity, remoteConfigSafety);
+
+        Assert.That(safety.RemoteFlagsRequestLiveAuth, Is.True);
+        Assert.That(safety.LiveRuntimeChangeAllowed, Is.False);
+        Assert.That(safety.AllowsCloudSignIn, Is.False);
+        Assert.That(safety.AllowsAccountLink, Is.False);
+        Assert.That(safety.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Remote Config bypass" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
     public void RemoteConfig_ParsesTypedDefaultsAndUsesFallbacks()
     {
         LocalRemoteConfigFacade config = new LocalRemoteConfigFacade(new[]
@@ -171,6 +222,23 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.RemoteConfigSafety.UgsAdaptersEnabled, Is.False);
         Assert.That(diagnostics.RemoteConfigSafety.CloudProfileSyncEnabled, Is.False);
         Assert.That(diagnostics.RemoteConfigSafety.JournalUploadEnabled, Is.False);
+    }
+
+    [Test]
+    public void Diagnostics_ReportsIdentitySafetyDefaults()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.IdentitySafety, Is.Not.Null);
+        Assert.That(diagnostics.IdentitySafety.Provider, Is.EqualTo("local_guest"));
+        Assert.That(diagnostics.IdentitySafety.IsCloudAuthenticated, Is.False);
+        Assert.That(diagnostics.IdentitySafety.AllowsCloudSignIn, Is.False);
+        Assert.That(diagnostics.IdentitySafety.AllowsAccountLink, Is.False);
+        Assert.That(diagnostics.IdentitySafety.AllowsRecovery, Is.False);
     }
 
     [Test]

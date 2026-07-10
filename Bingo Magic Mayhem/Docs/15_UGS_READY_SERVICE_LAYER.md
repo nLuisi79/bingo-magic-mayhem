@@ -13,6 +13,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `JsonFileDurableStateStore`: versioned JSON snapshots, atomic replacement where supported, and last-known-good backup recovery.
 - `JsonLinesActionJournal`: append-only JSON-lines action and status-transition records with monotonic local sequence numbers.
 - `LocalIdentityFacade`: stable durable local guest identity.
+- `IdentitySafetyDiagnostics`: identity/auth readiness policy that keeps local guest authority and reports sign-in/link/recovery blockers.
 - `LocalAnalyticsFacade`: local-only safe event recording through the action journal.
 - `LocalRemoteConfigFacade`: typed reads from explicitly supplied local defaults.
 - `RemoteConfigSafetyDiagnostics`: infrastructure-only Remote Config safety policy for live/cloud enablement flags.
@@ -74,6 +75,7 @@ Prototype Settings includes a Persistence panel with:
 - journal record count, pending action-row count, byte size, and latest sequence;
 - last observed recovery and migration;
 - UGS preflight package/adapter/cloud-readiness state;
+- identity safety state: policy `identity_safety_v0.1`, local guest provider, cloud-auth blocked state, account-link/recovery blockers, and Remote Config bypass blocking;
 - Remote Config safety state: policy `infra_remote_config_safety_v0.1`, required infra key coverage, risky enable flags, unknown keys, and local-only runtime-change blocking;
 - profile/settings Cloud Save sync state: live sync off, adapter compile gate, key `bmm.profile_settings.v2`, upload blocked, download blocked, local snapshots authoritative, automatic merge blocked, remote overwrite blocked, and gameplay sync blocked;
 - journal sync-staging state: live uploads off, active upload eligible 0, future-upload candidates, sensitive/unapproved blocked rows, and status counts;
@@ -130,6 +132,7 @@ Edit-mode tests cover:
 - durable snapshot round-trip and backup recovery;
 - append-only status transitions and sequence continuity after restart;
 - stable local guest identity;
+- identity safety blockers for cloud sign-in, account linking, recovery, and Remote Config bypass;
 - typed local config parsing and fallbacks.
 - profile/settings compatibility migration and cosmetic-only reset behavior;
 - recovery-event journaling.
@@ -142,7 +145,7 @@ Edit-mode tests cover:
 - conflict/offline policy gates for timestamp authority, merge/overwrite behavior, stale remote handling, offline retry/idempotency, and gameplay/economy isolation.
 - Remote Config safety defaults, risky enable-flag blocking, unknown key visibility, and diagnostics capture.
 
-Unity EditMode `InfrastructureServiceTests` passed 19/19 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, and Remote Config safety scaffolds.
+Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 
@@ -150,8 +153,9 @@ The current Unity solution build succeeds with 0 errors. Gameplay rules and pack
 
 1. Run the full edit-mode suite through Unity Test Runner when the project is not held by another Unity process.
 2. Decide whether `infra_diagnostics_export_enabled` should be remotely configurable for Beta support builds or remain a code-only local setting.
-3. Product-approve the Cloud Save conflict/offline policy for profile/settings before enabling upload/download.
-4. Define journal retention, archive/compaction, privacy, and upload allowlists.
-5. Decide whether diagnostics exports need an in-app share flow for external Beta; current export is local only.
-6. Decide whether profile display-name editing belongs in the next Beta slice; it remains a placeholder now.
-7. Add UGS Authentication/Cloud Save/Remote Config/Analytics adapters only after package installation and project connection are explicitly approved.
+3. Product-approve Unity Authentication identity/link/recovery policy before enabling cloud sign-in.
+4. Product-approve the Cloud Save conflict/offline policy for profile/settings before enabling upload/download.
+5. Define journal retention, archive/compaction, privacy, and upload allowlists.
+6. Decide whether diagnostics exports need an in-app share flow for external Beta; current export is local only.
+7. Decide whether profile display-name editing belongs in the next Beta slice; it remains a placeholder now.
+8. Add UGS Authentication/Cloud Save/Remote Config/Analytics adapters only after package installation and project connection are explicitly approved.

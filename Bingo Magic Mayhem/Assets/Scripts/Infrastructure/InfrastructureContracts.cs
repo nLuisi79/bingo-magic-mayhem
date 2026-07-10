@@ -37,6 +37,26 @@ namespace BingoMagicMayhem.Infrastructure
     }
 
     [Serializable]
+    public sealed class IdentitySafetySnapshot
+    {
+        public string PolicyVersion = "";
+        public string Provider = "";
+        public bool IsCloudAuthenticated;
+        public bool IsAnonymous = true;
+        public bool AdapterCompiled;
+        public bool ProjectLinked;
+        public bool EnvironmentApproved;
+        public bool ConsentApproved;
+        public bool AllowsCloudSignIn;
+        public bool AllowsAccountLink;
+        public bool AllowsRecovery;
+        public bool RemoteFlagsRequestLiveAuth;
+        public bool LiveRuntimeChangeAllowed;
+        public string Reason = "";
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
+    [Serializable]
     public sealed class ActionJournalRecord
     {
         public string ActionId = "";
