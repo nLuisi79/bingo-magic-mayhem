@@ -98,6 +98,11 @@ These add value if time permits, but should not block first beta unless they are
 ### Save And Account
 
 - Inventory, currencies, album state, ingredient state, daily systems, room progress, Inbox, and social state currently rely heavily on `PlayerPrefs`.
+- First infrastructure foundation is implemented: versioned local JSON snapshots, last-known-good backup recovery, append-only action journal, durable local guest identity, and replaceable service contracts. Existing gameplay state has not been migrated yet.
+- The service layer now initializes once at startup. Profile cosmetic selections and Sound/Notifications have moved to a versioned durable snapshot with compatibility `PlayerPrefs` writes; gameplay progress, currencies, inventory, rewards, and social state remain on their existing prototype persistence paths.
+- Ordered per-state schema migrations and a redacted Persistence diagnostics/export panel are implemented. No automatic journal retention, compaction, clearing, or upload policy is active.
+- Profile display name now persists in snapshot schema 2 with local Beta/test validation. A stable cosmetic catalog and runtime asset intake structure exist; ownership/unlock rules and final moderation remain unresolved.
+- UGS Core, Authentication, Cloud Save, Remote Config, and Analytics package entries are staged but not yet resolved into the lockfile/cache. Runtime adapters remain disabled pending project-link, consent, environment, and offline-fallback checks.
 - Beta 1 needs a decision: keep local-only testing, or introduce account/cloud persistence before external testers.
 - Production must not rely on client-only local state for economy-critical rewards.
 
@@ -243,6 +248,8 @@ These should be treated carefully before external testing:
 - Report/block/moderation actions.
 
 ### Analytics For Beta
+
+Infrastructure status: a local analytics facade now records safe event envelopes into the local action journal. It does not upload events or imply consent. Feature-level instrumentation remains pending.
 
 Minimum Beta event plan:
 

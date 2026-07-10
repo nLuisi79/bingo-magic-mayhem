@@ -205,6 +205,33 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm Rank display labels Aura-derived Rank as TBD.
 - Confirm Level and Aura/Rank are not presented as the same thing.
 - Confirm sound/notification/login/avatar/frame/dauber controls are placeholder-safe.
+- Change avatar, frame, dauber, Sound, and Notifications selections; restart Play Mode and confirm they persist.
+- Use Fresh New Player and confirm avatar/frame/dauber return to defaults while Sound/Notifications remain unchanged.
+- Confirm Fresh New Player does not replace the stable local guest identity.
+- Edit the display name, restart Play Mode, and confirm the normalized name persists.
+- Confirm invalid display-name characters/lengths are rejected as local Beta validation and are not presented as final moderation rules.
+- Confirm profile-settings journal payloads do not contain display-name text.
+- Drop a correctly named test avatar/frame Sprite into the documented cosmetic Resources paths and confirm Profile/Avatars previews use it without changing the saved cosmetic id.
+- Remove the test Sprite and confirm the placeholder rendering returns without corrupting profile state.
+
+## Local Infrastructure
+
+- Run the edit-mode `InfrastructureServiceTests` suite.
+- Confirm durable snapshots round-trip and recover from a malformed primary file through the last-known-good backup.
+- Confirm journal sequence numbers continue monotonically after reopening the journal.
+- Confirm status changes append transition records rather than rewriting existing actions.
+- Confirm a local guest id remains stable across facade recreation.
+- Confirm local Remote Config reads typed supplied defaults and returns explicit fallbacks for missing values.
+- Confirm no UGS packages, cloud calls, analytics uploads, or gameplay-state migrations are active in this pass.
+- Confirm profile/settings changes append local journal records and malformed profile snapshots recover through the last-known-good backup.
+- Open Prototype Settings > Persistence and confirm identity is redacted, snapshot schema/health is visible, and journal counts appear.
+- Export a safe diagnostics summary and confirm it contains no full player id, journal payload, action id, idempotency key, message content, or token.
+- Confirm an older supported snapshot migrates one schema step at a time and records `snapshot_migrated`.
+- Confirm a snapshot newer than the client is rejected rather than silently overwritten or downgraded through its backup.
+- Confirm the panel provides no journal clear/retention action while retention policy remains unresolved.
+- Confirm the five approved UGS package entries resolve in Package Manager and update `packages-lock.json` before enabling the adapter define.
+- With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
+- Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
 
 ## Documentation Follow-Up After Each Pass
 

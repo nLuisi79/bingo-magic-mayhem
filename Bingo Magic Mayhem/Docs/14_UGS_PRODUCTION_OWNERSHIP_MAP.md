@@ -29,6 +29,27 @@ Production state should use three layers:
 2. Local action journal: append-only records of important player actions.
 3. Cloud sync/server validation: authoritative reconciliation for economy-sensitive or social actions.
 
+## Current Implementation Status
+
+The first SDK-free infrastructure pass is implemented under `Assets/Scripts/Infrastructure`:
+
+- local durable snapshots with schema envelopes and last-known-good backup recovery;
+- append-only JSON-lines action journal with monotonic sequence and status-transition records;
+- stable local guest identity facade;
+- local-only analytics facade backed by the journal;
+- typed local Remote Config facade with no embedded gameplay/economy defaults;
+- one composition root designed for future UGS adapters.
+
+Existing gameplay `PlayerPrefs` state is unchanged. No UGS packages or live services are connected. See `15_UGS_READY_SERVICE_LAYER.md` for the implementation contract and adoption rules.
+
+The first consumer migration is now active for profile cosmetics and Sound/Notifications. It uses stable cosmetic ids, a versioned local snapshot, compatibility `PlayerPrefs` writes, and journaled change/recovery events. No inventory, currency, reward, progress, social, or economy state moved in this pass.
+
+Snapshot storage now supports explicitly registered, ordered one-version-at-a-time migrations and refuses snapshots newer than the current client. Prototype Settings exposes redacted persistence diagnostics and payload-free export. Journal retention, compaction, clearing, and upload allowlists remain open and inactive.
+
+Profile settings schema 2 adds a local display name and stable cosmetic catalog ids. Display-name validation is Beta/test-only; production uniqueness/moderation requires approved backend authority. Cosmetic logical keys currently resolve through a local Resources adapter and are designed to move to Addressables without changing saved ids.
+
+The five approved UGS packages are staged in the manifest, but no live UGS adapter is enabled. The gated boundary is documented in `17_UGS_ADAPTER_BOUNDARY.md`; Economy, Cloud Code, IAP, Leaderboards, and gameplay/economy sync remain out of scope.
+
 ## UGS Service Roles
 
 These roles describe the preferred UGS mapping for Beta. Firebase, PlayFab, custom backend, or a hybrid remain fallback options if UGS hits a concrete blocker, but they are no longer equal first-pass targets.

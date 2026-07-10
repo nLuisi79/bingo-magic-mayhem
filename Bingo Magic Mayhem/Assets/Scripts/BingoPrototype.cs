@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
+using BingoMagicMayhem.Cosmetics;
+using BingoMagicMayhem.Infrastructure;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -105,6 +108,7 @@ public class BingoPrototype : MonoBehaviour
     private string prototypeLeaderboardTab = "Friends";
     private bool prototypeSoundEnabled = true;
     private bool prototypeNotificationsEnabled = true;
+    private string lastInfrastructureDiagnosticsExport = "";
     private readonly HashSet<int> prototypeClaimedTrailRewards = new HashSet<int>();
     private readonly HashSet<int> prototypeOracleSelectedCards = new HashSet<int>();
     private readonly HashSet<string> prototypeFriends = new HashSet<string> { "Luna", "Eldric", "Mira" };
@@ -120,10 +124,15 @@ public class BingoPrototype : MonoBehaviour
     private string lastFriendStatusSummary = "";
     private InputField prototypeFriendMessageInput;
     private Text prototypeFriendMessageStatusText;
+    private InputField profileDisplayNameInput;
+    private Text profileDisplayNameStatusText;
+    private string lastProfileDisplayNameStatus = "";
     private string lastOracleReadingSummary = "";
     private int selectedPrototypeAvatarIndex;
     private int selectedPrototypeFrameIndex;
     private int selectedPrototypeDauberIndex;
+    private ProfileSettingsPersistence profileSettingsPersistence;
+    private ProfileSettingsState profileSettingsState = ProfileSettingsState.CreateDefault();
     private string lastDailySpinSummary = "";
     private int lastDailySpinRewardIndex = -1;
     private bool dailySpinAnimating;
@@ -171,9 +180,10 @@ public class BingoPrototype : MonoBehaviour
     private Coroutine finalBallCountdownRoutine;
     private bool finalBallCountdownActive;
 
-    private static readonly string[] PrototypeAvatars = { "Moon Witch", "Sun Mage", "Garden Seer", "Star Caller" };
-    private static readonly string[] PrototypeAvatarFrames = { "Plain Gold", "Violet Gem", "Moonlit Vine", "Rank Frame" };
-    private static readonly string[] PrototypeDaubers = { "Classic Star", "Moon Drop", "Crystal Spark", "Garden Bloom" };
+    private static readonly IReadOnlyList<CosmeticDefinition> PrototypeAvatars = CosmeticCatalog.Avatars;
+    private static readonly IReadOnlyList<CosmeticDefinition> PrototypeAvatarFrames = CosmeticCatalog.Frames;
+    private static readonly IReadOnlyList<CosmeticDefinition> PrototypeDaubers = CosmeticCatalog.Daubers;
+    private static readonly ICosmeticSpriteResolver CosmeticSpriteResolver = new ResourcesCosmeticSpriteResolver();
 
     private sealed class JackpotSpinResult
     {
@@ -189,9 +199,10 @@ public class BingoPrototype : MonoBehaviour
         public bool ResetPot { get; private set; }
     }
 
-    private void Start()
+    private async void Start()
     {
         EnsureRuntimeState();
+        await InitializeInfrastructureAsync();
         inventory.Load();
         coven.Load();
         LoadPrototypeFriendsState();
@@ -207,6 +218,24 @@ public class BingoPrototype : MonoBehaviour
         rewards.Load();
         EnsureUiHost();
         BuildWorldMapUi();
+    }
+
+    private async Task InitializeInfrastructureAsync()
+    {
+        try
+        {
+            GameInfrastructureServices services = await GameInfrastructureRuntime.InitializeAsync();
+            profileSettingsPersistence = new ProfileSettingsPersistence(
+                services.DurableState,
+                services.ActionJournal,
+                services.Identity);
+            ApplyProfileSettings(profileSettingsPersistence.Load());
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"Local infrastructure initialization failed; profile settings will use session defaults. {exception}");
+            ApplyProfileSettings(ProfileSettingsState.CreateDefault());
+        }
     }
 
     private void OnDestroy()
@@ -1249,10 +1278,14 @@ public class BingoPrototype : MonoBehaviour
         Color muted = new Color(0.84f, 0.82f, 0.94f);
 
         GameObject identity = CreateAnchoredPanel(parent, "ProfileIdentity", cream, 320, 334, -330f, -26f);
-        CreateAnchoredPanel(identity.transform, "AvatarFrame", GetPrototypeFrameColor(), 150, 150, 0f, 70f);
-        CreateAnchoredText(identity.transform, GetPrototypeAvatarIcon(), 46, FontStyle.Bold, Color.white, 130, 80, 0f, 84f);
+        GameObject summaryAvatar = CreateAnchoredPanel(identity.transform, "AvatarFrame", GetPrototypeFrameColor(), 150, 150, 0f, 70f);
+        if (!TryCreateCosmeticSprite(summaryAvatar.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].PrimaryAssetKey, "AvatarSprite", 126f, 126f))
+        {
+            CreateAnchoredText(summaryAvatar.transform, GetPrototypeAvatarIcon(), 46, FontStyle.Bold, Color.white, 130, 80, 0f, 14f);
+        }
+        TryCreateCosmeticSprite(summaryAvatar.transform, PrototypeAvatarFrames[selectedPrototypeFrameIndex].PrimaryAssetKey, "FrameSprite", 150f, 150f);
         CreateAnchoredText(identity.transform, "Player Name", 16, FontStyle.Bold, purple, 260, 24, 0f, -8f);
-        CreateAnchoredText(identity.transform, "Bingo Witch", 30, FontStyle.Bold, purple, 280, 40, 0f, -42f);
+        CreateAnchoredText(identity.transform, profileSettingsState.DisplayName, 30, FontStyle.Bold, purple, 280, 40, 0f, -42f);
         CreateAnchoredText(identity.transform, $"Level {profile.Level}\nRank: Aura TBD", 18, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 260, 58, 0f, -102f);
 
         GameObject progress = CreateAnchoredPanel(parent, "ProfileProgress", new Color(0.12f, 0.06f, 0.18f), 640, 334, 190f, -26f);
@@ -1281,16 +1314,20 @@ public class BingoPrototype : MonoBehaviour
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         GameObject preview = CreateAnchoredPanel(parent, "AvatarPreview", new Color(0.12f, 0.06f, 0.18f), 360, 360, -300f, -30f);
-        CreateAnchoredPanel(preview.transform, "AvatarFramePreview", GetPrototypeFrameColor(), 190, 190, 0f, 58f);
-        CreateAnchoredText(preview.transform, GetPrototypeAvatarIcon(), 58, FontStyle.Bold, Color.white, 160, 100, 0f, 74f);
-        CreateAnchoredText(preview.transform, PrototypeAvatars[selectedPrototypeAvatarIndex], 25, FontStyle.Bold, gold, 300, 34, 0f, -54f);
-        CreateAnchoredText(preview.transform, $"{PrototypeAvatarFrames[selectedPrototypeFrameIndex]}\n{PrototypeDaubers[selectedPrototypeDauberIndex]} dauber", 17, FontStyle.Bold, muted, 300, 58, 0f, -106f);
+        GameObject previewAvatar = CreateAnchoredPanel(preview.transform, "AvatarFramePreview", GetPrototypeFrameColor(), 190, 190, 0f, 58f);
+        if (!TryCreateCosmeticSprite(previewAvatar.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].PrimaryAssetKey, "AvatarSprite", 160f, 160f))
+        {
+            CreateAnchoredText(previewAvatar.transform, GetPrototypeAvatarIcon(), 58, FontStyle.Bold, Color.white, 160, 100, 0f, 16f);
+        }
+        TryCreateCosmeticSprite(previewAvatar.transform, PrototypeAvatarFrames[selectedPrototypeFrameIndex].PrimaryAssetKey, "FrameSprite", 190f, 190f);
+        CreateAnchoredText(preview.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName, 25, FontStyle.Bold, gold, 300, 34, 0f, -54f);
+        CreateAnchoredText(preview.transform, $"{PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName}\n{PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName} dauber", 17, FontStyle.Bold, muted, 300, 58, 0f, -106f);
 
         GameObject controls = CreateAnchoredPanel(parent, "AvatarControls", new Color(0.96f, 0.86f, 0.62f), 560, 360, 190f, -30f);
         CreateAnchoredText(controls.transform, "COSMETICS", 26, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 480, 34, 0f, 132f);
-        CreateCosmeticSelectorRow(controls.transform, "Avatar", PrototypeAvatars[selectedPrototypeAvatarIndex], -6f, 70f, CyclePrototypeAvatar);
-        CreateCosmeticSelectorRow(controls.transform, "Frame", PrototypeAvatarFrames[selectedPrototypeFrameIndex], -6f, 6f, CyclePrototypeFrame);
-        CreateCosmeticSelectorRow(controls.transform, "Dauber", PrototypeDaubers[selectedPrototypeDauberIndex], -6f, -58f, CyclePrototypeDauber);
+        CreateCosmeticSelectorRow(controls.transform, "Avatar", PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName, -6f, 70f, CyclePrototypeAvatar);
+        CreateCosmeticSelectorRow(controls.transform, "Frame", PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName, -6f, 6f, CyclePrototypeFrame);
+        CreateCosmeticSelectorRow(controls.transform, "Dauber", PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName, -6f, -58f, CyclePrototypeDauber);
         CreateAnchoredText(controls.transform, "Avatar unlock rules, rank cosmetics, and custom avatar behavior are placeholders only.", 14, FontStyle.Bold, new Color(0.34f, 0.26f, 0.34f), 480, 42, 0f, -128f);
     }
 
@@ -1303,28 +1340,87 @@ public class BingoPrototype : MonoBehaviour
         next.onClick.AddListener(action);
     }
 
+    private bool TryCreateCosmeticSprite(Transform parent, string assetKey, string objectName, float width, float height)
+    {
+        Sprite sprite = CosmeticSpriteResolver.Load(assetKey);
+        if (sprite == null)
+        {
+            return false;
+        }
+
+        GameObject imageObject = new GameObject(objectName);
+        imageObject.transform.SetParent(parent, false);
+        RectTransform rect = imageObject.AddComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(width, height);
+        rect.anchoredPosition = Vector2.zero;
+
+        Image image = imageObject.AddComponent<Image>();
+        image.sprite = sprite;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        return true;
+    }
+
     private void BuildPlayerSettingsTab(Transform parent)
     {
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         GameObject account = CreateAnchoredPanel(parent, "ProfileAccountSettings", new Color(0.12f, 0.06f, 0.18f), 460, 360, -250f, -30f);
-        CreateAnchoredText(account.transform, "LOGIN OPTIONS", 25, FontStyle.Bold, gold, 380, 34, 0f, 132f);
-        CreateLoginOptionButton(account.transform, "Google", 70f);
-        CreateLoginOptionButton(account.transform, "Facebook", 8f);
-        CreateLoginOptionButton(account.transform, "Apple", -54f);
-        CreateAnchoredText(account.transform, "Single sign-on is a future account system. Buttons are placeholders.", 14, FontStyle.Bold, muted, 380, 44, 0f, -128f);
+        CreateAnchoredText(account.transform, "ACCOUNT", 25, FontStyle.Bold, gold, 380, 34, 0f, 132f);
+        profileDisplayNameInput = CreateAnchoredInputField(account.transform, "ProfileDisplayNameInput", "Display name", 360, 44, 0f, 84f);
+        profileDisplayNameInput.text = profileSettingsState.DisplayName;
+        profileDisplayNameInput.characterLimit = ProfileDisplayNameValidator.BetaMaximumLength;
+        profileDisplayNameInput.lineType = InputField.LineType.SingleLine;
+        profileDisplayNameInput.textComponent.alignment = TextAnchor.MiddleLeft;
+        Button saveName = CreateAnchoredButton(account.transform, "Save Display Name", 16, 220, 38, new Color(0.12f, 0.55f, 0.08f), 0f, 38f);
+        saveName.onClick.AddListener(SavePrototypeDisplayName);
+        profileDisplayNameStatusText = CreateAnchoredText(account.transform, lastProfileDisplayNameStatus, 12, FontStyle.Bold, muted, 380, 34, 0f, -2f);
+        CreateAnchoredText(account.transform, "LOGIN PLACEHOLDERS", 14, FontStyle.Bold, gold, 380, 22, 0f, -42f);
+        CreateCompactLoginOptionButton(account.transform, "Google", -125f, -78f);
+        CreateCompactLoginOptionButton(account.transform, "Facebook", 0f, -78f);
+        CreateCompactLoginOptionButton(account.transform, "Apple", 125f, -78f);
+        CreateAnchoredText(account.transform, "Name validation is local Beta/test only. Login, uniqueness, and moderation require backend approval.", 12, FontStyle.Bold, muted, 390, 48, 0f, -132f);
 
         GameObject preferences = CreateAnchoredPanel(parent, "ProfilePreferences", new Color(0.96f, 0.86f, 0.62f), 460, 360, 250f, -30f);
         CreateAnchoredText(preferences.transform, "PREFERENCES", 25, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 380, 34, 0f, 132f);
         CreatePreferenceToggle(preferences.transform, "Sound", prototypeSoundEnabled, 58f, TogglePrototypeSound);
         CreatePreferenceToggle(preferences.transform, "Notifications", prototypeNotificationsEnabled, -8f, TogglePrototypeNotifications);
-        CreateAnchoredText(preferences.transform, "Name editing, notification permissions, and saved settings wire up later.", 14, FontStyle.Bold, new Color(0.34f, 0.26f, 0.34f), 380, 58, 0f, -112f);
+        CreateAnchoredText(preferences.transform, "Cosmetics and preferences save locally. Name editing and platform permissions wire up later.", 14, FontStyle.Bold, new Color(0.34f, 0.26f, 0.34f), 380, 58, 0f, -112f);
     }
 
-    private void CreateLoginOptionButton(Transform parent, string provider, float y)
+    private void CreateCompactLoginOptionButton(Transform parent, string provider, float x, float y)
     {
-        Button button = CreateAnchoredButton(parent, provider, 18, 260, 44, new Color(0.18f, 0.16f, 0.28f), 0f, y);
+        Button button = CreateAnchoredButton(parent, provider, 13, 110, 32, new Color(0.18f, 0.16f, 0.28f), x, y);
         button.interactable = false;
+    }
+
+    private void SavePrototypeDisplayName()
+    {
+        DisplayNameValidationResult result = ProfileDisplayNameValidator.ValidateBeta(profileDisplayNameInput?.text);
+        lastProfileDisplayNameStatus = result.Message;
+        if (profileDisplayNameStatusText != null)
+        {
+            profileDisplayNameStatusText.text = result.Message;
+            profileDisplayNameStatusText.color = result.IsValid
+                ? new Color(0.55f, 1f, 0.55f)
+                : new Color(1f, 0.58f, 0.58f);
+        }
+
+        if (!result.IsValid)
+        {
+            return;
+        }
+
+        profileSettingsState.DisplayName = result.NormalizedName;
+        if (profileDisplayNameInput != null)
+        {
+            profileDisplayNameInput.text = result.NormalizedName;
+        }
+
+        PersistProfileSettings("display_name_changed");
     }
 
     private void CreatePreferenceToggle(Transform parent, string label, bool enabled, float y, UnityEngine.Events.UnityAction action)
@@ -1353,32 +1449,78 @@ public class BingoPrototype : MonoBehaviour
 
     private void CyclePrototypeAvatar()
     {
-        selectedPrototypeAvatarIndex = (selectedPrototypeAvatarIndex + 1) % PrototypeAvatars.Length;
+        selectedPrototypeAvatarIndex = (selectedPrototypeAvatarIndex + 1) % PrototypeAvatars.Count;
+        PersistProfileSettings("avatar_selected");
         BuildPlayerProfileUi("Avatars");
     }
 
     private void CyclePrototypeFrame()
     {
-        selectedPrototypeFrameIndex = (selectedPrototypeFrameIndex + 1) % PrototypeAvatarFrames.Length;
+        selectedPrototypeFrameIndex = (selectedPrototypeFrameIndex + 1) % PrototypeAvatarFrames.Count;
+        PersistProfileSettings("frame_selected");
         BuildPlayerProfileUi("Avatars");
     }
 
     private void CyclePrototypeDauber()
     {
-        selectedPrototypeDauberIndex = (selectedPrototypeDauberIndex + 1) % PrototypeDaubers.Length;
+        selectedPrototypeDauberIndex = (selectedPrototypeDauberIndex + 1) % PrototypeDaubers.Count;
+        PersistProfileSettings("dauber_selected");
         BuildPlayerProfileUi("Avatars");
     }
 
     private void TogglePrototypeSound()
     {
         prototypeSoundEnabled = !prototypeSoundEnabled;
+        PersistProfileSettings("sound_preference_changed");
         BuildPlayerProfileUi("Settings");
     }
 
     private void TogglePrototypeNotifications()
     {
         prototypeNotificationsEnabled = !prototypeNotificationsEnabled;
+        PersistProfileSettings("notification_preference_changed");
         BuildPlayerProfileUi("Settings");
+    }
+
+    private void ApplyProfileSettings(ProfileSettingsState state)
+    {
+        profileSettingsState = state ?? ProfileSettingsState.CreateDefault();
+        selectedPrototypeAvatarIndex = GetCosmeticIndex(profileSettingsState.AvatarId, PrototypeAvatars);
+        selectedPrototypeFrameIndex = GetCosmeticIndex(profileSettingsState.FrameId, PrototypeAvatarFrames);
+        selectedPrototypeDauberIndex = GetCosmeticIndex(profileSettingsState.DauberId, PrototypeDaubers);
+        prototypeSoundEnabled = profileSettingsState.SoundEnabled;
+        prototypeNotificationsEnabled = profileSettingsState.NotificationsEnabled;
+    }
+
+    private void PersistProfileSettings(string actionType)
+    {
+        profileSettingsState = new ProfileSettingsState
+        {
+            DisplayName = profileSettingsState.DisplayName,
+            AvatarId = PrototypeAvatars[Mathf.Clamp(selectedPrototypeAvatarIndex, 0, PrototypeAvatars.Count - 1)].Id,
+            FrameId = PrototypeAvatarFrames[Mathf.Clamp(selectedPrototypeFrameIndex, 0, PrototypeAvatarFrames.Count - 1)].Id,
+            DauberId = PrototypeDaubers[Mathf.Clamp(selectedPrototypeDauberIndex, 0, PrototypeDaubers.Count - 1)].Id,
+            SoundEnabled = prototypeSoundEnabled,
+            NotificationsEnabled = prototypeNotificationsEnabled
+        };
+
+        if (profileSettingsPersistence != null)
+        {
+            profileSettingsPersistence.Save(profileSettingsState, actionType);
+        }
+    }
+
+    private static int GetCosmeticIndex(string id, IReadOnlyList<CosmeticDefinition> definitions)
+    {
+        for (int index = 0; index < definitions.Count; index++)
+        {
+            if (string.Equals(definitions[index].Id, id, System.StringComparison.Ordinal))
+            {
+                return index;
+            }
+        }
+
+        return 0;
     }
 
     private void RemovePlayerProfileModal()
@@ -1520,8 +1662,8 @@ public class BingoPrototype : MonoBehaviour
 
         CreateRelicSection(panel.transform, "Identity", -360f, 66f);
         CreateRelicBadge(panel.transform, "Aura Rank", "TBD", true, -470f, 66f);
-        CreateRelicBadge(panel.transform, "Avatar Frame", PrototypeAvatarFrames[selectedPrototypeFrameIndex], true, -360f, 66f);
-        CreateRelicBadge(panel.transform, "Dauber", PrototypeDaubers[selectedPrototypeDauberIndex], true, -250f, 66f);
+        CreateRelicBadge(panel.transform, "Avatar Frame", PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName, true, -360f, 66f);
+        CreateRelicBadge(panel.transform, "Dauber", PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName, true, -250f, 66f);
 
         CreateRelicSection(panel.transform, "Collections", 0f, 66f);
         CreateRelicBadge(panel.transform, "Grimoire", $"{inventory.GetOwnedGrimoireCardCount()}/{CardAlbumCatalog.TotalCards}", inventory.GetOwnedGrimoireCardCount() > 0, -110f, 66f);
@@ -5598,13 +5740,16 @@ public class BingoPrototype : MonoBehaviour
         Button unlock = CreateAnchoredButton(panel.transform, "Unlock Next Realm", 18, 230, 42, new Color(0.28f, 0.34f, 0.08f), 260f, -30f);
         unlock.onClick.AddListener(() => UnlockNextRealmForTesting(returnToMap));
 
-        Button dailySpinReset = CreateAnchoredButton(panel.transform, "Reset Daily Spin", 18, 230, 42, new Color(0.35f, 0.12f, 0.62f), -135f, -86f);
+        Button dailySpinReset = CreateAnchoredButton(panel.transform, "Reset Daily Spin", 18, 220, 42, new Color(0.35f, 0.12f, 0.62f), -250f, -86f);
         dailySpinReset.onClick.AddListener(() => ResetDailySpinForTesting(returnToMap));
 
-        Button albumDebug = CreateAnchoredButton(panel.transform, "Album Debug", 18, 230, 42, new Color(0.2f, 0.16f, 0.42f), 135f, -86f);
+        Button persistence = CreateAnchoredButton(panel.transform, "Persistence", 18, 220, 42, new Color(0.12f, 0.3f, 0.42f), 0f, -86f);
+        persistence.onClick.AddListener(() => BuildInfrastructureDiagnosticsUi(returnToMap));
+
+        Button albumDebug = CreateAnchoredButton(panel.transform, "Album Debug", 18, 220, 42, new Color(0.2f, 0.16f, 0.42f), 250f, -86f);
         albumDebug.onClick.AddListener(() => BuildAlbumDebugUi(returnToMap));
 
-        CreateAnchoredText(panel.transform, "Fresh New Player resets currency, power-ups, room progress, ingredients, jackpot pots, saved room bets, and album cards. Reset Rooms Only keeps current currency and inventory.", 16, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 680, 78, 0f, -146f);
+        CreateAnchoredText(panel.transform, "Fresh New Player resets progression and profile cosmetics while preserving Sound/Notifications and local guest identity. Reset Rooms Only keeps current currency and inventory.", 16, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 680, 78, 0f, -146f);
 
         Button close = CreateAnchoredButton(panel.transform, "Close", 20, 180, 46, new Color(0.35f, 0.12f, 0.62f), 0f, -252f);
         close.onClick.AddListener(() =>
@@ -5638,6 +5783,79 @@ public class BingoPrototype : MonoBehaviour
 
         Button close = CreateAnchoredButton(panel.transform, "Close", 20, 170, 46, new Color(0.18f, 0.16f, 0.22f), 130f, -300f);
         close.onClick.AddListener(() => ReturnFromDevSettings(returnToMap));
+    }
+
+    private void BuildInfrastructureDiagnosticsUi(bool returnToMap)
+    {
+        RemoveDevSettingsModal();
+        GameObject panel = CreateAnchoredPanel(contentRoot, "DevSettingsModal", new Color(0.055f, 0.035f, 0.1f, 0.99f), 980, 700, 0f, -18f);
+        Color gold = new Color(1f, 0.9f, 0.32f);
+        Color muted = new Color(0.84f, 0.82f, 0.94f);
+        CreateAnchoredText(panel.transform, "LOCAL PERSISTENCE", 34, FontStyle.Bold, gold, 860, 46, 0f, 302f);
+        CreateAnchoredText(panel.transform, "Redacted Beta diagnostics only - no payloads, messages, tokens, or full player id.", 15, FontStyle.Bold, muted, 860, 28, 0f, 266f);
+        CreateAnchoredText(panel.transform, BuildInfrastructureDiagnosticsSummary(), 16, FontStyle.Bold, Color.white, 860, 430, 0f, 30f);
+
+        Button export = CreateAnchoredButton(panel.transform, "Export Safe Summary", 18, 250, 46, new Color(0.12f, 0.42f, 0.46f), -270f, -278f);
+        export.interactable = GameInfrastructureRuntime.IsInitialized;
+        export.onClick.AddListener(() => ExportInfrastructureDiagnostics(returnToMap));
+
+        Button refresh = CreateAnchoredButton(panel.transform, "Refresh", 18, 170, 46, new Color(0.2f, 0.16f, 0.42f), 0f, -278f);
+        refresh.onClick.AddListener(() => BuildInfrastructureDiagnosticsUi(returnToMap));
+
+        Button back = CreateAnchoredButton(panel.transform, "Back to Settings", 18, 230, 46, new Color(0.35f, 0.12f, 0.62f), 250f, -278f);
+        back.onClick.AddListener(() => BuildDevSettingsUi(returnToMap, devSettingsReturnToDen));
+    }
+
+    private string BuildInfrastructureDiagnosticsSummary()
+    {
+        if (!GameInfrastructureRuntime.IsInitialized || GameInfrastructureRuntime.Current.Diagnostics == null)
+        {
+            return "Infrastructure has not initialized. Profile/settings are using session defaults.";
+        }
+
+        InfrastructureDiagnosticsSnapshot diagnostics = GameInfrastructureRuntime.Current.Diagnostics.Capture();
+        StringBuilder builder = new StringBuilder();
+        builder.AppendLine($"Environment: {diagnostics.Environment} | Identity: {diagnostics.IdentityProvider} | Player: {diagnostics.RedactedPlayerId}");
+        builder.AppendLine($"Snapshots: {diagnostics.SnapshotCount} | Journal: {diagnostics.JournalRecordCount} records / {FormatDiagnosticBytes(diagnostics.JournalBytes)} | Pending action rows: {diagnostics.PendingActionRecordCount}");
+        builder.AppendLine($"Last sequence: {diagnostics.LastJournalSequence} | Recovery: {diagnostics.LastRecoveredState} {diagnostics.LastRecoveryAtUtc}");
+        builder.AppendLine($"Migration: {diagnostics.LastMigratedState} {diagnostics.LastMigration}");
+        builder.AppendLine();
+        builder.AppendLine("SNAPSHOT HEALTH");
+        foreach (SnapshotDiagnosticsEntry entry in diagnostics.Snapshots)
+        {
+            builder.AppendLine($"- {entry.StateName} v{entry.SchemaVersion}: {entry.Health}, {FormatDiagnosticBytes(entry.Bytes)}, backup {(entry.HasBackup ? "yes" : "no")}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Journal retention/clearing is not active until policy is approved.");
+        if (!string.IsNullOrWhiteSpace(lastInfrastructureDiagnosticsExport))
+        {
+            builder.AppendLine($"Last safe export: {lastInfrastructureDiagnosticsExport}");
+        }
+
+        return builder.ToString();
+    }
+
+    private void ExportInfrastructureDiagnostics(bool returnToMap)
+    {
+        if (!GameInfrastructureRuntime.IsInitialized || GameInfrastructureRuntime.Current.Diagnostics == null)
+        {
+            return;
+        }
+
+        string exportPath = GameInfrastructureRuntime.Current.Diagnostics.ExportSafeSummary();
+        lastInfrastructureDiagnosticsExport = System.IO.Path.GetFileName(exportPath);
+        BuildInfrastructureDiagnosticsUi(returnToMap);
+    }
+
+    private static string FormatDiagnosticBytes(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return bytes + " B";
+        }
+
+        return (bytes / 1024f).ToString("0.0") + " KB";
     }
 
     private void BuildAlbumDebugUi(bool returnToMap)
@@ -8401,6 +8619,20 @@ public class BingoPrototype : MonoBehaviour
         prototypeRequestedCovenNames.Clear();
         SavePrototypeCovenDiscoveryState();
         ResetPrototypeTrailState();
+        if (profileSettingsPersistence != null)
+        {
+            ApplyProfileSettings(profileSettingsPersistence.ResetProfileIdentityPreservingPreferences(profileSettingsState));
+        }
+        else
+        {
+            bool soundEnabled = prototypeSoundEnabled;
+            bool notificationsEnabled = prototypeNotificationsEnabled;
+            ApplyProfileSettings(ProfileSettingsState.CreateDefault());
+            prototypeSoundEnabled = soundEnabled;
+            prototypeNotificationsEnabled = notificationsEnabled;
+            profileSettingsState.SoundEnabled = soundEnabled;
+            profileSettingsState.NotificationsEnabled = notificationsEnabled;
+        }
         ReturnFromDevSettings(returnToMap);
     }
 

@@ -15,6 +15,9 @@ Use this as the short entry point for fresh Codex threads. The detailed rules ar
 - Beta 1 production readiness checklist: `Bingo Magic Mayhem/Docs/12_BETA_1_PRODUCTION_READINESS.md`
 - Repeatable Beta QA checklist: `Bingo Magic Mayhem/Docs/13_BETA_QA_CHECKLIST.md`
 - UGS production ownership map: `Bingo Magic Mayhem/Docs/14_UGS_PRODUCTION_OWNERSHIP_MAP.md`
+- UGS-ready local service layer: `Bingo Magic Mayhem/Docs/15_UGS_READY_SERVICE_LAYER.md`
+- Cosmetic asset intake contract: `Bingo Magic Mayhem/Docs/16_COSMETIC_ASSET_INTAKE.md`
+- UGS adapter boundary: `Bingo Magic Mayhem/Docs/17_UGS_ADAPTER_BOUNDARY.md`
 - Older baseline docs:
   - `Bingo Magic Mayhem/Docs/Gameplay Rules v0.1.md`
   - `Bingo Magic Mayhem/Docs/Game Systems Roadmap v0.1.md`
@@ -58,6 +61,11 @@ Most recent result: build succeeded with 0 errors and 2 warnings.
 - Continue finishing visible Beta feature coverage, but start production hardening in parallel.
 - New planning surface: `Bingo Magic Mayhem/Docs/12_BETA_1_PRODUCTION_READINESS.md`.
 - UGS is the preferred Beta backend path unless a concrete blocker appears; implementation should proceed through replaceable service facades with local-first durable state and an action journal.
+- First infrastructure pass is implemented under `Assets/Scripts/Infrastructure`: versioned durable JSON snapshots with backup recovery, append-only local action journal, stable local guest identity, local analytics facade, typed local Remote Config defaults, and an SDK-free composition root. It is not wired into gameplay yet and no live UGS packages are installed.
+- The infrastructure composition root now initializes once at prototype startup. Profile identity selections and Sound/Notifications are the first durable snapshot consumer, with compatibility `PlayerPrefs` writes during migration and local journal records for changes/recovery. Fresh New Player resets display name/cosmetics but preserves device preferences and the stable local guest identity.
+- Prototype Settings now includes a Persistence diagnostics panel showing redacted identity, snapshot schema/health, journal counts, and last recovery/migration. It can export a payload-free safe summary. Ordered snapshot migrations are supported; journal retention/deletion remains disabled until policy is approved.
+- Profile settings snapshot schema 2 adds a locally editable display name with explicitly provisional Beta validation. Cosmetic choices now come from a stable id/asset-key catalog; profile avatar/frame previews automatically use matching Resources sprites when supplied and keep placeholder rendering when absent.
+- The approved UGS package entries are staged in `Packages/manifest.json`; Unity has not yet resolved them into the lockfile/cache. Live adapters are compile-gated behind `BMM_UGS_ADAPTERS` and remain disabled.
 - Key transition risks: `PlayerPrefs` local persistence, giant prototype script concentration, unresolved backend/account strategy, reward/config tuning still embedded in prototype code, and social/economy anti-abuse rules still draft.
 
 ## Current Implemented Prototype Areas
