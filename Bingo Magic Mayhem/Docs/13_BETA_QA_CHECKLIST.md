@@ -238,11 +238,12 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm an older supported snapshot migrates one schema step at a time and records `snapshot_migrated`.
 - Confirm a snapshot newer than the client is rejected rather than silently overwritten or downgraded through its backup.
 - Confirm the panel provides no journal clear/retention action while retention policy remains unresolved.
+- Confirm journal retention diagnostics show policy `journal_retention_policy_v0.1`, retention/archive/compaction/delete all disabled, export redaction required, and planning-only candidate counts for archive/compaction/delete.
 - Confirm the five approved UGS package entries resolve in Package Manager and update `packages-lock.json` before enabling the adapter define.
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds. Analytics safety scaffolding adds three more EditMode tests for the next Unity Test Runner pass.
+- Unity EditMode `InfrastructureServiceTests` passed 22/22 on 2026-07-10 after adding the disabled Cloud Save profile/settings sync, conflict/offline policy, Remote Config safety, and identity safety scaffolds. Journal retention/privacy scaffolding adds three more EditMode tests for the next Unity Test Runner pass.
 
 ## Documentation Follow-Up After Each Pass
 

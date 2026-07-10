@@ -194,6 +194,26 @@ namespace BingoMagicMayhem.Infrastructure
     }
 
     [Serializable]
+    public sealed class JournalRetentionPolicySnapshot
+    {
+        public string PolicyVersion = "";
+        public bool RetentionEnabled;
+        public bool ArchiveEnabled;
+        public bool CompactionEnabled;
+        public bool DeleteEnabled;
+        public bool ExportAllowed;
+        public bool SensitivePayloadRedactionRequired;
+        public int TotalRecordCount;
+        public int RetainedRecordCount;
+        public int ArchiveCandidateCount;
+        public int CompactionCandidateCount;
+        public int DeleteCandidateCount;
+        public int ExportBlockedRecordCount;
+        public string Reason = "";
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
+    [Serializable]
     public sealed class CloudProfileSyncStatus
     {
         public string Service = "ugs_cloud_save_profile_settings";

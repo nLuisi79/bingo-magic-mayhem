@@ -42,6 +42,7 @@ namespace BingoMagicMayhem.Infrastructure
         public BackendPreflightSnapshot BackendPreflight = new BackendPreflightSnapshot();
         public IdentitySafetySnapshot IdentitySafety = new IdentitySafetySnapshot();
         public JournalSyncPolicySnapshot JournalSyncPolicy = new JournalSyncPolicySnapshot();
+        public JournalRetentionPolicySnapshot JournalRetentionPolicy = new JournalRetentionPolicySnapshot();
         public AnalyticsSafetySnapshot AnalyticsSafety = new AnalyticsSafetySnapshot();
         public CloudProfileSyncStatus ProfileCloudSync = new CloudProfileSyncStatus();
         public RemoteConfigSafetySnapshot RemoteConfigSafety = new RemoteConfigSafetySnapshot();
@@ -106,6 +107,7 @@ namespace BingoMagicMayhem.Infrastructure
                 BackendPreflight = UgsPreflightDiagnostics.Capture(environment),
                 IdentitySafety = IdentitySafetyDiagnostics.Capture(identity, remoteConfigSafety),
                 JournalSyncPolicy = JournalPolicyDiagnostics.Capture(records),
+                JournalRetentionPolicy = JournalPolicyDiagnostics.CaptureRetentionPolicy(records),
                 AnalyticsSafety = AnalyticsSafetyDiagnostics.Capture(records, remoteConfigSafety),
                 ProfileCloudSync = profileSettingsCloudSync.Status,
                 RemoteConfigSafety = remoteConfigSafety,
@@ -164,6 +166,7 @@ namespace BingoMagicMayhem.Infrastructure
     public static class JournalPolicyDiagnostics
     {
         private const string PolicyVersion = "local_journal_policy_v0.1";
+        private const string RetentionPolicyVersion = "journal_retention_policy_v0.1";
         private static readonly bool LiveUploadsEnabled = false;
 
         private static readonly HashSet<string> FutureUploadAllowlist = new HashSet<string>(StringComparer.Ordinal)
@@ -252,6 +255,70 @@ namespace BingoMagicMayhem.Infrastructure
             return snapshot;
         }
 
+        public static JournalRetentionPolicySnapshot CaptureRetentionPolicy(IReadOnlyList<ActionJournalRecord> records)
+        {
+            JournalRetentionPolicySnapshot snapshot = new JournalRetentionPolicySnapshot
+            {
+                PolicyVersion = RetentionPolicyVersion,
+                RetentionEnabled = false,
+                ArchiveEnabled = false,
+                CompactionEnabled = false,
+                DeleteEnabled = false,
+                ExportAllowed = true,
+                SensitivePayloadRedactionRequired = true,
+                Reason = "Journal retention, archive, compaction, and deletion remain disabled until privacy, support, and recovery policies are approved."
+            };
+
+            foreach (ActionJournalRecord record in records)
+            {
+                snapshot.TotalRecordCount++;
+                snapshot.RetainedRecordCount++;
+
+                if (ContainsSensitivePayloadMarker(record.PayloadJson))
+                {
+                    snapshot.ExportBlockedRecordCount++;
+                    continue;
+                }
+
+                if (record.Status == JournalActionStatus.Synced ||
+                    record.Status == JournalActionStatus.Rejected ||
+                    record.Status == JournalActionStatus.Compensated)
+                {
+                    snapshot.ArchiveCandidateCount++;
+                    snapshot.CompactionCandidateCount++;
+                    snapshot.DeleteCandidateCount++;
+                }
+            }
+
+            AddRetentionCheck(
+                snapshot,
+                "Retention gate",
+                BackendPreflightStatus.Blocked,
+                "No timed retention window is approved, so all journal rows remain retained locally.");
+
+            AddRetentionCheck(
+                snapshot,
+                "Archive/compaction gate",
+                BackendPreflightStatus.Blocked,
+                "Archive and compaction candidates are counted for planning only; no archive or rewrite path is active.");
+
+            AddRetentionCheck(
+                snapshot,
+                "Delete/clear gate",
+                BackendPreflightStatus.Blocked,
+                "Delete and clear operations remain disabled until support and recovery policies are approved.");
+
+            AddRetentionCheck(
+                snapshot,
+                "Export redaction",
+                snapshot.ExportBlockedRecordCount == 0 ? BackendPreflightStatus.Pass : BackendPreflightStatus.Warning,
+                snapshot.ExportBlockedRecordCount == 0
+                    ? "Current journal rows do not trigger export blocking by sensitive payload markers."
+                    : "One or more retained journal rows require payload-free export redaction.");
+
+            return snapshot;
+        }
+
         private static void CountStatus(JournalSyncPolicySnapshot snapshot, JournalActionStatus status)
         {
             switch (status)
@@ -296,6 +363,20 @@ namespace BingoMagicMayhem.Infrastructure
             }
 
             return false;
+        }
+
+        private static void AddRetentionCheck(
+            JournalRetentionPolicySnapshot snapshot,
+            string name,
+            BackendPreflightStatus status,
+            string detail)
+        {
+            snapshot.Checks.Add(new BackendPreflightCheck
+            {
+                Name = name ?? "",
+                Status = status,
+                Detail = detail ?? ""
+            });
         }
     }
 }

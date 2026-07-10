@@ -5825,6 +5825,11 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"Future upload candidates: {diagnostics.JournalSyncPolicy.FutureUploadEligibleRecordCount} | blocked sensitive {diagnostics.JournalSyncPolicy.BlockedSensitiveRecordCount} | blocked unapproved {diagnostics.JournalSyncPolicy.BlockedUnapprovedRecordCount}");
         }
 
+        if (diagnostics.JournalRetentionPolicy != null)
+        {
+            builder.AppendLine($"Journal retention: {diagnostics.JournalRetentionPolicy.PolicyVersion} | retained {diagnostics.JournalRetentionPolicy.RetainedRecordCount} | archive candidates {diagnostics.JournalRetentionPolicy.ArchiveCandidateCount} | delete blocked {(diagnostics.JournalRetentionPolicy.DeleteEnabled ? "off" : "on")}");
+        }
+
         if (diagnostics.BackendPreflight != null)
         {
             builder.AppendLine($"UGS preflight: packages {diagnostics.BackendPreflight.PackageState}, adapters {diagnostics.BackendPreflight.AdapterDefine}, live calls {(diagnostics.BackendPreflight.LiveCloudCallsEnabled ? "on" : "off")}");
@@ -5870,6 +5875,20 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"- retain local: {diagnostics.JournalSyncPolicy.RetainLocalRecordCount}, summary-export allowed: {diagnostics.JournalSyncPolicy.ExportSummaryAllowedRecordCount}");
             builder.AppendLine($"- status rows: pending {diagnostics.JournalSyncPolicy.PendingRecordCount}, applied {diagnostics.JournalSyncPolicy.AppliedLocalRecordCount}, synced {diagnostics.JournalSyncPolicy.SyncedRecordCount}, rejected {diagnostics.JournalSyncPolicy.RejectedRecordCount}, compensated {diagnostics.JournalSyncPolicy.CompensatedRecordCount}");
             builder.AppendLine("- live upload queue is disabled; no journal rows are uploaded in this build.");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("JOURNAL RETENTION");
+        if (diagnostics.JournalRetentionPolicy != null)
+        {
+            builder.AppendLine($"- retention enabled {diagnostics.JournalRetentionPolicy.RetentionEnabled}, archive enabled {diagnostics.JournalRetentionPolicy.ArchiveEnabled}, compaction enabled {diagnostics.JournalRetentionPolicy.CompactionEnabled}, delete enabled {diagnostics.JournalRetentionPolicy.DeleteEnabled}");
+            builder.AppendLine($"- total rows {diagnostics.JournalRetentionPolicy.TotalRecordCount}, retained {diagnostics.JournalRetentionPolicy.RetainedRecordCount}, archive candidates {diagnostics.JournalRetentionPolicy.ArchiveCandidateCount}, compaction candidates {diagnostics.JournalRetentionPolicy.CompactionCandidateCount}, delete candidates {diagnostics.JournalRetentionPolicy.DeleteCandidateCount}");
+            builder.AppendLine($"- export allowed {diagnostics.JournalRetentionPolicy.ExportAllowed}, export-blocked rows {diagnostics.JournalRetentionPolicy.ExportBlockedRecordCount}, sensitive redaction required {diagnostics.JournalRetentionPolicy.SensitivePayloadRedactionRequired}");
+            builder.AppendLine($"- reason: {diagnostics.JournalRetentionPolicy.Reason}");
+            foreach (BackendPreflightCheck check in diagnostics.JournalRetentionPolicy.Checks)
+            {
+                builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
         }
 
         builder.AppendLine();

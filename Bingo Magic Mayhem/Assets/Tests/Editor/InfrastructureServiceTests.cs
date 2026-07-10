@@ -584,6 +584,82 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void JournalRetentionPolicy_CountsCandidatesButKeepsAllControlsBlocked()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        string playerId = services.Identity.Current.PlayerId;
+        ActionJournalRecord action = services.ActionJournal.RecordAction(
+            playerId,
+            "daily_bonus",
+            "claim",
+            "{\"day\":1}",
+            status: JournalActionStatus.Pending);
+        services.ActionJournal.RecordStatus(
+            action.ActionId,
+            playerId,
+            "daily_bonus",
+            "claim",
+            JournalActionStatus.Synced,
+            "{\"result\":\"ok\"}");
+
+        JournalRetentionPolicySnapshot retention = JournalPolicyDiagnostics.CaptureRetentionPolicy(services.ActionJournal.ReadAll());
+
+        Assert.That(retention.PolicyVersion, Is.EqualTo("journal_retention_policy_v0.1"));
+        Assert.That(retention.RetentionEnabled, Is.False);
+        Assert.That(retention.ArchiveEnabled, Is.False);
+        Assert.That(retention.CompactionEnabled, Is.False);
+        Assert.That(retention.DeleteEnabled, Is.False);
+        Assert.That(retention.TotalRecordCount, Is.EqualTo(3));
+        Assert.That(retention.RetainedRecordCount, Is.EqualTo(3));
+        Assert.That(retention.ArchiveCandidateCount, Is.EqualTo(1));
+        Assert.That(retention.CompactionCandidateCount, Is.EqualTo(1));
+        Assert.That(retention.DeleteCandidateCount, Is.EqualTo(1));
+        Assert.That(retention.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Delete/clear gate" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
+    public void JournalRetentionPolicy_BlocksSensitiveRowsFromUnsafeExportPlanning()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        services.ActionJournal.RecordAction(
+            services.Identity.Current.PlayerId,
+            "friend_message",
+            "sent",
+            "{\"message\":\"secret hello\"}",
+            status: JournalActionStatus.AppliedLocal);
+
+        JournalRetentionPolicySnapshot retention = JournalPolicyDiagnostics.CaptureRetentionPolicy(services.ActionJournal.ReadAll());
+
+        Assert.That(retention.ExportAllowed, Is.True);
+        Assert.That(retention.SensitivePayloadRedactionRequired, Is.True);
+        Assert.That(retention.ExportBlockedRecordCount, Is.EqualTo(1));
+        Assert.That(retention.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Export redaction" && check.Status == BackendPreflightStatus.Warning));
+    }
+
+    [Test]
+    public void Diagnostics_ReportsJournalRetentionPolicyDefaults()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.JournalRetentionPolicy, Is.Not.Null);
+        Assert.That(diagnostics.JournalRetentionPolicy.RetentionEnabled, Is.False);
+        Assert.That(diagnostics.JournalRetentionPolicy.ArchiveEnabled, Is.False);
+        Assert.That(diagnostics.JournalRetentionPolicy.CompactionEnabled, Is.False);
+        Assert.That(diagnostics.JournalRetentionPolicy.DeleteEnabled, Is.False);
+        Assert.That(diagnostics.JournalRetentionPolicy.TotalRecordCount, Is.GreaterThanOrEqualTo(1));
+    }
+
+    [Test]
     public void DurableState_RejectsNewerSnapshotWithoutDowngradingToBackup()
     {
         string root = CreateTemporaryRoot();
