@@ -4,6 +4,7 @@ using System.IO;
 using BingoMagicMayhem.Infrastructure;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public sealed class InfrastructureServiceTests
 {
@@ -305,6 +306,10 @@ public sealed class InfrastructureServiceTests
         File.WriteAllText(Path.Combine(root, "future.snapshot.json.bak"), JsonUtility.ToJson(olderBackup));
 
         JsonFileDurableStateStore store = new JsonFileDurableStateStore(root, migrations);
+
+        LogAssert.Expect(
+            LogType.Error,
+            "Cannot load local state 'future': Snapshot 'future' uses schema 2, newer than supported schema 1.");
 
         Assert.That(store.TryLoad("future", out MigratedStateV2 loaded), Is.False);
         Assert.That(loaded, Is.Null);
