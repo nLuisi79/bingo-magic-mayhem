@@ -4909,6 +4909,12 @@ public class BingoPrototype : MonoBehaviour
         {
             if (inventory.TryUseJokerWildForGrimoireCard(card.Id))
             {
+                TrackPrototypeAnalytics(
+                    PrototypeAnalyticsEvents.WildCardUsed,
+                    PrototypeAnalyticsPayloadFactory.CreateWildCardUsedJson(
+                        entry,
+                        card,
+                        inventory.JokerWildCards));
                 Destroy(panel);
                 BuildGrimoireIngredientOverlay(entry);
                 BuildGrimoireIngredientDetailModal(entry, card);
@@ -5468,6 +5474,13 @@ public class BingoPrototype : MonoBehaviour
     {
         if (inventory.TryConsumeInventoryReward("Regular Card", 1) && coven.FulfillRegularCardWish(memberName))
         {
+            TrackPrototypeAnalytics(
+                PrototypeAnalyticsEvents.CovenWishGiftSent,
+                PrototypeAnalyticsPayloadFactory.CreateCovenWishGiftSentJson(
+                    "regular_card",
+                    "Regular Card",
+                    1,
+                    inventory.GetInventoryRewardCount("Regular Card")));
             CovenMemberInfo member = coven.GetMember(memberName);
             if (member != null)
             {
@@ -5480,6 +5493,13 @@ public class BingoPrototype : MonoBehaviour
     {
         if (inventory.TryGiftIngredient(ingredientName, 1) && coven.FulfillIngredientWish(memberName, ingredientName, 1))
         {
+            TrackPrototypeAnalytics(
+                PrototypeAnalyticsEvents.CovenWishGiftSent,
+                PrototypeAnalyticsPayloadFactory.CreateCovenWishGiftSentJson(
+                    "ingredient",
+                    ingredientName,
+                    1,
+                    inventory.GetIngredientInventoryCount(ingredientName)));
             CovenMemberInfo member = coven.GetMember(memberName);
             if (member != null)
             {
@@ -5531,6 +5551,15 @@ public class BingoPrototype : MonoBehaviour
 
         inventory.AddInventoryReward("Single Sigil", 1);
         inventory.AddInventoryReward("Multi Sigil", 1);
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.CovenEmporiumPurchase,
+            PrototypeAnalyticsPayloadFactory.CreateCovenEmporiumPurchaseJson(
+                "small_power_up_bundle",
+                "Small Power-Up Bundle",
+                5,
+                inventory.GetInventoryRewardCount("Club Orbs"),
+                itemName: "Single Sigil + Multi Sigil",
+                itemQuantity: 2));
         coven.AddPrototypeChatLine("You bought a Small Power-Up Bundle.");
         BuildCovenEmporiumUi();
     }
@@ -5553,6 +5582,15 @@ public class BingoPrototype : MonoBehaviour
             inventory.AddIngredientForPrototype(requirements[1].Name, 1);
         }
 
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.CovenEmporiumPurchase,
+            PrototypeAnalyticsPayloadFactory.CreateCovenEmporiumPurchaseJson(
+                "ingredient_gift_crate",
+                "Ingredient Gift Crate",
+                8,
+                inventory.GetInventoryRewardCount("Club Orbs"),
+                itemName: requirements.Count > 0 ? "active_room_ingredient_bundle" : "",
+                itemQuantity: requirements.Count > 0 ? 2 + (requirements.Count > 1 ? 1 : 0) : 0));
         coven.AddPrototypeChatLine("You bought an Ingredient Gift Crate.");
         BuildCovenEmporiumUi();
     }
@@ -5566,6 +5604,16 @@ public class BingoPrototype : MonoBehaviour
 
         inventory.AddInventoryReward("Pandora Sigil", 1);
         inventory.AddCrystalsForPrototype(5);
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.CovenEmporiumPurchase,
+            PrototypeAnalyticsPayloadFactory.CreateCovenEmporiumPurchaseJson(
+                "coven_chest",
+                "Coven Chest",
+                12,
+                inventory.GetInventoryRewardCount("Club Orbs"),
+                crystals: 5,
+                itemName: "Pandora Sigil",
+                itemQuantity: 1));
         coven.AddPrototypeChatLine("You bought a Coven Chest.");
         BuildCovenEmporiumUi();
     }
@@ -8608,6 +8656,13 @@ public class BingoPrototype : MonoBehaviour
             inventory.GrantJackpotMana(collectedMana);
         }
 
+        TrackPrototypeAnalytics(
+            PrototypeAnalyticsEvents.JackpotCollected,
+            PrototypeAnalyticsPayloadFactory.CreateJackpotCollectedJson(
+                collectedMana,
+                jackpotWheelCollectedResults.Count,
+                shouldResetPot,
+                inventory.PendingJackpotSpins));
         jackpotWheelLastCollectedMana = collectedMana;
         jackpotWheelLastCollectResetPot = shouldResetPot;
         jackpotWheelCollectionConfirmed = true;

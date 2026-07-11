@@ -25,6 +25,10 @@ namespace BingoMagicMayhem.Infrastructure
         public const string FriendManaSent = "prototype_friend_mana_sent";
         public const string FriendManaReceived = "prototype_friend_mana_received";
         public const string CovenOrbsContributed = "prototype_coven_orbs_contributed";
+        public const string WildCardUsed = "prototype_wild_card_used";
+        public const string CovenWishGiftSent = "prototype_coven_wish_gift_sent";
+        public const string CovenEmporiumPurchase = "prototype_coven_emporium_purchase";
+        public const string JackpotCollected = "prototype_jackpot_collected";
 
         private static readonly HashSet<string> AllowlistedEventNames =
             new HashSet<string>(StringComparer.Ordinal)
@@ -46,7 +50,11 @@ namespace BingoMagicMayhem.Infrastructure
                 SocialHelpRequestSent,
                 FriendManaSent,
                 FriendManaReceived,
-                CovenOrbsContributed
+                CovenOrbsContributed,
+                WildCardUsed,
+                CovenWishGiftSent,
+                CovenEmporiumPurchase,
+                JackpotCollected
             };
 
         public static bool IsAllowlisted(string eventName)
@@ -116,7 +124,11 @@ namespace BingoMagicMayhem.Infrastructure
                 "analytics/" + PrototypeAnalyticsEvents.SocialHelpRequestSent,
                 "analytics/" + PrototypeAnalyticsEvents.FriendManaSent,
                 "analytics/" + PrototypeAnalyticsEvents.FriendManaReceived,
-                "analytics/" + PrototypeAnalyticsEvents.CovenOrbsContributed
+                "analytics/" + PrototypeAnalyticsEvents.CovenOrbsContributed,
+                "analytics/" + PrototypeAnalyticsEvents.WildCardUsed,
+                "analytics/" + PrototypeAnalyticsEvents.CovenWishGiftSent,
+                "analytics/" + PrototypeAnalyticsEvents.CovenEmporiumPurchase,
+                "analytics/" + PrototypeAnalyticsEvents.JackpotCollected
             };
 
         public static AnalyticsSafetySnapshot Capture(

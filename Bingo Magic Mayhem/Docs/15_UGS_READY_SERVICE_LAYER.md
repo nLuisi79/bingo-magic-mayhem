@@ -17,7 +17,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `LocalAnalyticsFacade`: local-only safe event recording through the action journal.
 - `AnalyticsSafetyDiagnostics`: analytics consent/upload policy that keeps live upload blocked and reports allowlisted versus local-only analytics rows.
 - `PrototypeAnalyticsPayloadFactory`: reusable local analytics payload/schema helper for prototype event shaping.
-- local-only feature analytics instrumentation for room enter, round start, bingo claim, round completion, round reward collect, room restore, album reward claim, social freebie redeem, social help request send, friend mana send/receive, daily bonus claim, daily spin claim, inbox reward/message actions, and coven orb contribution.
+- local-only feature analytics instrumentation for room enter, round start, bingo claim, round completion, round reward collect, room restore, album reward claim, social freebie redeem, social help request send, friend mana send/receive, daily bonus claim, daily spin claim, inbox reward/message actions, coven orb contribution, wild-card use, coven wish gifting, coven emporium purchases, and jackpot collect.
 - `LocalRemoteConfigFacade`: typed reads from explicitly supplied local defaults.
 - `RemoteConfigSafetyDiagnostics`: infrastructure-only Remote Config safety policy for live/cloud enablement flags.
 - `ExportSafetyDiagnostics`: local-file-only diagnostics export/share policy that keeps support exports payload-free and external share flows blocked.
@@ -151,11 +151,11 @@ Edit-mode tests cover:
 - disabled profile/settings Cloud Save sync status and blocked upload/download behavior.
 - conflict/offline policy gates for timestamp authority, merge/overwrite behavior, stale remote handling, offline retry/idempotency, and gameplay/economy isolation.
 - Remote Config safety defaults, risky enable-flag blocking, unknown key visibility, and diagnostics capture.
-- analytics safety defaults, first-pass feature-event allowlisting, consent/upload blocking, and Remote Config bypass blocking.
+- analytics safety defaults, first-pass feature-event allowlisting, reusable payload shaping, local event catalog coverage, consent/upload blocking, and Remote Config bypass blocking.
 - journal retention/privacy defaults, blocked retention/archive/compaction/delete controls, and export-redaction planning counts.
 - diagnostics export/share safety defaults, external-share blocking, and advisory-only Remote Config export disable handling.
 
-Unity EditMode `InfrastructureServiceTests` last passed 36/36 on 2026-07-10 after the normalized local analytics coverage pass. Analytics helper/schema consolidation adds two EditMode tests for the next Unity Test Runner pass.
+Unity EditMode `InfrastructureServiceTests` last passed 38/38 on 2026-07-10 after the analytics helper/schema consolidation pass. This final local-only analytics coverage pass adds two EditMode tests for the next Unity Test Runner pass.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 

@@ -342,6 +342,10 @@ public sealed class InfrastructureServiceTests
         services.Analytics.Track(PrototypeAnalyticsEvents.FriendManaSent, "{\"Amount\":10}");
         services.Analytics.Track(PrototypeAnalyticsEvents.FriendManaReceived, "{\"Amount\":10}");
         services.Analytics.Track(PrototypeAnalyticsEvents.CovenOrbsContributed, "{\"Contributed\":5}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.WildCardUsed, "{\"Album\":\"grimoire\",\"CardId\":\"card_1\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.CovenWishGiftSent, "{\"WishType\":\"ingredient\",\"ItemName\":\"Moonpetal\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.CovenEmporiumPurchase, "{\"OfferId\":\"coven_chest\",\"OrbCost\":12}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.JackpotCollected, "{\"CollectedMana\":500,\"ResetPot\":false}");
 
         AnalyticsSafetySnapshot safety = AnalyticsSafetyDiagnostics.Capture(
             services.ActionJournal.ReadAll(),
@@ -413,6 +417,33 @@ public sealed class InfrastructureServiceTests
         Assert.That(payload.ItemName, Is.EqualTo("Single Sigil"));
         string serialized = JsonUtility.ToJson(payload);
         Assert.That(serialized, Does.Not.Contain("keep this out of analytics"));
+    }
+
+    [Test]
+    public void AnalyticsPayloadFactory_BuildsWildCardUsePayload()
+    {
+        GrimoireEntryDefinition entry = CardAlbumCatalog.GrimoireOneEntries[0];
+        AlbumCardDefinition card = entry.Cards[0];
+
+        string serialized = PrototypeAnalyticsPayloadFactory.CreateWildCardUsedJson(entry, card, 3);
+
+        Assert.That(serialized, Does.Contain("\"Context\":\"grimoire_use_wild\""));
+        Assert.That(serialized, Does.Contain("\"Album\":\"grimoire\""));
+        Assert.That(serialized, Does.Contain($"\"EntryNumber\":{entry.EntryNumber}"));
+        Assert.That(serialized, Does.Contain($"\"CardId\":\"{card.Id}\""));
+        Assert.That(serialized, Does.Contain("\"RemainingWildCards\":3"));
+    }
+
+    [Test]
+    public void AnalyticsPayloadFactory_BuildsJackpotCollectPayload()
+    {
+        string serialized = PrototypeAnalyticsPayloadFactory.CreateJackpotCollectedJson(1200, 3, true, 0);
+
+        Assert.That(serialized, Does.Contain("\"Context\":\"jackpot_wheel_collect\""));
+        Assert.That(serialized, Does.Contain("\"CollectedMana\":1200"));
+        Assert.That(serialized, Does.Contain("\"SpinResultCount\":3"));
+        Assert.That(serialized, Does.Contain("\"ResetPot\":true"));
+        Assert.That(serialized, Does.Contain("\"PendingSpinsRemaining\":0"));
     }
 
     [Test]

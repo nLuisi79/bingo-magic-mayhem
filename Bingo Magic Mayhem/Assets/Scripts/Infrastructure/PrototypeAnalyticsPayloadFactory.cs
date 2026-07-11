@@ -172,6 +172,47 @@ namespace BingoMagicMayhem.Infrastructure
         public string Context = "";
     }
 
+    [Serializable]
+    public sealed class PrototypeWildCardUsedAnalyticsPayload
+    {
+        public string Context = "";
+        public string Album = "";
+        public int EntryNumber;
+        public string CardId = "";
+        public string CardName = "";
+        public string Tier = "";
+        public int RemainingWildCards;
+    }
+
+    [Serializable]
+    public sealed class PrototypeCovenWishGiftAnalyticsPayload
+    {
+        public string Context = "";
+        public string WishType = "";
+        public string ItemName = "";
+        public int ItemQuantity;
+        public int RemainingInventoryCount;
+    }
+
+    [Serializable]
+    public sealed class PrototypeCovenEmporiumPurchaseAnalyticsPayload : PrototypeRewardGrantAnalyticsPayload
+    {
+        public string OfferId = "";
+        public string OfferName = "";
+        public int OrbCost;
+        public int RemainingHeldOrbs;
+    }
+
+    [Serializable]
+    public sealed class PrototypeJackpotCollectedAnalyticsPayload
+    {
+        public string Context = "";
+        public int CollectedMana;
+        public int SpinResultCount;
+        public bool ResetPot;
+        public int PendingSpinsRemaining;
+    }
+
     public static class PrototypeAnalyticsPayloadFactory
     {
         public static string CreateRoomEnteredJson(int selectedCardCount, int manaBetPerCard, bool roomRestored)
@@ -384,6 +425,69 @@ namespace BingoMagicMayhem.Infrastructure
                 Contributed = contributed,
                 RemainingHeldOrbs = remainingHeldOrbs,
                 Context = "coven_circle"
+            });
+        }
+
+        public static string CreateWildCardUsedJson(global::GrimoireEntryDefinition entry, global::AlbumCardDefinition card, int remainingWildCards)
+        {
+            return JsonUtility.ToJson(new PrototypeWildCardUsedAnalyticsPayload
+            {
+                Context = "grimoire_use_wild",
+                Album = "grimoire",
+                EntryNumber = entry?.EntryNumber ?? 0,
+                CardId = card?.Id ?? "",
+                CardName = card?.CardName ?? "",
+                Tier = card?.Tier.ToString() ?? "",
+                RemainingWildCards = remainingWildCards
+            });
+        }
+
+        public static string CreateCovenWishGiftSentJson(string wishType, string itemName, int itemQuantity, int remainingInventoryCount)
+        {
+            return JsonUtility.ToJson(new PrototypeCovenWishGiftAnalyticsPayload
+            {
+                Context = "coven_wish_gift",
+                WishType = wishType ?? "",
+                ItemName = itemName ?? "",
+                ItemQuantity = itemQuantity,
+                RemainingInventoryCount = remainingInventoryCount
+            });
+        }
+
+        public static string CreateCovenEmporiumPurchaseJson(
+            string offerId,
+            string offerName,
+            int orbCost,
+            int remainingHeldOrbs,
+            int mana = 0,
+            int crystals = 0,
+            string itemName = "",
+            int itemQuantity = 0)
+        {
+            return JsonUtility.ToJson(new PrototypeCovenEmporiumPurchaseAnalyticsPayload
+            {
+                Source = "coven_emporium",
+                Context = "coven_emporium_purchase",
+                OfferId = offerId ?? "",
+                OfferName = offerName ?? "",
+                OrbCost = orbCost,
+                RemainingHeldOrbs = remainingHeldOrbs,
+                Mana = mana,
+                Crystals = crystals,
+                ItemName = itemName ?? "",
+                ItemQuantity = itemQuantity
+            });
+        }
+
+        public static string CreateJackpotCollectedJson(int collectedMana, int spinResultCount, bool resetPot, int pendingSpinsRemaining)
+        {
+            return JsonUtility.ToJson(new PrototypeJackpotCollectedAnalyticsPayload
+            {
+                Context = "jackpot_wheel_collect",
+                CollectedMana = collectedMana,
+                SpinResultCount = spinResultCount,
+                ResetPot = resetPot,
+                PendingSpinsRemaining = pendingSpinsRemaining
             });
         }
 
