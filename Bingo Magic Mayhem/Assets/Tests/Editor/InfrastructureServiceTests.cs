@@ -681,6 +681,41 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void UgsAdapterRuntimePolicy_DefaultsBlockAuthenticationAndAnalytics()
+    {
+        UgsAdapterRuntimePolicySnapshot policy = UgsAdapterRuntimePolicy.Capture(false);
+
+        Assert.That(policy.PolicyVersion, Is.EqualTo("ugs_adapter_runtime_policy_v0.1"));
+        Assert.That(policy.AdapterCompiled, Is.False);
+        Assert.That(policy.AllowsAuthentication, Is.False);
+        Assert.That(policy.AllowsAnalytics, Is.False);
+        Assert.That(policy.AllowsCloudSave, Is.False);
+        Assert.That(policy.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Adapter compile gate" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
+    public void UgsAdapterRuntimePolicy_RequiresConsentForAnalyticsEvenWhenOtherGatesPass()
+    {
+        UgsAdapterRuntimePolicySnapshot policy = UgsAdapterRuntimePolicy.Capture(
+            true,
+            new UgsAdapterRuntimeOptions
+            {
+                ProjectLinked = true,
+                EnvironmentApproved = true,
+                ServicesInitialized = true,
+                AuthenticationApproved = true,
+                AnalyticsApproved = true,
+                ConsentApproved = false
+            });
+
+        Assert.That(policy.AllowsAuthentication, Is.True);
+        Assert.That(policy.AllowsAnalytics, Is.False);
+        Assert.That(policy.Checks, Has.Some.Matches<BackendPreflightCheck>(check =>
+            check.Name == "Analytics runtime approval" && check.Status == BackendPreflightStatus.Blocked));
+    }
+
+    [Test]
     public void DisabledProfileCloudSync_BlocksUploadAndDownload()
     {
         DisabledProfileSettingsCloudSync sync = new DisabledProfileSettingsCloudSync();

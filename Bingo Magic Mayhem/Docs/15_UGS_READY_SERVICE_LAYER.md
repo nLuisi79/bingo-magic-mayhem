@@ -26,6 +26,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `LocalStateMigrationRegistry`: explicit ordered state-schema upgrades with no skipped versions.
 - `InfrastructureDiagnosticsFacade`: redacted snapshot/journal health capture and payload-free export.
 - `UgsPreflightDiagnostics`: local package/adapter/cloud-readiness checks with live calls disabled by default.
+- `UgsAdapterRuntimePolicy`: second-stage runtime gating for future Authentication/Analytics/Cloud Save adapters, separate from the compile define.
 - `JournalPolicyDiagnostics`: read-only local journal policy counts for retain/export/future-upload staging, sensitive payload blocking, and unapproved source/type blocking.
 - `DisabledProfileSettingsCloudSync` / `CloudProfileSyncDiagnostics`: profile/settings Cloud Save seam that declares future key `bmm.profile_settings.v2` and conflict policy `profile_cloud_conflict_policy_v0.1` while keeping upload/download/merge/remote overwrite blocked.
 

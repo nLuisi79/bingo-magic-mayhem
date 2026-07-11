@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 #if BMM_UGS_ADAPTERS
-using System.Collections.Generic;
 using Unity.RemoteConfig;
 using Unity.Services.Analytics;
 using Unity.Services.Authentication;
@@ -23,6 +23,143 @@ namespace BingoMagicMayhem.Infrastructure
         public const string RequiredScriptingDefine = "BMM_UGS_ADAPTERS";
         public const bool EnabledByDefault = false;
         public const string RequiredEnvironment = "development";
+    }
+
+    [Serializable]
+    public sealed class UgsAdapterRuntimeOptions
+    {
+        public bool ProjectLinked;
+        public bool EnvironmentApproved;
+        public bool ConsentApproved;
+        public bool AuthenticationApproved;
+        public bool AnalyticsApproved;
+        public bool CloudSaveApproved;
+        public bool ServicesInitialized;
+    }
+
+    [Serializable]
+    public sealed class UgsAdapterRuntimePolicySnapshot
+    {
+        public string PolicyVersion = "";
+        public bool AdapterCompiled;
+        public bool ProjectLinked;
+        public bool EnvironmentApproved;
+        public bool ConsentApproved;
+        public bool AuthenticationApproved;
+        public bool AnalyticsApproved;
+        public bool CloudSaveApproved;
+        public bool ServicesInitialized;
+        public bool AllowsAuthentication;
+        public bool AllowsAnalytics;
+        public bool AllowsCloudSave;
+        public string Reason = "";
+        public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
+    public static class UgsAdapterRuntimePolicy
+    {
+        public const string PolicyVersion = "ugs_adapter_runtime_policy_v0.1";
+
+        public static UgsAdapterRuntimePolicySnapshot Capture(
+            bool adapterCompiled,
+            UgsAdapterRuntimeOptions options = null)
+        {
+            options ??= new UgsAdapterRuntimeOptions();
+
+            bool baseRequirementsMet = adapterCompiled
+                                       && options.ProjectLinked
+                                       && options.EnvironmentApproved
+                                       && options.ServicesInitialized;
+
+            UgsAdapterRuntimePolicySnapshot snapshot = new UgsAdapterRuntimePolicySnapshot
+            {
+                PolicyVersion = PolicyVersion,
+                AdapterCompiled = adapterCompiled,
+                ProjectLinked = options.ProjectLinked,
+                EnvironmentApproved = options.EnvironmentApproved,
+                ConsentApproved = options.ConsentApproved,
+                AuthenticationApproved = options.AuthenticationApproved,
+                AnalyticsApproved = options.AnalyticsApproved,
+                CloudSaveApproved = options.CloudSaveApproved,
+                ServicesInitialized = options.ServicesInitialized,
+                AllowsAuthentication = baseRequirementsMet && options.AuthenticationApproved,
+                AllowsAnalytics = baseRequirementsMet && options.ConsentApproved && options.AnalyticsApproved,
+                AllowsCloudSave = baseRequirementsMet && options.ConsentApproved && options.CloudSaveApproved,
+                Reason = "Compiled UGS adapters still require explicit runtime approval gates before Authentication, Analytics, or Cloud Save may execute live calls."
+            };
+
+            AddCheck(
+                snapshot,
+                "Adapter compile gate",
+                adapterCompiled ? BackendPreflightStatus.Warning : BackendPreflightStatus.Blocked,
+                adapterCompiled
+                    ? "BMM_UGS_ADAPTERS is compiled; runtime approvals still decide whether live UGS calls are allowed."
+                    : "BMM_UGS_ADAPTERS is absent; live UGS calls remain blocked.");
+
+            AddCheck(
+                snapshot,
+                "Project link",
+                options.ProjectLinked ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
+                options.ProjectLinked
+                    ? "Unity project link is marked ready for future adapter testing."
+                    : "Project link approval is still required before live UGS calls may run.");
+
+            AddCheck(
+                snapshot,
+                "Environment approval",
+                options.EnvironmentApproved ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
+                options.EnvironmentApproved
+                    ? "Development environment approval is recorded for future adapter testing."
+                    : "The required development environment is not yet approved for live adapter use.");
+
+            AddCheck(
+                snapshot,
+                "Services initialization",
+                options.ServicesInitialized ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
+                options.ServicesInitialized
+                    ? "Unity Services initialization is marked ready."
+                    : "Unity Services initialization remains blocked until an approved adapter composition enables it.");
+
+            AddCheck(
+                snapshot,
+                "Authentication runtime approval",
+                snapshot.AllowsAuthentication ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
+                snapshot.AllowsAuthentication
+                    ? "Anonymous Authentication is explicitly approved for runtime use."
+                    : "Authentication stays blocked until compile, project-link, environment, initialization, and auth approval gates all pass.");
+
+            AddCheck(
+                snapshot,
+                "Analytics runtime approval",
+                snapshot.AllowsAnalytics ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
+                snapshot.AllowsAnalytics
+                    ? "Analytics is explicitly approved for runtime use with consent."
+                    : "Analytics stays blocked until compile, project-link, environment, initialization, consent, and analytics approval gates all pass.");
+
+            AddCheck(
+                snapshot,
+                "Cloud Save runtime approval",
+                snapshot.AllowsCloudSave ? BackendPreflightStatus.Pass : BackendPreflightStatus.Blocked,
+                snapshot.AllowsCloudSave
+                    ? "Cloud Save is explicitly approved for runtime use with consent."
+                    : "Cloud Save stays blocked until compile, project-link, environment, initialization, consent, and Cloud Save approval gates all pass.");
+
+            return snapshot;
+        }
+
+        private static void AddCheck(
+            UgsAdapterRuntimePolicySnapshot snapshot,
+            string name,
+            BackendPreflightStatus status,
+            string detail)
+        {
+            snapshot.Checks.Add(new BackendPreflightCheck
+            {
+                Name = name ?? "",
+                Status = status,
+                Detail = detail ?? ""
+            });
+        }
     }
 
     public static class UgsPreflightDiagnostics
@@ -317,11 +454,24 @@ namespace BingoMagicMayhem.Infrastructure
     /// </summary>
     public sealed class UgsIdentityFacade : IIdentityFacade
     {
+        private readonly UgsAdapterRuntimeOptions runtimeOptions;
+
+        public UgsIdentityFacade(UgsAdapterRuntimeOptions runtimeOptions = null)
+        {
+            this.runtimeOptions = runtimeOptions ?? new UgsAdapterRuntimeOptions();
+        }
+
         public IdentitySession Current { get; private set; }
 
         public async Task<IdentitySession> InitializeAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            UgsAdapterRuntimePolicySnapshot policy = UgsAdapterRuntimePolicy.Capture(true, runtimeOptions);
+            if (!policy.AllowsAuthentication)
+            {
+                throw new InvalidOperationException(policy.Reason);
+            }
+
             await UnityServices.InitializeAsync();
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
             Current = new IdentitySession
@@ -337,11 +487,24 @@ namespace BingoMagicMayhem.Infrastructure
 
     public sealed class UgsAnalyticsFacade : IAnalyticsFacade
     {
+        private readonly UgsAdapterRuntimeOptions runtimeOptions;
+
+        public UgsAnalyticsFacade(UgsAdapterRuntimeOptions runtimeOptions = null)
+        {
+            this.runtimeOptions = runtimeOptions ?? new UgsAdapterRuntimeOptions();
+        }
+
         public void Track(string eventName, string safePayloadJson = "{}")
         {
             if (string.IsNullOrWhiteSpace(eventName))
             {
                 throw new ArgumentException("An analytics event name is required.", nameof(eventName));
+            }
+
+            UgsAdapterRuntimePolicySnapshot policy = UgsAdapterRuntimePolicy.Capture(true, runtimeOptions);
+            if (!policy.AllowsAnalytics)
+            {
+                throw new InvalidOperationException(policy.Reason);
             }
 
             // Event schemas must be created in the Dashboard before live recording.
@@ -351,6 +514,12 @@ namespace BingoMagicMayhem.Infrastructure
         public Task FlushAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            UgsAdapterRuntimePolicySnapshot policy = UgsAdapterRuntimePolicy.Capture(true, runtimeOptions);
+            if (!policy.AllowsAnalytics)
+            {
+                throw new InvalidOperationException(policy.Reason);
+            }
+
             AnalyticsService.Instance.Flush();
             return Task.CompletedTask;
         }

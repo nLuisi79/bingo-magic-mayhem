@@ -18,6 +18,8 @@ Unity has resolved these entries into `packages-lock.json` and `Library/PackageC
 
 `Assets/Scripts/Infrastructure/UgsAdapterBoundary.cs` contains the future live adapters behind the `BMM_UGS_ADAPTERS` scripting define. The define is intentionally absent by default.
 
+It now also contains a second runtime-gate scaffold for future Authentication, Analytics, and Cloud Save calls. Even if the compile define is enabled later, live service calls should remain blocked unless explicit runtime approvals are supplied for project link, environment, services initialization, consent, and per-service enablement.
+
 When enabled after package resolution and environment review, the adapters provide:
 
 - Unity Services Core initialization plus anonymous Authentication;
@@ -34,6 +36,8 @@ The `IProfileSettingsCloudSync` seam is deliberately disabled in local compositi
 Remote Config safety keys are currently diagnostics-only. Values such as `infra_ugs_adapters_enabled`, `infra_cloud_profile_sync_enabled`, and `infra_journal_upload_enabled` may be reported as risky if true, but they cannot enable runtime behavior without an approved code composition change. `infra_diagnostics_export_enabled` is currently advisory-only as well; it does not silently remove the local support export path.
 
 Identity is also diagnostics-only in the current composition. The local guest path remains authoritative; cloud sign-in, account linking, recovery, and any Remote Config-driven auth upgrade remain blocked until explicitly approved.
+
+The new runtime policy scaffold is not wired into the local composition root yet. Its purpose is to make future adapter composition safer by requiring a second explicit approval layer beyond the compile define alone.
 
 ## Required Enablement Checks
 
