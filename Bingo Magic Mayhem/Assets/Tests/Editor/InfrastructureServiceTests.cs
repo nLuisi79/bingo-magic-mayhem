@@ -329,6 +329,29 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void AnalyticsSafety_AllowlistsNormalizedRewardAndSocialContextEvents()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        services.Analytics.Track(PrototypeAnalyticsEvents.RoundRewardsCollected, "{\"Source\":\"round_rewards\",\"Mana\":250}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.RoomRestored, "{\"RoomIndex\":1,\"RestoreRewardMana\":1000}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.AlbumRewardClaimed, "{\"Album\":\"grimoire\",\"RewardScope\":\"entry\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.SocialFreebieRedeemed, "{\"Source\":\"Social Freebie\",\"Code\":\"social-spark\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.SocialHelpRequestSent, "{\"Context\":\"ingredient_help\",\"DailyLimit\":7}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.FriendManaSent, "{\"Amount\":10}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.FriendManaReceived, "{\"Amount\":10}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.CovenOrbsContributed, "{\"Contributed\":5}");
+
+        AnalyticsSafetySnapshot safety = AnalyticsSafetyDiagnostics.Capture(
+            services.ActionJournal.ReadAll(),
+            RemoteConfigSafetyDiagnostics.Capture(new LocalRemoteConfigFacade(RemoteConfigSafetyDiagnostics.CreateLocalSafetyDefaults())));
+
+        Assert.That(safety.AllowlistedAnalyticsRecordCount, Is.EqualTo(safety.TotalAnalyticsRecordCount));
+        Assert.That(safety.BlockedAnalyticsRecordCount, Is.EqualTo(0));
+    }
+
+    [Test]
     public void AnalyticsSafety_FlagsNonAllowlistedEventsAsLocalOnly()
     {
         string root = CreateTemporaryRoot();
@@ -394,6 +417,24 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount, Is.EqualTo(0));
         Assert.That(diagnostics.EventCounts, Has.Some.Matches<DiagnosticsEventCount>(entry =>
             entry.Event == "analytics/" + PrototypeAnalyticsEvents.RoomEntered && entry.Count == 1));
+    }
+
+    [Test]
+    public void Diagnostics_ReportsNormalizedRewardAndSocialAnalyticsEventCounts()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+        services.Analytics.Track(PrototypeAnalyticsEvents.AlbumRewardClaimed, "{\"Album\":\"grimoire\"}");
+        services.Analytics.Track(PrototypeAnalyticsEvents.SocialFreebieRedeemed, "{\"Code\":\"social-spark\"}");
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.AnalyticsSafety.BlockedAnalyticsRecordCount, Is.EqualTo(0));
+        Assert.That(diagnostics.EventCounts, Has.Some.Matches<DiagnosticsEventCount>(entry =>
+            entry.Event == "analytics/" + PrototypeAnalyticsEvents.AlbumRewardClaimed && entry.Count == 1));
+        Assert.That(diagnostics.EventCounts, Has.Some.Matches<DiagnosticsEventCount>(entry =>
+            entry.Event == "analytics/" + PrototypeAnalyticsEvents.SocialFreebieRedeemed && entry.Count == 1));
     }
 
     [Test]

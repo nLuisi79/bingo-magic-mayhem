@@ -17,6 +17,14 @@ namespace BingoMagicMayhem.Infrastructure
         public const string InboxItemClaimed = "prototype_inbox_item_claimed";
         public const string InboxMessageRead = "prototype_inbox_message_read";
         public const string InboxCategoryCleared = "prototype_inbox_category_cleared";
+        public const string RoundRewardsCollected = "prototype_round_rewards_collected";
+        public const string RoomRestored = "prototype_room_restored";
+        public const string AlbumRewardClaimed = "prototype_album_reward_claimed";
+        public const string SocialFreebieRedeemed = "prototype_social_freebie_redeemed";
+        public const string SocialHelpRequestSent = "prototype_social_help_request_sent";
+        public const string FriendManaSent = "prototype_friend_mana_sent";
+        public const string FriendManaReceived = "prototype_friend_mana_received";
+        public const string CovenOrbsContributed = "prototype_coven_orbs_contributed";
 
         private static readonly HashSet<string> AllowlistedEventNames =
             new HashSet<string>(StringComparer.Ordinal)
@@ -30,7 +38,15 @@ namespace BingoMagicMayhem.Infrastructure
                 DailySpinClaimed,
                 InboxItemClaimed,
                 InboxMessageRead,
-                InboxCategoryCleared
+                InboxCategoryCleared,
+                RoundRewardsCollected,
+                RoomRestored,
+                AlbumRewardClaimed,
+                SocialFreebieRedeemed,
+                SocialHelpRequestSent,
+                FriendManaSent,
+                FriendManaReceived,
+                CovenOrbsContributed
             };
 
         public static bool IsAllowlisted(string eventName)
@@ -92,7 +108,15 @@ namespace BingoMagicMayhem.Infrastructure
                 "analytics/" + PrototypeAnalyticsEvents.DailySpinClaimed,
                 "analytics/" + PrototypeAnalyticsEvents.InboxItemClaimed,
                 "analytics/" + PrototypeAnalyticsEvents.InboxMessageRead,
-                "analytics/" + PrototypeAnalyticsEvents.InboxCategoryCleared
+                "analytics/" + PrototypeAnalyticsEvents.InboxCategoryCleared,
+                "analytics/" + PrototypeAnalyticsEvents.RoundRewardsCollected,
+                "analytics/" + PrototypeAnalyticsEvents.RoomRestored,
+                "analytics/" + PrototypeAnalyticsEvents.AlbumRewardClaimed,
+                "analytics/" + PrototypeAnalyticsEvents.SocialFreebieRedeemed,
+                "analytics/" + PrototypeAnalyticsEvents.SocialHelpRequestSent,
+                "analytics/" + PrototypeAnalyticsEvents.FriendManaSent,
+                "analytics/" + PrototypeAnalyticsEvents.FriendManaReceived,
+                "analytics/" + PrototypeAnalyticsEvents.CovenOrbsContributed
             };
 
         public static AnalyticsSafetySnapshot Capture(

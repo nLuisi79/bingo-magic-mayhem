@@ -16,7 +16,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `IdentitySafetyDiagnostics`: identity/auth readiness policy that keeps local guest authority and reports sign-in/link/recovery blockers.
 - `LocalAnalyticsFacade`: local-only safe event recording through the action journal.
 - `AnalyticsSafetyDiagnostics`: analytics consent/upload policy that keeps live upload blocked and reports allowlisted versus local-only analytics rows.
-- first-pass local-only feature analytics instrumentation for room enter, round start, bingo claim, round completion, daily bonus claim, daily spin claim, inbox reward claim, inbox message read, and inbox bulk clear.
+- local-only feature analytics instrumentation for room enter, round start, bingo claim, round completion, round reward collect, room restore, album reward claim, social freebie redeem, social help request send, friend mana send/receive, daily bonus claim, daily spin claim, inbox reward/message actions, and coven orb contribution.
 - `LocalRemoteConfigFacade`: typed reads from explicitly supplied local defaults.
 - `RemoteConfigSafetyDiagnostics`: infrastructure-only Remote Config safety policy for live/cloud enablement flags.
 - `ExportSafetyDiagnostics`: local-file-only diagnostics export/share policy that keeps support exports payload-free and external share flows blocked.
@@ -154,7 +154,7 @@ Edit-mode tests cover:
 - journal retention/privacy defaults, blocked retention/archive/compaction/delete controls, and export-redaction planning counts.
 - diagnostics export/share safety defaults, external-share blocking, and advisory-only Remote Config export disable handling.
 
-Unity EditMode `InfrastructureServiceTests` last passed 31/31 on 2026-07-10 after the diagnostics export/share safety pass. Local-only feature analytics instrumentation adds three EditMode tests for the next Unity Test Runner pass.
+Unity EditMode `InfrastructureServiceTests` last passed 34/34 on 2026-07-10 after the first local-only feature analytics pass. Reward/context normalization analytics adds two EditMode tests for the next Unity Test Runner pass.
 
 The current Unity solution build succeeds with 0 errors. Gameplay rules and package dependencies are unchanged; the prototype startup/profile shell now consumes the infrastructure layer.
 
