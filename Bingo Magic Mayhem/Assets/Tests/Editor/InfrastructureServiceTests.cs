@@ -246,6 +246,46 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void ProviderFactory_BuildsLocalDefaultProviders()
+    {
+        string root = CreateTemporaryRoot();
+        JsonFileDurableStateStore durableState = new JsonFileDurableStateStore(Path.Combine(root, "state"));
+        JsonLinesActionJournal actionJournal = new JsonLinesActionJournal(Path.Combine(root, "journal", "actions.jsonl"));
+
+        InfrastructureProviderSet providers = InfrastructureProviderFactory.Create(durableState, actionJournal);
+
+        Assert.That(providers.Composition.DesiredIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(providers.Composition.ActiveIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(providers.Identity, Is.TypeOf<LocalIdentityFacade>());
+        Assert.That(providers.Analytics, Is.TypeOf<LocalAnalyticsFacade>());
+        Assert.That(providers.ProfileCloudSync, Is.TypeOf<DisabledProfileSettingsCloudSync>());
+    }
+
+    [Test]
+    public void ProviderFactory_RequestedUgsProvidersStillResolveThroughSingleFallbackSeam()
+    {
+        string root = CreateTemporaryRoot();
+        JsonFileDurableStateStore durableState = new JsonFileDurableStateStore(Path.Combine(root, "state"));
+        JsonLinesActionJournal actionJournal = new JsonLinesActionJournal(Path.Combine(root, "journal", "actions.jsonl"));
+
+        InfrastructureProviderSet providers = InfrastructureProviderFactory.Create(
+            durableState,
+            actionJournal,
+            new InfrastructureCompositionOptions
+            {
+                Identity = IdentityProviderPreference.UgsAnonymous,
+                Analytics = AnalyticsProviderPreference.UgsAnalytics,
+                ProfileCloudSync = ProfileCloudSyncPreference.UgsCloudSave
+            });
+
+        Assert.That(providers.Composition.UsesLocalFallback, Is.True);
+        Assert.That(providers.Composition.ActiveIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(providers.Composition.ActiveAnalyticsProvider, Is.EqualTo("local_journal"));
+        Assert.That(providers.Composition.ActiveProfileCloudSyncProvider, Is.EqualTo("disabled_local"));
+        Assert.That(providers.Composition.FallbackReason, Is.Not.Empty);
+    }
+
+    [Test]
     public void Composition_RequestedUgsProvidersFallbackToLocalWhenCompileGateIsAbsent()
     {
         string root = CreateTemporaryRoot();

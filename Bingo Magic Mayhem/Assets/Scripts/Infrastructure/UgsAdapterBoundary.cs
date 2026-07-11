@@ -23,6 +23,15 @@ namespace BingoMagicMayhem.Infrastructure
         public const string RequiredScriptingDefine = "BMM_UGS_ADAPTERS";
         public const bool EnabledByDefault = false;
         public const string RequiredEnvironment = "development";
+
+        public static bool IsAdapterCompiled()
+        {
+#if BMM_UGS_ADAPTERS
+            return true;
+#else
+            return false;
+#endif
+        }
     }
 
     [Serializable]
@@ -162,6 +171,44 @@ namespace BingoMagicMayhem.Infrastructure
         }
     }
 
+    public static class UgsAdapterProviderFactory
+    {
+        public static void ApplyRequestedProviders(
+            InfrastructureCompositionOptions options,
+            InfrastructureCompositionSnapshot snapshot,
+            ref IIdentityFacade identity,
+            ref IAnalyticsFacade analytics,
+            ref IProfileSettingsCloudSync profileCloudSync)
+        {
+            if (options == null || snapshot == null)
+            {
+                return;
+            }
+
+#if BMM_UGS_ADAPTERS
+            UgsAdapterRuntimePolicySnapshot runtimePolicy = UgsAdapterRuntimePolicy.Capture(true, options.UgsRuntimeOptions);
+
+            if (options.Identity == IdentityProviderPreference.UgsAnonymous && runtimePolicy.AllowsAuthentication)
+            {
+                identity = new UgsIdentityFacade(options.UgsRuntimeOptions);
+                snapshot.ActiveIdentityProvider = "ugs_anonymous";
+            }
+
+            if (options.Analytics == AnalyticsProviderPreference.UgsAnalytics && runtimePolicy.AllowsAnalytics)
+            {
+                analytics = new UgsAnalyticsFacade(options.UgsRuntimeOptions);
+                snapshot.ActiveAnalyticsProvider = "ugs_analytics";
+            }
+
+            if (options.ProfileCloudSync == ProfileCloudSyncPreference.UgsCloudSave && runtimePolicy.AllowsCloudSave)
+            {
+                profileCloudSync = new UgsCloudSaveProfileSettingsSync();
+                snapshot.ActiveProfileCloudSyncProvider = "ugs_cloud_save";
+            }
+#endif
+        }
+    }
+
     public static class UgsPreflightDiagnostics
     {
         private const string PackageState = "resolved_lockfile_cache";
@@ -240,14 +287,7 @@ namespace BingoMagicMayhem.Infrastructure
             }
         }
 
-        private static bool IsAdapterDefineEnabled()
-        {
-#if BMM_UGS_ADAPTERS
-            return true;
-#else
-            return false;
-#endif
-        }
+        private static bool IsAdapterDefineEnabled() => UgsAdapterBoundary.IsAdapterCompiled();
     }
 
     public static class CloudProfileSyncDiagnostics
