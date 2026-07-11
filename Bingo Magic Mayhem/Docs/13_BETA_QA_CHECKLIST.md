@@ -226,6 +226,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm analytics safety diagnostics show policy `analytics_safety_v0.1`, consent blocked, live upload blocked, allowlisted infrastructure and first-pass feature analytics rows counted separately from local-only blocked rows, and Remote Config bypass blocked.
 - Trigger room entry, round start, bingo claim, round completion, daily bonus claim, daily spin claim, inbox reward claim, inbox message read, and inbox bulk clear flows, then confirm they appear as allowlisted local analytics events rather than blocked local-only rows.
 - Trigger round reward collect, room restore, album reward claim, social freebie redeem, ingredient help request send, friend mana send/receive, and coven orb contribution, then confirm they also appear as allowlisted local analytics events with safe normalized context only.
+- Confirm the helper-backed analytics payload path still omits message body text and continues using reusable infrastructure schemas for room context and inbox reward shaping.
 - Confirm export safety diagnostics show policy `diagnostics_export_safety_v0.1`, local file export enabled, payload-free export required, external share blocked, in-app share blocked, clipboard copy blocked, and Remote Config unable to silently disable the local support export path.
 - Confirm test-only risky Remote Config values are reported as blocked diagnostics and do not enable live UGS, Cloud Save upload/download, or journal upload.
 - Confirm UGS packages are resolved but no live cloud calls, analytics uploads, adapter define, or gameplay-state migrations are active in this pass.
@@ -247,7 +248,7 @@ Use this checklist after each narrow implementation pass to catch routing, claim
 - Confirm Prototype Settings > Persistence shows UGS preflight with packages resolved, live calls off, and project-link/consent/Cloud Save policy still blocked.
 - With `BMM_UGS_ADAPTERS` absent, confirm the local-first path still starts and profile/settings work with network unavailable.
 - Do not enable the adapter define until the development environment is linked and Analytics consent behavior is verified.
-- Unity EditMode `InfrastructureServiceTests` last passed 34/34 on 2026-07-10 after the first local-only feature analytics pass. Reward/context normalization analytics adds two more EditMode tests for the next Unity Test Runner pass.
+- Unity EditMode `InfrastructureServiceTests` last passed 36/36 on 2026-07-10 after the normalized local analytics coverage pass. Analytics helper/schema consolidation adds two more EditMode tests for the next Unity Test Runner pass.
 
 ## Documentation Follow-Up After Each Pass
 

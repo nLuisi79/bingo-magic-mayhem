@@ -253,6 +253,8 @@ These should be treated carefully before external testing:
 
 Infrastructure status: a local analytics facade now records safe event envelopes into the local action journal. Analytics safety policy `analytics_safety_v0.1` keeps consent and live upload blocked, reports allowlisted versus local-only analytics events, and prevents Remote Config from enabling upload at runtime. The current local-only instrumentation surface now covers room enter, round start, bingo claim, round completion, round reward collect, room restore, album reward claim, social freebie redeem, social help request send, friend mana send/receive, inbox reward/message actions, daily bonus claim, daily spin claim, and coven orb contribution.
 
+Payload/schema shaping for these events has now started moving into a reusable infrastructure helper instead of continuing to grow directly inside `BingoPrototype.cs`. Feature code still decides when to emit events; infrastructure now increasingly owns how the safe local payloads are shaped.
+
 The local journal now has a read-only diagnostics policy surface. It classifies records as retained locally, safe for payload-free summary export, candidate for future upload, blocked by sensitive payload markers, or blocked because the source/type is not allowlisted. Live upload remains disabled and active upload-eligible rows remain 0.
 
 These feature events currently remain support-only local telemetry. They are useful for Beta verification and event-schema iteration, but they do not imply consent approval, server ingestion, dashboards, or production analytics ownership yet.

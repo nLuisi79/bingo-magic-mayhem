@@ -377,6 +377,45 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void AnalyticsPayloadFactory_BuildsRoomContextFromActivePrototypeRoom()
+    {
+        RealmContentCatalog.SetActivePrototypeRealm(0);
+        RealmContentCatalog.SetActivePrototypeRoom(0);
+
+        PrototypeRoomAnalyticsPayload payload = PrototypeAnalyticsPayloadFactory.BuildRoomContext(4, 25, false);
+
+        Assert.That(payload.RealmIndex, Is.EqualTo(1));
+        Assert.That(payload.RoomIndex, Is.EqualTo(1));
+        Assert.That(payload.RoomName, Is.EqualTo(RealmContentCatalog.ActivePrototypeRoom.Name));
+        Assert.That(payload.RoomMode, Is.EqualTo(RealmContentCatalog.ActivePrototypeRoom.ModeLabel));
+        Assert.That(payload.SelectedCardCount, Is.EqualTo(4));
+        Assert.That(payload.ManaBetPerCard, Is.EqualTo(25));
+        Assert.That(payload.RoomRestored, Is.False);
+    }
+
+    [Test]
+    public void AnalyticsPayloadFactory_BuildsInboxPayloadWithoutMessageBody()
+    {
+        PrototypeInboxItem item = PrototypeInboxItem.FromRewardGrant(
+            PrototypeInboxCategory.Messages,
+            "Message from Luna",
+            "keep this out of analytics",
+            new PrototypeRewardGrant("Inbox Message", 0, 5, 0, 0, new List<PrototypeRewardItem> { new PrototypeRewardItem("Single Sigil", 1) }),
+            "Friends",
+            null);
+
+        PrototypeInboxAnalyticsPayload payload = PrototypeAnalyticsPayloadFactory.BuildInboxPayload(item, false);
+
+        Assert.That(payload.Category, Is.EqualTo("Messages"));
+        Assert.That(payload.ClaimAll, Is.False);
+        Assert.That(payload.RewardSource, Is.EqualTo("Inbox Message"));
+        Assert.That(payload.Crystals, Is.EqualTo(5));
+        Assert.That(payload.ItemName, Is.EqualTo("Single Sigil"));
+        string serialized = JsonUtility.ToJson(payload);
+        Assert.That(serialized, Does.Not.Contain("keep this out of analytics"));
+    }
+
+    [Test]
     public void AnalyticsSafety_RemoteConfigCannotEnableUpload()
     {
         string root = CreateTemporaryRoot();

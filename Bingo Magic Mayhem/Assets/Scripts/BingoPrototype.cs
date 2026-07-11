@@ -199,175 +199,6 @@ public class BingoPrototype : MonoBehaviour
         public bool ResetPot { get; private set; }
     }
 
-    [System.Serializable]
-    private class PrototypeRoomAnalyticsPayload
-    {
-        public int RealmIndex;
-        public int RoomIndex;
-        public string RoomName = "";
-        public string RoomMode = "";
-        public int SelectedCardCount;
-        public int ManaBetPerCard;
-        public bool RoomRestored;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeRoundStartedAnalyticsPayload : PrototypeRoomAnalyticsPayload
-    {
-        public int EntryCost;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeBingoClaimedAnalyticsPayload : PrototypeRoomAnalyticsPayload
-    {
-        public int CardIndex;
-        public int BingoDelta;
-        public int ClaimedCount;
-        public int RoomBingosClaimed;
-        public int RoomBingoPool;
-        public bool BlackoutRoom;
-        public string Trigger = "";
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeRoundCompletedAnalyticsPayload : PrototypeRoomAnalyticsPayload
-    {
-        public string Reason = "";
-        public int PlayerBingos;
-        public int SimulatedBingos;
-        public int RoomBingos;
-        public int BestCardBingos;
-        public int JackpotCards;
-        public int ManaReward;
-        public int PlayerXp;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeDailyRewardAnalyticsPayload
-    {
-        public string ClaimSurface = "";
-        public int StreakDay;
-        public int Mana;
-        public int Crystals;
-        public string ItemName = "";
-        public int ItemQuantity;
-        public string Label = "";
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeDailySpinAnalyticsPayload
-    {
-        public string ClaimSurface = "";
-        public int RewardIndex;
-        public int Mana;
-        public int Crystals;
-        public int ClairvoyanceMinutes;
-        public string ItemName = "";
-        public int ItemQuantity;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeInboxAnalyticsPayload
-    {
-        public string Category = "";
-        public bool ClaimAll;
-        public bool HasCovenGift;
-        public string RewardSource = "";
-        public int Mana;
-        public int Crystals;
-        public int ClairvoyanceMinutes;
-        public int JackpotSpins;
-        public string ItemName = "";
-        public int ItemQuantity;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeInboxMessageReadAnalyticsPayload
-    {
-        public string Category = "";
-        public string ReadSource = "";
-        public int UnreadRemaining;
-        public int ClaimableRemaining;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeInboxCategoryClearedAnalyticsPayload
-    {
-        public string Category = "";
-        public int ClearedCount;
-    }
-
-    [System.Serializable]
-    private class PrototypeRewardGrantAnalyticsPayload
-    {
-        public string Source = "";
-        public string Context = "";
-        public int Mana;
-        public int Crystals;
-        public int ClairvoyanceMinutes;
-        public int JackpotSpins;
-        public string ItemName = "";
-        public int ItemQuantity;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeAlbumRewardAnalyticsPayload : PrototypeRewardGrantAnalyticsPayload
-    {
-        public string Album = "";
-        public string RewardScope = "";
-        public int EntryNumber;
-        public int SetNumber;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeRoundRewardsCollectedAnalyticsPayload : PrototypeRewardGrantAnalyticsPayload
-    {
-        public int PlayerBingos;
-        public int SimulatedBingos;
-        public int RoomBingos;
-        public int PlayerXp;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeRoomRestoredAnalyticsPayload : PrototypeRoomAnalyticsPayload
-    {
-        public int RestoreRewardMana;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeSocialFreebieAnalyticsPayload : PrototypeRewardGrantAnalyticsPayload
-    {
-        public string Code = "";
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeSocialHelpRequestAnalyticsPayload
-    {
-        public string Context = "";
-        public bool CovenTab;
-        public string CardId = "";
-        public string CardName = "";
-        public int UsedToday;
-        public int DailyLimit;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeFriendManaAnalyticsPayload
-    {
-        public string Context = "";
-        public int Amount;
-        public int DailyCount;
-        public int DailyLimit;
-    }
-
-    [System.Serializable]
-    private sealed class PrototypeCovenOrbsAnalyticsPayload
-    {
-        public int Contributed;
-        public int RemainingHeldOrbs;
-        public string Context = "";
-    }
-
     private async void Start()
     {
         EnsureRuntimeState();
@@ -1082,7 +913,10 @@ public class BingoPrototype : MonoBehaviour
         ApplySavedManaBetForActiveRoom();
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.RoomEntered,
-            JsonUtility.ToJson(BuildPrototypeRoomAnalyticsPayload()));
+            PrototypeAnalyticsPayloadFactory.CreateRoomEnteredJson(
+                selectedCardCount,
+                manaBetPerCard,
+                inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom)));
         BuildLobbyUi();
     }
 
@@ -2315,13 +2149,11 @@ public class BingoPrototype : MonoBehaviour
         lastFriendStatusSummary = $"Sent {PrototypeFriendManaAmount} mana to {friendName}. Prototype does not deduct player mana yet.";
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.FriendManaSent,
-            JsonUtility.ToJson(new PrototypeFriendManaAnalyticsPayload
-            {
-                Context = "friends_ui",
-                Amount = PrototypeFriendManaAmount,
-                DailyCount = prototypeFriendsSentManaToday.Count,
-                DailyLimit = PrototypeFriendDailyManaLimit
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateFriendManaJson(
+                "friends_ui",
+                PrototypeFriendManaAmount,
+                prototypeFriendsSentManaToday.Count,
+                PrototypeFriendDailyManaLimit));
         SavePrototypeFriendsState();
         BuildFriendsUi();
     }
@@ -2346,13 +2178,11 @@ public class BingoPrototype : MonoBehaviour
         lastFriendStatusSummary = $"Received {PrototypeFriendManaAmount} mana from {friendName}. Inventory grant waits for Aura-rank limits to be locked.";
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.FriendManaReceived,
-            JsonUtility.ToJson(new PrototypeFriendManaAnalyticsPayload
-            {
-                Context = "friends_ui",
-                Amount = PrototypeFriendManaAmount,
-                DailyCount = prototypeFriendsReceivedManaToday.Count,
-                DailyLimit = PrototypeFriendDailyManaLimit
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateFriendManaJson(
+                "friends_ui",
+                PrototypeFriendManaAmount,
+                prototypeFriendsReceivedManaToday.Count,
+                PrototypeFriendDailyManaLimit));
         SavePrototypeFriendsState();
         BuildFriendsUi();
     }
@@ -2947,18 +2777,7 @@ public class BingoPrototype : MonoBehaviour
         {
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.SocialFreebieRedeemed,
-                JsonUtility.ToJson(new PrototypeSocialFreebieAnalyticsPayload
-                {
-                    Source = reward.Source ?? "",
-                    Context = "social_freebie",
-                    Mana = reward.Mana,
-                    Crystals = reward.Crystals,
-                    ClairvoyanceMinutes = reward.ClairvoyanceMinutes,
-                    JackpotSpins = reward.JackpotSpins,
-                    ItemName = reward.Items.Count > 0 ? reward.Items[0].Name : "",
-                    ItemQuantity = reward.Items.Count > 0 ? reward.Items[0].Quantity : 0,
-                    Code = code ?? ""
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateSocialFreebieRedeemedJson(reward, code));
         }
         coven.AddPrototypeChatLine(message);
         RefreshPowerUpDisplays();
@@ -3149,16 +2968,7 @@ public class BingoPrototype : MonoBehaviour
         DailyBonusRewardDefinition reward = inventory.ClaimDailyBonus();
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.DailyBonusClaimed,
-            JsonUtility.ToJson(new PrototypeDailyRewardAnalyticsPayload
-            {
-                ClaimSurface = "daily_bonus_den",
-                StreakDay = inventory.DailyBonusStreak,
-                Mana = reward.Mana,
-                Crystals = reward.Crystals,
-                ItemName = reward.ItemName ?? "",
-                ItemQuantity = reward.ItemQuantity,
-                Label = reward.Label ?? ""
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateDailyBonusClaimedJson(reward, inventory.DailyBonusStreak));
         coven.AddPrototypeChatLine($"Daily bonus collected: {reward.Summary}");
         RefreshPowerUpDisplays();
         BuildDailyBonusUi();
@@ -3308,16 +3118,7 @@ public class BingoPrototype : MonoBehaviour
         lastDailySpinSummary = "Wheel spinning...";
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.DailySpinClaimed,
-            JsonUtility.ToJson(new PrototypeDailySpinAnalyticsPayload
-            {
-                ClaimSurface = "daily_spin_den",
-                RewardIndex = lastDailySpinRewardIndex,
-                Mana = reward.Mana,
-                Crystals = reward.Crystals,
-                ClairvoyanceMinutes = reward.ClairvoyanceMinutes,
-                ItemName = reward.Items.Count > 0 ? reward.Items[0].Name : "",
-                ItemQuantity = reward.Items.Count > 0 ? reward.Items[0].Quantity : 0
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateDailySpinClaimedJson(reward, lastDailySpinRewardIndex));
         coven.AddPrototypeChatLine($"Daily Spin collected: {summary}");
         RefreshPowerUpDisplays();
         dailySpinAnimating = true;
@@ -3510,13 +3311,10 @@ public class BingoPrototype : MonoBehaviour
 
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.InboxMessageRead,
-            JsonUtility.ToJson(new PrototypeInboxMessageReadAnalyticsPayload
-            {
-                Category = PrototypeInboxCategory.Messages.ToString(),
-                ReadSource = "open",
-                UnreadRemaining = coven.PlayerInboxUnreadCount,
-                ClaimableRemaining = coven.PlayerInboxClaimableCount
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateInboxMessageReadJson(
+                "open",
+                coven.PlayerInboxUnreadCount,
+                coven.PlayerInboxClaimableCount));
         BuildInboxMessageDetailUi(message);
     }
 
@@ -3620,13 +3418,10 @@ public class BingoPrototype : MonoBehaviour
 
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.InboxMessageRead,
-                JsonUtility.ToJson(new PrototypeInboxMessageReadAnalyticsPayload
-                {
-                    Category = PrototypeInboxCategory.Messages.ToString(),
-                    ReadSource = "claim_button",
-                    UnreadRemaining = coven.PlayerInboxUnreadCount,
-                    ClaimableRemaining = coven.PlayerInboxClaimableCount
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateInboxMessageReadJson(
+                    "claim_button",
+                    coven.PlayerInboxUnreadCount,
+                    coven.PlayerInboxClaimableCount));
             lastInboxClaimSummary = $"Read: {message.Title}";
             coven.AddPrototypeChatLine($"You read inbox message: {message.Title}");
             BuildInboxUi();
@@ -3640,7 +3435,7 @@ public class BingoPrototype : MonoBehaviour
 
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.InboxItemClaimed,
-            JsonUtility.ToJson(BuildInboxAnalyticsPayload(item, false)));
+            PrototypeAnalyticsPayloadFactory.CreateInboxItemClaimedJson(item, false));
         string summary = ApplyInboxItem(item);
         lastInboxClaimSummary = $"Claimed: {summary}";
 
@@ -3673,11 +3468,7 @@ public class BingoPrototype : MonoBehaviour
         {
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.InboxCategoryCleared,
-                JsonUtility.ToJson(new PrototypeInboxCategoryClearedAnalyticsPayload
-                {
-                    Category = inboxActiveCategory.ToString(),
-                    ClearedCount = collected
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateInboxCategoryClearedJson(inboxActiveCategory, collected));
         }
 
         lastInboxClaimSummary = collected > 0 ? $"{(inboxActiveCategory == PrototypeInboxCategory.Messages ? "Cleared" : "Claimed")} {collected}: {BuildCompactInboxClaimSummary(summaries)}" : "No rewards claimed.";
@@ -3693,45 +3484,6 @@ public class BingoPrototype : MonoBehaviour
         }
 
         GameInfrastructureRuntime.Current.Analytics.Track(eventName, string.IsNullOrWhiteSpace(safePayloadJson) ? "{}" : safePayloadJson);
-    }
-
-    private PrototypeRoomAnalyticsPayload BuildPrototypeRoomAnalyticsPayload()
-    {
-        return new PrototypeRoomAnalyticsPayload
-        {
-            RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
-            RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
-            RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
-            RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
-            SelectedCardCount = selectedCardCount,
-            ManaBetPerCard = manaBetPerCard,
-            RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom)
-        };
-    }
-
-    private PrototypeInboxAnalyticsPayload BuildInboxAnalyticsPayload(PrototypeInboxItem item, bool claimAll)
-    {
-        PrototypeInboxAnalyticsPayload payload = new PrototypeInboxAnalyticsPayload
-        {
-            Category = item.Category.ToString(),
-            ClaimAll = claimAll,
-            RewardSource = item.Reward.Source ?? "",
-            Mana = item.Reward.Mana,
-            Crystals = item.Reward.Crystals,
-            ClairvoyanceMinutes = item.Reward.ClairvoyanceMinutes,
-            JackpotSpins = item.Reward.JackpotSpins,
-            ItemName = item.Reward.Items.Count > 0 ? item.Reward.Items[0].Name : "",
-            ItemQuantity = item.Reward.Items.Count > 0 ? item.Reward.Items[0].Quantity : 0
-        };
-
-        if (item.TryGetCovenGift(out CovenInboxGiftInfo gift))
-        {
-            payload.HasCovenGift = true;
-            payload.ItemName = gift.ItemName ?? payload.ItemName;
-            payload.ItemQuantity = gift.Quantity;
-        }
-
-        return payload;
     }
 
     private string ApplyInboxItem(PrototypeInboxItem item)
@@ -4730,12 +4482,9 @@ public class BingoPrototype : MonoBehaviour
             inventory.TryConsumeInventoryReward("Club Orbs", contributed);
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.CovenOrbsContributed,
-                JsonUtility.ToJson(new PrototypeCovenOrbsAnalyticsPayload
-                {
-                    Contributed = contributed,
-                    RemainingHeldOrbs = inventory.GetInventoryRewardCount("Club Orbs"),
-                    Context = "coven_circle"
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateCovenOrbsContributedJson(
+                    contributed,
+                    inventory.GetInventoryRewardCount("Club Orbs")));
         }
 
         BuildCovenCircleUi();
@@ -5099,15 +4848,11 @@ public class BingoPrototype : MonoBehaviour
             {
                 TrackPrototypeAnalytics(
                     PrototypeAnalyticsEvents.SocialHelpRequestSent,
-                    JsonUtility.ToJson(new PrototypeSocialHelpRequestAnalyticsPayload
-                    {
-                        Context = "ingredient_help",
-                        CovenTab = covenTab,
-                        CardId = card.Id ?? "",
-                        CardName = card.CardName ?? "",
-                        UsedToday = inventory.GetDailyHelpRequestsUsedToday(),
-                        DailyLimit = inventory.GetDailyHelpRequestLimit()
-                    }));
+                    PrototypeAnalyticsPayloadFactory.CreateSocialHelpRequestSentJson(
+                        covenTab,
+                        card,
+                        inventory.GetDailyHelpRequestsUsedToday(),
+                        inventory.GetDailyHelpRequestLimit()));
             }
 
             string sentMessage = sent
@@ -5305,17 +5050,12 @@ public class BingoPrototype : MonoBehaviour
         {
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.AlbumRewardClaimed,
-                JsonUtility.ToJson(new PrototypeAlbumRewardAnalyticsPayload
-                {
-                    Source = "grimoire_entry_reward",
-                    Context = "album_claim",
-                    Mana = entry.Reward.Mana,
-                    Crystals = entry.Reward.Crystals,
-                    ClairvoyanceMinutes = entry.Reward.ClairvoyanceHours * 60,
-                    Album = "grimoire",
-                    RewardScope = "entry",
-                    EntryNumber = entry.EntryNumber
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateAlbumRewardClaimedJson(
+                    "grimoire_entry_reward",
+                    "grimoire",
+                    "entry",
+                    entry.Reward,
+                    entry.EntryNumber));
             RefreshPowerUpDisplays();
         }
 
@@ -5328,16 +5068,11 @@ public class BingoPrototype : MonoBehaviour
         {
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.AlbumRewardClaimed,
-                JsonUtility.ToJson(new PrototypeAlbumRewardAnalyticsPayload
-                {
-                    Source = "grimoire_completion_reward",
-                    Context = "album_claim",
-                    Mana = CardAlbumCatalog.GrimoireOneCompletionReward.Mana,
-                    Crystals = CardAlbumCatalog.GrimoireOneCompletionReward.Crystals,
-                    ClairvoyanceMinutes = CardAlbumCatalog.GrimoireOneCompletionReward.ClairvoyanceHours * 60,
-                    Album = "grimoire",
-                    RewardScope = "completion"
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateAlbumRewardClaimedJson(
+                    "grimoire_completion_reward",
+                    "grimoire",
+                    "completion",
+                    CardAlbumCatalog.GrimoireOneCompletionReward));
             RefreshPowerUpDisplays();
         }
 
@@ -5350,18 +5085,13 @@ public class BingoPrototype : MonoBehaviour
         {
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.AlbumRewardClaimed,
-                JsonUtility.ToJson(new PrototypeAlbumRewardAnalyticsPayload
-                {
-                    Source = "book_of_shadows_entry_reward",
-                    Context = "album_claim",
-                    Mana = entry.Reward.Mana,
-                    Crystals = entry.Reward.Crystals,
-                    ClairvoyanceMinutes = entry.Reward.ClairvoyanceHours * 60,
-                    Album = "book_of_shadows",
-                    RewardScope = "entry",
-                    EntryNumber = entry.EntryNumber,
-                    SetNumber = entry.SetNumber
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateAlbumRewardClaimedJson(
+                    "book_of_shadows_entry_reward",
+                    "book_of_shadows",
+                    "entry",
+                    entry.Reward,
+                    entry.EntryNumber,
+                    entry.SetNumber));
             RefreshPowerUpDisplays();
         }
 
@@ -5374,16 +5104,11 @@ public class BingoPrototype : MonoBehaviour
         {
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.AlbumRewardClaimed,
-                JsonUtility.ToJson(new PrototypeAlbumRewardAnalyticsPayload
-                {
-                    Source = "book_of_shadows_completion_reward",
-                    Context = "album_claim",
-                    Mana = CardAlbumCatalog.BookOfShadowsCompletionReward.Mana,
-                    Crystals = CardAlbumCatalog.BookOfShadowsCompletionReward.Crystals,
-                    ClairvoyanceMinutes = CardAlbumCatalog.BookOfShadowsCompletionReward.ClairvoyanceHours * 60,
-                    Album = "book_of_shadows",
-                    RewardScope = "completion"
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateAlbumRewardClaimedJson(
+                    "book_of_shadows_completion_reward",
+                    "book_of_shadows",
+                    "completion",
+                    CardAlbumCatalog.BookOfShadowsCompletionReward));
             RefreshPowerUpDisplays();
         }
 
@@ -7747,17 +7472,11 @@ public class BingoPrototype : MonoBehaviour
         SelectNextBankPowerUp("Bank ready to charge.");
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.RoundStarted,
-            JsonUtility.ToJson(new PrototypeRoundStartedAnalyticsPayload
-            {
-                RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
-                RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
-                RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
-                RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
-                SelectedCardCount = selectedCardCount,
-                ManaBetPerCard = manaBetPerCard,
-                RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
-                EntryCost = entryCost
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateRoundStartedJson(
+                selectedCardCount,
+                manaBetPerCard,
+                inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
+                entryCost));
         BuildUi();
     }
 
@@ -7883,23 +7602,17 @@ public class BingoPrototype : MonoBehaviour
             int bingoBonus = claimedCount * GetScaledXp(roomRules.BingoClaimXp);
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.BingoClaimed,
-                JsonUtility.ToJson(new PrototypeBingoClaimedAnalyticsPayload
-                {
-                    RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
-                    RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
-                    RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
-                    RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
-                    SelectedCardCount = selectedCardCount,
-                    ManaBetPerCard = manaBetPerCard,
-                    RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
-                    CardIndex = cardIndex + 1,
-                    BingoDelta = bingoDelta,
-                    ClaimedCount = claimedCount,
-                    RoomBingosClaimed = rewards.RoomBingosClaimed,
-                    RoomBingoPool = roomRules.RoomBingoPool,
-                    BlackoutRoom = IsBlackoutRoom(),
-                    Trigger = "daub"
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateBingoClaimedJson(
+                    selectedCardCount,
+                    manaBetPerCard,
+                    inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
+                    cardIndex + 1,
+                    bingoDelta,
+                    claimedCount,
+                    rewards.RoomBingosClaimed,
+                    roomRules.RoomBingoPool,
+                    IsBlackoutRoom(),
+                    "daub"));
             if (!IsBlackoutRoom())
             {
                 ConsumeRoomBingos(claimedCount, false);
@@ -8178,24 +7891,12 @@ public class BingoPrototype : MonoBehaviour
         pendingRewardPreview = preview;
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.RoundCompleted,
-            JsonUtility.ToJson(new PrototypeRoundCompletedAnalyticsPayload
-            {
-                RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
-                RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
-                RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
-                RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
-                SelectedCardCount = selectedCardCount,
-                ManaBetPerCard = manaBetPerCard,
-                RoomRestored = inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
-                Reason = reason,
-                PlayerBingos = preview.PlayerBingos,
-                SimulatedBingos = preview.SimulatedBingos,
-                RoomBingos = preview.RoomBingos,
-                BestCardBingos = preview.BestCardBingos,
-                JackpotCards = preview.JackpotCards,
-                ManaReward = preview.ManaReward,
-                PlayerXp = preview.PlayerXp
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateRoundCompletedJson(
+                selectedCardCount,
+                manaBetPerCard,
+                inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom),
+                reason,
+                preview));
         if (statusText != null)
         {
             statusText.text = preview.GetStatusLine();
@@ -8616,21 +8317,7 @@ public class BingoPrototype : MonoBehaviour
             shouldShowJackpotSpins = pendingRewardPreview.JackpotSpinsEarned > 0;
             TrackPrototypeAnalytics(
                 PrototypeAnalyticsEvents.RoundRewardsCollected,
-                JsonUtility.ToJson(new PrototypeRoundRewardsCollectedAnalyticsPayload
-                {
-                    Source = "round_rewards",
-                    Context = "round_collect",
-                    Mana = pendingRewardPreview.ManaReward,
-                    Crystals = 0,
-                    ClairvoyanceMinutes = 0,
-                    JackpotSpins = pendingRewardPreview.JackpotSpinsEarned,
-                    ItemName = "",
-                    ItemQuantity = 0,
-                    PlayerBingos = pendingRewardPreview.PlayerBingos,
-                    SimulatedBingos = pendingRewardPreview.SimulatedBingos,
-                    RoomBingos = pendingRewardPreview.RoomBingos,
-                    PlayerXp = pendingRewardPreview.PlayerXp
-                }));
+                PrototypeAnalyticsPayloadFactory.CreateRoundRewardsCollectedJson(pendingRewardPreview));
             inventory.Redeem(pendingRewardPreview);
             pendingRewardPreview = null;
         }
@@ -10109,17 +9796,10 @@ public class BingoPrototype : MonoBehaviour
 
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.RoomRestored,
-            JsonUtility.ToJson(new PrototypeRoomRestoredAnalyticsPayload
-            {
-                RealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex + 1,
-                RoomIndex = RealmContentCatalog.ActivePrototypeRoomIndex + 1,
-                RoomName = RealmContentCatalog.ActivePrototypeRoom.Name,
-                RoomMode = RealmContentCatalog.ActivePrototypeRoom.ModeLabel,
-                SelectedCardCount = selectedCardCount,
-                ManaBetPerCard = manaBetPerCard,
-                RoomRestored = true,
-                RestoreRewardMana = RealmContentCatalog.ActivePrototypeRoom.Progression.RestoreManaReward
-            }));
+            PrototypeAnalyticsPayloadFactory.CreateRoomRestoredJson(
+                selectedCardCount,
+                manaBetPerCard,
+                RealmContentCatalog.ActivePrototypeRoom.Progression.RestoreManaReward));
         BuildRealmMapUi();
     }
 
