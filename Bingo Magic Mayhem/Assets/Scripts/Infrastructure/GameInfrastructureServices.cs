@@ -14,6 +14,7 @@ namespace BingoMagicMayhem.Infrastructure
     public sealed class GameInfrastructureServices
     {
         public ServiceEnvironment Environment { get; }
+        public InfrastructureCompositionSnapshot Composition { get; }
         public ILocalDurableStateStore DurableState { get; }
         public IActionJournal ActionJournal { get; }
         public IIdentityFacade Identity { get; }
@@ -24,6 +25,7 @@ namespace BingoMagicMayhem.Infrastructure
 
         private GameInfrastructureServices(
             ServiceEnvironment environment,
+            InfrastructureCompositionSnapshot composition,
             ILocalDurableStateStore durableState,
             IActionJournal actionJournal,
             IIdentityFacade identity,
@@ -33,6 +35,7 @@ namespace BingoMagicMayhem.Infrastructure
             IInfrastructureDiagnosticsFacade diagnostics)
         {
             Environment = environment;
+            Composition = composition ?? throw new ArgumentNullException(nameof(composition));
             DurableState = durableState;
             ActionJournal = actionJournal;
             Identity = identity;
@@ -47,6 +50,19 @@ namespace BingoMagicMayhem.Infrastructure
             IEnumerable<RemoteConfigEntry> configDefaults = null,
             string storageRoot = null)
         {
+            return CreateConfigured(
+                environment,
+                new InfrastructureCompositionOptions(),
+                configDefaults,
+                storageRoot);
+        }
+
+        public static GameInfrastructureServices CreateConfigured(
+            ServiceEnvironment environment = ServiceEnvironment.Prototype,
+            InfrastructureCompositionOptions compositionOptions = null,
+            IEnumerable<RemoteConfigEntry> configDefaults = null,
+            string storageRoot = null)
+        {
             string root = string.IsNullOrWhiteSpace(storageRoot)
                 ? Path.Combine(Application.persistentDataPath, "bmm_infrastructure")
                 : storageRoot;
@@ -57,10 +73,12 @@ namespace BingoMagicMayhem.Infrastructure
 
             JsonFileDurableStateStore durableState = new JsonFileDurableStateStore(Path.Combine(root, "state"), migrations);
             JsonLinesActionJournal actionJournal = new JsonLinesActionJournal(Path.Combine(root, "journal", "actions.jsonl"));
-            IIdentityFacade identity = new LocalIdentityFacade(durableState);
             IRemoteConfigFacade remoteConfig = new LocalRemoteConfigFacade(MergeRemoteConfigDefaults(configDefaults));
-            IAnalyticsFacade analytics = new LocalAnalyticsFacade(actionJournal, identity);
-            IProfileSettingsCloudSync profileSettingsCloudSync = new DisabledProfileSettingsCloudSync();
+            InfrastructureCompositionOptions options = compositionOptions ?? new InfrastructureCompositionOptions();
+            CompositionResolution composition = ResolveComposition(durableState, actionJournal, options);
+            IIdentityFacade identity = composition.Identity;
+            IAnalyticsFacade analytics = composition.Analytics;
+            IProfileSettingsCloudSync profileSettingsCloudSync = composition.ProfileCloudSync;
             IInfrastructureDiagnosticsFacade diagnostics = new InfrastructureDiagnosticsFacade(
                 environment,
                 Path.Combine(root, "diagnostics"),
@@ -68,7 +86,8 @@ namespace BingoMagicMayhem.Infrastructure
                 actionJournal,
                 identity,
                 profileSettingsCloudSync,
-                remoteConfig);
+                remoteConfig,
+                composition.Snapshot);
 
             durableState.StateRecovered += stateName => actionJournal.RecordAction(
                 identity.Current?.PlayerId ?? "uninitialized_local_guest",
@@ -91,6 +110,7 @@ namespace BingoMagicMayhem.Infrastructure
 
             return new GameInfrastructureServices(
                 environment,
+                composition.Snapshot,
                 durableState,
                 actionJournal,
                 identity,
@@ -98,6 +118,103 @@ namespace BingoMagicMayhem.Infrastructure
                 remoteConfig,
                 profileSettingsCloudSync,
                 diagnostics);
+        }
+
+        private static CompositionResolution ResolveComposition(
+            JsonFileDurableStateStore durableState,
+            JsonLinesActionJournal actionJournal,
+            InfrastructureCompositionOptions options)
+        {
+            InfrastructureCompositionSnapshot snapshot = new InfrastructureCompositionSnapshot
+            {
+                DesiredIdentityProvider = Describe(options.Identity),
+                DesiredAnalyticsProvider = Describe(options.Analytics),
+                DesiredProfileCloudSyncProvider = Describe(options.ProfileCloudSync),
+                ActiveIdentityProvider = "local_guest",
+                ActiveAnalyticsProvider = "local_journal",
+                ActiveProfileCloudSyncProvider = "disabled_local",
+                UgsAdaptersCompiled = IsUgsAdapterCompiled(),
+                UsesLocalFallback = false,
+                FallbackReason = ""
+            };
+
+            IIdentityFacade identity = new LocalIdentityFacade(durableState);
+            IAnalyticsFacade analytics = new LocalAnalyticsFacade(actionJournal, identity);
+            IProfileSettingsCloudSync profileCloudSync = new DisabledProfileSettingsCloudSync();
+
+#if BMM_UGS_ADAPTERS
+            UgsAdapterRuntimePolicySnapshot runtimePolicy = UgsAdapterRuntimePolicy.Capture(true, options?.UgsRuntimeOptions);
+
+            if (options.Identity == IdentityProviderPreference.UgsAnonymous && runtimePolicy.AllowsAuthentication)
+            {
+                identity = new UgsIdentityFacade(options.UgsRuntimeOptions);
+                snapshot.ActiveIdentityProvider = "ugs_anonymous";
+            }
+
+            if (options.Analytics == AnalyticsProviderPreference.UgsAnalytics && runtimePolicy.AllowsAnalytics)
+            {
+                analytics = new UgsAnalyticsFacade(options.UgsRuntimeOptions);
+                snapshot.ActiveAnalyticsProvider = "ugs_analytics";
+            }
+
+            if (options.ProfileCloudSync == ProfileCloudSyncPreference.UgsCloudSave && runtimePolicy.AllowsCloudSave)
+            {
+                profileCloudSync = new UgsCloudSaveProfileSettingsSync();
+                snapshot.ActiveProfileCloudSyncProvider = "ugs_cloud_save";
+            }
+#endif
+
+            snapshot.UsesLocalFallback =
+                snapshot.ActiveIdentityProvider != snapshot.DesiredIdentityProvider ||
+                snapshot.ActiveAnalyticsProvider != snapshot.DesiredAnalyticsProvider ||
+                snapshot.ActiveProfileCloudSyncProvider != snapshot.DesiredProfileCloudSyncProvider;
+
+            if (snapshot.UsesLocalFallback)
+            {
+                snapshot.FallbackReason = snapshot.UgsAdaptersCompiled
+                    ? "UGS-backed providers were requested, but runtime approval gates keep local-first providers active."
+                    : "UGS-backed providers were requested, but the compile gate is absent so local-first providers remain active.";
+            }
+
+            return new CompositionResolution
+            {
+                Snapshot = snapshot,
+                Identity = identity,
+                Analytics = analytics,
+                ProfileCloudSync = profileCloudSync
+            };
+        }
+
+        private static string Describe(IdentityProviderPreference preference)
+        {
+            return preference == IdentityProviderPreference.UgsAnonymous ? "ugs_anonymous" : "local_guest";
+        }
+
+        private static string Describe(AnalyticsProviderPreference preference)
+        {
+            return preference == AnalyticsProviderPreference.UgsAnalytics ? "ugs_analytics" : "local_journal";
+        }
+
+        private static string Describe(ProfileCloudSyncPreference preference)
+        {
+            return preference == ProfileCloudSyncPreference.UgsCloudSave ? "ugs_cloud_save" : "disabled_local";
+        }
+
+        private static bool IsUgsAdapterCompiled()
+        {
+#if BMM_UGS_ADAPTERS
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        private sealed class CompositionResolution
+        {
+            public InfrastructureCompositionSnapshot Snapshot;
+            public IIdentityFacade Identity;
+            public IAnalyticsFacade Analytics;
+            public IProfileSettingsCloudSync ProfileCloudSync;
         }
 
         private static IEnumerable<RemoteConfigEntry> MergeRemoteConfigDefaults(IEnumerable<RemoteConfigEntry> configDefaults)

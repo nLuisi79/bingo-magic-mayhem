@@ -12,6 +12,24 @@ namespace BingoMagicMayhem.Infrastructure
         Beta
     }
 
+    public enum IdentityProviderPreference
+    {
+        LocalGuest,
+        UgsAnonymous
+    }
+
+    public enum AnalyticsProviderPreference
+    {
+        LocalJournal,
+        UgsAnalytics
+    }
+
+    public enum ProfileCloudSyncPreference
+    {
+        DisabledLocal,
+        UgsCloudSave
+    }
+
     public enum JournalRecordKind
     {
         Action,
@@ -178,6 +196,29 @@ namespace BingoMagicMayhem.Infrastructure
         public int BlockedCount;
         public int WarningCount;
         public List<BackendPreflightCheck> Checks = new List<BackendPreflightCheck>();
+    }
+
+    [Serializable]
+    public sealed class InfrastructureCompositionOptions
+    {
+        public IdentityProviderPreference Identity = IdentityProviderPreference.LocalGuest;
+        public AnalyticsProviderPreference Analytics = AnalyticsProviderPreference.LocalJournal;
+        public ProfileCloudSyncPreference ProfileCloudSync = ProfileCloudSyncPreference.DisabledLocal;
+        public UgsAdapterRuntimeOptions UgsRuntimeOptions = new UgsAdapterRuntimeOptions();
+    }
+
+    [Serializable]
+    public sealed class InfrastructureCompositionSnapshot
+    {
+        public string DesiredIdentityProvider = "";
+        public string ActiveIdentityProvider = "";
+        public string DesiredAnalyticsProvider = "";
+        public string ActiveAnalyticsProvider = "";
+        public string DesiredProfileCloudSyncProvider = "";
+        public string ActiveProfileCloudSyncProvider = "";
+        public bool UgsAdaptersCompiled;
+        public bool UsesLocalFallback;
+        public string FallbackReason = "";
     }
 
     [Serializable]

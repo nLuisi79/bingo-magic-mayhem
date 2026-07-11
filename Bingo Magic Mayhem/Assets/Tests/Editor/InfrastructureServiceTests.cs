@@ -230,6 +230,46 @@ public sealed class InfrastructureServiceTests
     }
 
     [Test]
+    public void Composition_DefaultsToLocalFirstProviders()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateLocal(storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        Assert.That(services.Composition.DesiredIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(services.Composition.ActiveIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(services.Composition.DesiredAnalyticsProvider, Is.EqualTo("local_journal"));
+        Assert.That(services.Composition.ActiveAnalyticsProvider, Is.EqualTo("local_journal"));
+        Assert.That(services.Composition.DesiredProfileCloudSyncProvider, Is.EqualTo("disabled_local"));
+        Assert.That(services.Composition.ActiveProfileCloudSyncProvider, Is.EqualTo("disabled_local"));
+        Assert.That(services.Composition.UsesLocalFallback, Is.False);
+    }
+
+    [Test]
+    public void Composition_RequestedUgsProvidersFallbackToLocalWhenCompileGateIsAbsent()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateConfigured(
+            compositionOptions: new InfrastructureCompositionOptions
+            {
+                Identity = IdentityProviderPreference.UgsAnonymous,
+                Analytics = AnalyticsProviderPreference.UgsAnalytics,
+                ProfileCloudSync = ProfileCloudSyncPreference.UgsCloudSave
+            },
+            storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        Assert.That(services.Composition.DesiredIdentityProvider, Is.EqualTo("ugs_anonymous"));
+        Assert.That(services.Composition.ActiveIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(services.Composition.DesiredAnalyticsProvider, Is.EqualTo("ugs_analytics"));
+        Assert.That(services.Composition.ActiveAnalyticsProvider, Is.EqualTo("local_journal"));
+        Assert.That(services.Composition.DesiredProfileCloudSyncProvider, Is.EqualTo("ugs_cloud_save"));
+        Assert.That(services.Composition.ActiveProfileCloudSyncProvider, Is.EqualTo("disabled_local"));
+        Assert.That(services.Composition.UsesLocalFallback, Is.True);
+        Assert.That(services.Composition.FallbackReason, Does.Contain("compile gate is absent"));
+    }
+
+    [Test]
     public void Diagnostics_ReportsIdentitySafetyDefaults()
     {
         string root = CreateTemporaryRoot();
@@ -244,6 +284,29 @@ public sealed class InfrastructureServiceTests
         Assert.That(diagnostics.IdentitySafety.AllowsCloudSignIn, Is.False);
         Assert.That(diagnostics.IdentitySafety.AllowsAccountLink, Is.False);
         Assert.That(diagnostics.IdentitySafety.AllowsRecovery, Is.False);
+    }
+
+    [Test]
+    public void Diagnostics_ReportsDesiredVsActiveInfrastructureComposition()
+    {
+        string root = CreateTemporaryRoot();
+        GameInfrastructureServices services = GameInfrastructureServices.CreateConfigured(
+            compositionOptions: new InfrastructureCompositionOptions
+            {
+                Identity = IdentityProviderPreference.UgsAnonymous,
+                Analytics = AnalyticsProviderPreference.UgsAnalytics
+            },
+            storageRoot: root);
+        services.InitializeAsync().GetAwaiter().GetResult();
+
+        InfrastructureDiagnosticsSnapshot diagnostics = services.Diagnostics.Capture();
+
+        Assert.That(diagnostics.Composition, Is.Not.Null);
+        Assert.That(diagnostics.Composition.DesiredIdentityProvider, Is.EqualTo("ugs_anonymous"));
+        Assert.That(diagnostics.Composition.ActiveIdentityProvider, Is.EqualTo("local_guest"));
+        Assert.That(diagnostics.Composition.DesiredAnalyticsProvider, Is.EqualTo("ugs_analytics"));
+        Assert.That(diagnostics.Composition.ActiveAnalyticsProvider, Is.EqualTo("local_journal"));
+        Assert.That(diagnostics.Composition.UsesLocalFallback, Is.True);
     }
 
     [Test]

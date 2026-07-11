@@ -22,6 +22,7 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `RemoteConfigSafetyDiagnostics`: infrastructure-only Remote Config safety policy for live/cloud enablement flags.
 - `ExportSafetyDiagnostics`: local-file-only diagnostics export/share policy that keeps support exports payload-free and external share flows blocked.
 - `InfrastructureContracts`: service interfaces and transport-neutral models.
+- `InfrastructureCompositionOptions` / `InfrastructureCompositionSnapshot`: desired-versus-active provider wiring for local-first and future UGS-backed identity/analytics/cloud-sync composition.
 - `ProfileSettingsPersistence`: first narrow durable-state consumer with compatibility `PlayerPrefs` writes.
 - `LocalStateMigrationRegistry`: explicit ordered state-schema upgrades with no skipped versions.
 - `InfrastructureDiagnosticsFacade`: redacted snapshot/journal health capture and payload-free export.
@@ -31,6 +32,8 @@ The Unity project now has an SDK-free service layer under `Assets/Scripts/Infras
 - `DisabledProfileSettingsCloudSync` / `CloudProfileSyncDiagnostics`: profile/settings Cloud Save seam that declares future key `bmm.profile_settings.v2` and conflict policy `profile_cloud_conflict_policy_v0.1` while keeping upload/download/merge/remote overwrite blocked.
 
 The approved UGS SDK packages are resolved into the project lockfile/cache, but no project environment, cloud endpoint, authentication call, analytics upload, or Remote Config fetch is connected in this pass.
+
+`GameInfrastructureServices` now exposes a configurable composition path that can accept future UGS provider preferences while keeping the current build local-first. In the current pass, any requested UGS-backed provider safely falls back to local-first implementations unless both the compile gate and runtime approvals are satisfied.
 
 Runtime use remains disabled until project-link, consent/privacy, Cloud Save conflict policy, and offline fallback checks complete. `BMM_UGS_ADAPTERS` remains absent by default.
 

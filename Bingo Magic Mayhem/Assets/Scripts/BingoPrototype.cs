@@ -5997,6 +5997,12 @@ public class BingoPrototype : MonoBehaviour
             builder.AppendLine($"Cloud enablement blockers: {diagnostics.BackendPreflight.BlockedCount} | Warnings: {diagnostics.BackendPreflight.WarningCount}");
         }
 
+        if (diagnostics.Composition != null)
+        {
+            builder.AppendLine($"Composition: identity {diagnostics.Composition.ActiveIdentityProvider} / wants {diagnostics.Composition.DesiredIdentityProvider} | analytics {diagnostics.Composition.ActiveAnalyticsProvider} / wants {diagnostics.Composition.DesiredAnalyticsProvider}");
+            builder.AppendLine($"Profile sync {diagnostics.Composition.ActiveProfileCloudSyncProvider} / wants {diagnostics.Composition.DesiredProfileCloudSyncProvider} | local fallback {(diagnostics.Composition.UsesLocalFallback ? "on" : "off")}");
+        }
+
         if (diagnostics.IdentitySafety != null)
         {
             builder.AppendLine($"Identity safety: {diagnostics.IdentitySafety.PolicyVersion} | provider {diagnostics.IdentitySafety.Provider} | cloud auth {(diagnostics.IdentitySafety.IsCloudAuthenticated ? "on" : "off")} | account link {(diagnostics.IdentitySafety.AllowsAccountLink ? "ready" : "blocked")}");
@@ -6082,6 +6088,20 @@ public class BingoPrototype : MonoBehaviour
             foreach (BackendPreflightCheck check in diagnostics.ExportSafety.Checks)
             {
                 builder.AppendLine($"- {check.Name}: {check.Status} - {check.Detail}");
+            }
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("COMPOSITION");
+        if (diagnostics.Composition != null)
+        {
+            builder.AppendLine($"- desired identity provider {diagnostics.Composition.DesiredIdentityProvider}, active {diagnostics.Composition.ActiveIdentityProvider}");
+            builder.AppendLine($"- desired analytics provider {diagnostics.Composition.DesiredAnalyticsProvider}, active {diagnostics.Composition.ActiveAnalyticsProvider}");
+            builder.AppendLine($"- desired profile sync provider {diagnostics.Composition.DesiredProfileCloudSyncProvider}, active {diagnostics.Composition.ActiveProfileCloudSyncProvider}");
+            builder.AppendLine($"- UGS adapters compiled {diagnostics.Composition.UgsAdaptersCompiled}, uses local fallback {diagnostics.Composition.UsesLocalFallback}");
+            if (!string.IsNullOrWhiteSpace(diagnostics.Composition.FallbackReason))
+            {
+                builder.AppendLine($"- fallback reason: {diagnostics.Composition.FallbackReason}");
             }
         }
 
