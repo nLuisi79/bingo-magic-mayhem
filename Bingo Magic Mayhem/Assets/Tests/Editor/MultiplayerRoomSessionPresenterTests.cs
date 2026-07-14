@@ -183,6 +183,7 @@ public sealed class MultiplayerRoomSessionPresenterTests
             AutoCallIntervalSeconds = 1f
         });
 
+        facade.RegisterObservedCall(22, 1000);
         facade.ResolveClaim(new MatchClaimAttempt
         {
             MatchId = match.MatchId,

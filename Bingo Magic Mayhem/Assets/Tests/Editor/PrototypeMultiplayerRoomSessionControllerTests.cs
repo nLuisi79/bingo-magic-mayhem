@@ -21,7 +21,8 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         Assert.That(room, Is.Not.Null);
         Assert.That(model.RoomStateLabel, Is.EqualTo("Lobby open"));
         Assert.That(model.ReadinessSummary, Is.EqualTo("1/1 ready"));
-        Assert.That(model.CanStartMatchLocally, Is.True);
+        Assert.That(model.CanStartMatchLocally, Is.False);
+        Assert.That(model.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.WaitingForPlayers));
     }
 
     [Test]

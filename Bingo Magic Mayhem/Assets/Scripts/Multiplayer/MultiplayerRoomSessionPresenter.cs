@@ -51,7 +51,7 @@ namespace BingoMagicMayhem.Multiplayer
             string hostDisplayName = ResolveHostDisplayName(room);
             bool hasActiveMatch = match != null && match.State == MatchAuthorityLifecycleState.InRound;
             bool canStartMatchLocally = room.State == MultiplayerRoomLifecycleState.Lobby
-                && room.Participants.Count > 0
+                && room.Participants.Count > 1
                 && readyCount == room.Participants.Count;
             MultiplayerGameplayFlowState gameplayFlowState = BuildGameplayFlowState(room, match, readyCount, pendingReadyCount);
             MatchCallEvent lastCall = sessionFacade.CallLog.Count > 0 ? sessionFacade.CallLog[sessionFacade.CallLog.Count - 1] : null;
