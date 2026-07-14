@@ -33,17 +33,20 @@ namespace BingoMagicMayhem.Multiplayer
     public sealed class PrototypeMultiplayerRuntime
     {
         public PrototypeMultiplayerRuntime(
+            PrototypeMultiplayerBackendMode backendMode,
             IMultiplayerRoomSessionService roomSessionService,
             IMultiplayerMatchAuthorityService matchAuthorityService,
             PrototypeMultiplayerRoomSessionController controller,
             PrototypeMultiplayerGameplayBridge gameplayBridge)
         {
+            BackendMode = backendMode;
             RoomSessionService = roomSessionService ?? throw new ArgumentNullException(nameof(roomSessionService));
             MatchAuthorityService = matchAuthorityService ?? throw new ArgumentNullException(nameof(matchAuthorityService));
             Controller = controller ?? throw new ArgumentNullException(nameof(controller));
             GameplayBridge = gameplayBridge ?? throw new ArgumentNullException(nameof(gameplayBridge));
         }
 
+        public PrototypeMultiplayerBackendMode BackendMode { get; }
         public IMultiplayerRoomSessionService RoomSessionService { get; }
         public IMultiplayerMatchAuthorityService MatchAuthorityService { get; }
         public PrototypeMultiplayerRoomSessionController Controller { get; }
@@ -78,7 +81,25 @@ namespace BingoMagicMayhem.Multiplayer
             IMultiplayerRoomSessionService roomSessionService = controller;
             IMultiplayerMatchAuthorityService matchAuthorityService = controller;
             PrototypeMultiplayerGameplayBridge gameplayBridge = new PrototypeMultiplayerGameplayBridge(roomSessionService, matchAuthorityService, hostPlayerId);
-            return new PrototypeMultiplayerRuntime(roomSessionService, matchAuthorityService, controller, gameplayBridge);
+            return new PrototypeMultiplayerRuntime(
+                PrototypeMultiplayerBackendMode.Local,
+                roomSessionService,
+                matchAuthorityService,
+                controller,
+                gameplayBridge);
+        }
+
+        public static PrototypeMultiplayerRuntime CreateUgsStubRuntime(string hostPlayerId)
+        {
+            PrototypeMultiplayerRuntime localFallbackRuntime = CreateLocalRuntime(hostPlayerId);
+            PrototypeMultiplayerUgsRuntimeAdapter adapter = new PrototypeMultiplayerUgsRuntimeAdapter(localFallbackRuntime);
+            PrototypeMultiplayerGameplayBridge gameplayBridge = new PrototypeMultiplayerGameplayBridge(adapter, adapter, hostPlayerId);
+            return new PrototypeMultiplayerRuntime(
+                PrototypeMultiplayerBackendMode.Ugs,
+                adapter,
+                adapter,
+                localFallbackRuntime.Controller,
+                gameplayBridge);
         }
     }
 }

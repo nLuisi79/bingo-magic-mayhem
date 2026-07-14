@@ -1,6 +1,6 @@
 # UGS Adapter Boundary
 
-Last updated: 2026-07-10
+Last updated: 2026-07-14
 
 ## Package State
 
@@ -32,6 +32,16 @@ When enabled after package resolution and environment review, the adapters provi
 `GameInfrastructureServices.CreateConfigured(...)` now accepts desired provider preferences for identity, analytics, and profile/settings cloud sync, but the current build still resolves back to local-first providers unless UGS compile/runtime gates are satisfied. This gives the project a safer place to stage future composition changes without silently changing the default prototype path.
 
 Provider selection is now intended to flow through `InfrastructureProviderFactory`, while `UgsAdapterBoundary.cs` owns the UGS-specific override/construction hook. That keeps backend swap points out of the higher-level infrastructure root and concentrates live-adapter construction behind one boundary.
+
+Multiplayer now mirrors that boundary pattern with a separate non-live adapter seam under `Assets/Scripts/Multiplayer`:
+
+- backend selection flows through `IPrototypeMultiplayerRuntimeProvider`;
+- `PrototypeMultiplayerBackendMode.Ugs` now constructs an explicit `PrototypeMultiplayerUgsRuntimeAdapter`;
+- that adapter implements `IMultiplayerRoomSessionService` and `IMultiplayerMatchAuthorityService`;
+- it currently delegates to the local multiplayer runtime as a safe fallback;
+- `BingoPrototype` still stays unaware of any concrete UGS or local assembly details.
+
+This is an adapter-boundary pass only. No Lobby, Relay, Cloud Code, Netcode, or other live multiplayer SDK calls are enabled.
 
 The local diagnostics panel now includes a UGS preflight summary, identity safety summary, analytics safety summary, Remote Config safety summary, profile/settings Cloud Save sync status section, composition desired-versus-active provider summary, journal retention/privacy summary, and diagnostics export/share safety summary. They are informational only: package resolution is marked pass, identity safety policy is labeled `identity_safety_v0.1`, analytics safety policy is labeled `analytics_safety_v0.1`, diagnostics export/share policy is labeled `diagnostics_export_safety_v0.1`, Remote Config safety policy is labeled `infra_remote_config_safety_v0.1`, the future profile/settings key is `bmm.profile_settings.v2`, conflict policy is labeled `profile_cloud_conflict_policy_v0.1`, and project environment link, consent/privacy, Cloud Save conflict policy, timestamp authority, merge/overwrite behavior, offline retry/idempotency, and any external diagnostics share flow remain blocked before live adapter enablement.
 

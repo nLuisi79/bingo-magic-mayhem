@@ -32,7 +32,7 @@ namespace BingoMagicMayhem.Multiplayer
             switch (backendMode)
             {
                 case PrototypeMultiplayerBackendMode.Ugs:
-                    return PrototypeMultiplayerComposition.CreateLocalRuntime(hostPlayerId);
+                    return PrototypeMultiplayerComposition.CreateUgsStubRuntime(hostPlayerId);
                 case PrototypeMultiplayerBackendMode.Local:
                 default:
                     return PrototypeMultiplayerComposition.CreateLocalRuntime(hostPlayerId);
