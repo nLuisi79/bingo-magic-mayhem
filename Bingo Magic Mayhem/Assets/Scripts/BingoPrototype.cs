@@ -4,6 +4,23 @@ using System.Text;
 using System.Threading.Tasks;
 using BingoMagicMayhem.Cosmetics;
 using BingoMagicMayhem.Infrastructure;
+using BingoMagicMayhem.Jackpot;
+using BingoMagicMayhem.Multiplayer;
+using BingoMagicMayhem.Rounds;
+using BingoMagicMayhem.UI.Common;
+using BingoMagicMayhem.UI.Bazaar;
+using BingoMagicMayhem.UI.Collections;
+using BingoMagicMayhem.UI.Coven;
+using BingoMagicMayhem.UI.Den;
+using BingoMagicMayhem.UI.Friends;
+using BingoMagicMayhem.UI.Inbox;
+using BingoMagicMayhem.UI.Leaderboard;
+using BingoMagicMayhem.UI.Market;
+using BingoMagicMayhem.UI.Rewards;
+using BingoMagicMayhem.UI.RoomEntry;
+using BingoMagicMayhem.UI.Trail;
+using BingoMagicMayhem.UI.Navigation;
+using BingoMagicMayhem.UI.Profile;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -32,6 +49,7 @@ public class BingoPrototype : MonoBehaviour
     private const char PrototypeFriendSaveSeparator = '|';
     private const string PrototypeCovenDiscoverySaveKey = "BMM.Prototype.CovenDiscovery.Requests";
     private const string PrototypeTrailRewardsSaveKey = "BMM.Prototype.EnchantedTrail.ClaimedRewards";
+    private const string PrototypeLocalHostPlayerId = "prototype_local_host";
     private static readonly string[] LockedRankLadder =
     {
         "Aura TBD: Novice",
@@ -56,23 +74,22 @@ public class BingoPrototype : MonoBehaviour
     private readonly PlayerCardSet playerCards = new PlayerCardSet();
     private readonly Dictionary<string, Button> visibleCardCells = new Dictionary<string, Button>();
     private readonly Dictionary<int, Text> visibleCardBingoTexts = new Dictionary<int, Text>();
-    private readonly List<int> callPool = new List<int>();
-    private readonly List<int> calledHistory = new List<int>();
-    private readonly HashSet<int> calledNumbers = new HashSet<int>();
-    private readonly Dictionary<int, float> calledAtTimes = new Dictionary<int, float>();
     private readonly List<Text> callQueueTexts = new List<Text>();
     private readonly List<RectTransform> jackpotWheelSegmentRects = new List<RectTransform>();
     private readonly Dictionary<string, string> powerUpMarkedCellLabels = new Dictionary<string, string>();
     private readonly Dictionary<string, string> placedPowerUpSigils = new Dictionary<string, string>();
     private readonly BingoRoomRules roomRules = new BingoRoomRules();
-    private readonly BingoCaller caller = new BingoCaller();
+    private BingoRoundFlowController roundFlow;
     private readonly PowerUpRuntimeState powerUps = new PowerUpRuntimeState();
     private readonly CellRewardTracker cellRewards = new CellRewardTracker();
     private readonly PlayerInventoryState inventory = new PlayerInventoryState();
     private readonly CovenState coven = new CovenState();
-    private BingoRoundState roundState;
     private BingoRewardTracker rewards;
+    private readonly BingoRoundEndCoordinator roundEndCoordinator = new BingoRoundEndCoordinator();
+    private PrototypeMultiplayerRuntime prototypeMultiplayerRuntime;
     private RewardPreview pendingRewardPreview;
+    private BingoRoundEndDecision activePrototypeRoundEndDecision;
+    private bool prototypeRoundEndPublished;
 
     private Font uiFont;
     private Transform contentRoot;
@@ -101,10 +118,13 @@ public class BingoPrototype : MonoBehaviour
     private Text cauldronAmountText;
     private Text cauldronStatusText;
     private Button cauldronCollectButton;
+    private RoomEntryPanelView roomEntryPanelView;
+    private PlayerDenPanelView playerDenPanelView;
+    private PlayerProfileModalView playerProfileModalView;
     private PrototypeInboxCategory inboxActiveCategory = PrototypeInboxCategory.Gifts;
     private string lastInboxClaimSummary = "";
     private string lastLibraryCardGiftSummary = "";
-    private string playerProfileActiveTab = "Profile";
+    private string playerProfileActiveTab = PlayerProfileTabIds.Profile;
     private string prototypeLeaderboardTab = "Friends";
     private bool prototypeSoundEnabled = true;
     private bool prototypeNotificationsEnabled = true;
@@ -160,44 +180,19 @@ public class BingoPrototype : MonoBehaviour
     private int selectedGrimoireIndexPage;
     private int selectedBookOfShadowsEntryIndex;
     private string jackpotSpinResultText = "";
-    private int jackpotWheelCollectedMana;
-    private int jackpotWheelLastCollectedMana;
-    private bool jackpotWheelLastCollectResetPot;
-    private readonly List<JackpotSpinResult> jackpotWheelCollectedResults = new List<JackpotSpinResult>();
-    private JackpotSpinResult lastJackpotSpinResult;
-    private JackpotSpinResult pendingJackpotSpinResult;
-    private bool jackpotWheelAnimating;
-    private int jackpotWheelAnimationSequence;
-    private float jackpotWheelRotation;
-    private int jackpotWheelTargetSegment;
+    private readonly JackpotWheelFlowController jackpotWheelFlow = new JackpotWheelFlowController();
     private bool rewardPreviewShown;
     private bool allCalledVisible;
-    private bool jackpotWheelCollectionConfirmed;
     private int lastJackpotEarnedCardIndex = -1;
     private bool cardRevealShouldShowJackpotSpins;
     private float powerUpSaveAccumulator;
     private Coroutine powerUpBurstRoutine;
     private Coroutine finalBallCountdownRoutine;
-    private bool finalBallCountdownActive;
 
     private static readonly IReadOnlyList<CosmeticDefinition> PrototypeAvatars = CosmeticCatalog.Avatars;
     private static readonly IReadOnlyList<CosmeticDefinition> PrototypeAvatarFrames = CosmeticCatalog.Frames;
     private static readonly IReadOnlyList<CosmeticDefinition> PrototypeDaubers = CosmeticCatalog.Daubers;
     private static readonly ICosmeticSpriteResolver CosmeticSpriteResolver = new ResourcesCosmeticSpriteResolver();
-
-    private sealed class JackpotSpinResult
-    {
-        public JackpotSpinResult(string label, int manaAward, bool resetPot)
-        {
-            Label = label;
-            ManaAward = manaAward;
-            ResetPot = resetPot;
-        }
-
-        public string Label { get; private set; }
-        public int ManaAward { get; private set; }
-        public bool ResetPot { get; private set; }
-    }
 
     private async void Start()
     {
@@ -253,14 +248,19 @@ public class BingoPrototype : MonoBehaviour
 
     private void EnsureRuntimeState()
     {
-        if (roundState == null)
+        if (roundFlow == null)
         {
-            roundState = new BingoRoundState(roomRules);
+            roundFlow = new BingoRoundFlowController(roomRules);
         }
 
         if (rewards == null)
         {
             rewards = new BingoRewardTracker(roomRules);
+        }
+
+        if (prototypeMultiplayerRuntime == null)
+        {
+            prototypeMultiplayerRuntime = PrototypeMultiplayerComposition.CreateLocalRuntime(PrototypeLocalHostPlayerId);
         }
     }
 
@@ -338,18 +338,9 @@ public class BingoPrototype : MonoBehaviour
 
     private void BuildCallPool()
     {
-        caller.Reset();
-        callPool.Clear();
-        calledHistory.Clear();
-        calledNumbers.Clear();
-        calledAtTimes.Clear();
+        roundFlow.ResetSession();
         powerUps.ResetRound();
         rewards.ResetRound();
-
-        for (int value = 1; value <= 75; value++)
-        {
-            callPool.Add(value);
-        }
     }
 
     private void GenerateCard()
@@ -467,7 +458,7 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject balls = CreateAnchoredPanel(parent, "BallsLeft", new Color(0.15f, 0.08f, 0.22f), 150, 74, 565f, 386f);
         CreateAnchoredText(balls.transform, "BALLS LEFT", 15, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 130, 22, 0f, 18f);
-        ballsLeftText = CreateAnchoredText(balls.transform, Mathf.Max(0, GetActiveMaxBallCalls() - calledHistory.Count).ToString(), 38, FontStyle.Bold, Color.white, 130, 42, 0f, -12f);
+        ballsLeftText = CreateAnchoredText(balls.transform, Mathf.Max(0, GetActiveMaxBallCalls() - roundFlow.History.Count).ToString(), 38, FontStyle.Bold, Color.white, 130, 42, 0f, -12f);
     }
 
     private string BuildGameplayRankText()
@@ -536,7 +527,7 @@ public class BingoPrototype : MonoBehaviour
         callQueueTexts.Clear();
         GameObject rail = CreateAnchoredPanel(parent, "RightGameplayRail", new Color(0.88f, 0.8f, 0.62f), 272, 720, 660f, -35f);
         CreateAnchoredText(rail.transform, "NEXT CALL", 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 28, 0f, 315f);
-        calledNumberText = CreateAnchoredText(rail.transform, calledHistory.Count > 0 ? $"{GetBingoLetter(calledHistory[0])}-{calledHistory[0]}" : "Starting", 46, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 62, 0f, 270f);
+        calledNumberText = CreateAnchoredText(rail.transform, roundFlow.History.Count > 0 ? $"{GetBingoLetter(roundFlow.History[0])}-{roundFlow.History[0]}" : "Starting", 46, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 62, 0f, 270f);
         timerText = CreateAnchoredText(rail.transform, "--", 24, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 36, 0f, 222f);
         CreateAnchoredImage(rail.transform, "Clairvoyance", 104, 82, 0f, 154f);
         gameplayClairvoyanceText = CreateAnchoredText(rail.transform, GetGameplayClairvoyanceText(), 14, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 34, 0f, 96f);
@@ -605,7 +596,7 @@ public class BingoPrototype : MonoBehaviour
         ballsLayout.childForceExpandWidth = false;
         ballsLayout.childForceExpandHeight = false;
         CreateTextInParent(balls.transform, "BALLS LEFT", 16, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 140, 24);
-        CreateTextInParent(balls.transform, Mathf.Max(0, 75 - calledNumbers.Count).ToString(), 38, FontStyle.Bold, Color.white, 140, 42);
+        CreateTextInParent(balls.transform, Mathf.Max(0, 75 - roundFlow.CalledCount).ToString(), 38, FontStyle.Bold, Color.white, 140, 42);
     }
 
     private void CreateHeaderTile(Transform parent, string title, string detail, float width, Color color)
@@ -675,7 +666,7 @@ public class BingoPrototype : MonoBehaviour
         CreateTextInParent(rail.transform, "AUTO-CLAIM", 17, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 190, 30);
         CreateTextInParent(rail.transform, GetBingoBannerText().Length > 0 ? GetBingoBannerText() : IsBlackoutRoom() ? "No blackouts yet" : "No bingos yet", 14, FontStyle.Bold, new Color(0.9f, 0.9f, 1f), 190, 82);
         CreateTextInParent(rail.transform, "ALL CALLED\nNUMBERS", 18, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 190, 52);
-        calledHistoryText = CreateTextInParent(rail.transform, calledHistory.Count > 0 ? GetCalledHistoryText() : "none", 16, FontStyle.Normal, Color.white, 190, 170);
+        calledHistoryText = CreateTextInParent(rail.transform, roundFlow.History.Count > 0 ? GetCalledHistoryText() : "none", 16, FontStyle.Normal, Color.white, 190, 170);
     }
 
     private void BuildCenterGameplayCards(Transform parent)
@@ -708,13 +699,13 @@ public class BingoPrototype : MonoBehaviour
         layout.childForceExpandHeight = false;
 
         CreateTextInParent(rail.transform, "NEXT CALL", 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 28);
-        calledNumberText = CreateTextInParent(rail.transform, calledHistory.Count > 0 ? $"{GetBingoLetter(calledHistory[0])}-{calledHistory[0]}" : "Starting", 46, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 62);
+        calledNumberText = CreateTextInParent(rail.transform, roundFlow.History.Count > 0 ? $"{GetBingoLetter(roundFlow.History[0])}-{roundFlow.History[0]}" : "Starting", 46, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 62);
         timerText = CreateTextInParent(rail.transform, "--", 24, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 36);
         CreateTextInParent(rail.transform, "CALL QUEUE", 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 220, 32);
 
         for (int index = 0; index < 6; index++)
         {
-            string label = calledHistory.Count > index ? $"{GetBingoLetter(calledHistory[index])}\n{calledHistory[index]}" : "-";
+            string label = roundFlow.History.Count > index ? $"{GetBingoLetter(roundFlow.History[index])}\n{roundFlow.History[index]}" : "-";
             CreateTextInParent(rail.transform, label, 30, FontStyle.Bold, Color.white, 96, 76);
         }
     }
@@ -741,8 +732,7 @@ public class BingoPrototype : MonoBehaviour
     private void BuildWorldMapUi()
     {
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        roundState.StopRound();
-        calledHistory.Clear();
+        StopRoundAndClearCalledHistory();
 
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.1f, 0.22f, 0.17f, 0.98f), 0, 0);
         layout.enabled = false;
@@ -801,8 +791,7 @@ public class BingoPrototype : MonoBehaviour
     private void BuildRealmMapUi()
     {
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        roundState.StopRound();
-        calledHistory.Clear();
+        StopRoundAndClearCalledHistory();
 
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.1f, 0.22f, 0.17f, 0.98f), 0, 0);
         layout.enabled = false;
@@ -1023,12 +1012,25 @@ public class BingoPrototype : MonoBehaviour
     private void BuildLobbyUi()
     {
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        roundState.StopRound();
-        calledHistory.Clear();
+        StopRoundAndClearCalledHistory();
         ClampManaBetToActiveRoom();
 
         VerticalLayoutGroup layout = PrepareStage(LobbyStageWidth, LobbyStageHeight, new Color(0.12f, 0.25f, 0.18f, 0.98f), 0, 0);
         layout.enabled = false;
+        roomEntryPanelView = contentRoot.gameObject.GetComponent<RoomEntryPanelView>();
+        if (roomEntryPanelView == null)
+        {
+            roomEntryPanelView = contentRoot.gameObject.AddComponent<RoomEntryPanelView>();
+        }
+
+        roomEntryPanelView.ResetRuntimeBindings();
+        RoomEntryPanelAnimator roomEntryAnimator = contentRoot.gameObject.GetComponent<RoomEntryPanelAnimator>();
+        if (roomEntryAnimator == null)
+        {
+            roomEntryAnimator = contentRoot.gameObject.AddComponent<RoomEntryPanelAnimator>();
+        }
+
+        roomEntryPanelView.BindAnimator(roomEntryAnimator);
 
         BuildLobbyHeader();
 
@@ -1037,12 +1039,7 @@ public class BingoPrototype : MonoBehaviour
         BuildLobbyClairvoyanceRail();
 
         BuildLobbyRestorePanel();
-        CreateLobbyInfoTile("Jackpot\nWheelspin", $"Pot {inventory.GetCurrentJackpotPotText()}\n{inventory.GetJackpotSpinText()}", 300, 178, 610f, 118f, new Color(0.35f, 0.08f, 0.48f));
-        if (inventory.PendingJackpotSpins > 0)
-        {
-            Button spinPending = CreateAnchoredButton(contentRoot, "Spin Pending", 16, 178, 34, new Color(0.12f, 0.55f, 0.08f), 610f, 36f);
-            spinPending.onClick.AddListener(BuildJackpotSpinUi);
-        }
+        BuildLobbyJackpotPanel();
 
         string pickTitle = IsBlackoutRoom() ? "Pick Cards for Blackout" : "Pick Cards to Play";
         CreateAnchoredText(contentRoot, pickTitle, 44, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 1180, 58, 0f, -78f);
@@ -1058,15 +1055,47 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject betRow = CreateAnchoredPanel(contentRoot, "LobbyBetRow", new Color(0.97f, 0.89f, 0.68f), 700, 78, 0f, -405f);
         Button minus = CreateAnchoredButton(betRow.transform, "-", 30, 72, 58, new Color(0.35f, 0.12f, 0.62f), -230f, 0f);
-        minus.onClick.AddListener(() => AdjustLobbyBet(-GetActiveProgression().BetStep));
-
-        roomText = CreateAnchoredText(betRow.transform, "", 24, FontStyle.Bold, new Color(0.15f, 0.1f, 0.32f), 300, 56, 0f, 0f);
-        RefreshLobbyBetText();
-
         Button plus = CreateAnchoredButton(betRow.transform, "+", 30, 72, 58, new Color(0.35f, 0.12f, 0.62f), 230f, 0f);
-        plus.onClick.AddListener(() => AdjustLobbyBet(GetActiveProgression().BetStep));
+        roomText = CreateAnchoredText(betRow.transform, "", 24, FontStyle.Bold, new Color(0.15f, 0.1f, 0.32f), 300, 56, 0f, 0f);
+
+        RoomEntryBetRowView betRowView = betRow.AddComponent<RoomEntryBetRowView>();
+        betRowView.ResetRuntimeBindings();
+        betRowView.Initialize(minus, plus, roomText);
+        betRowView.DecreaseRequested += () => AdjustLobbyBet(-GetActiveProgression().BetStep);
+        betRowView.IncreaseRequested += () => AdjustLobbyBet(GetActiveProgression().BetStep);
+        roomEntryPanelView.BindBetRow(betRowView);
+        RefreshLobbyBetText();
+        SyncPrototypeMultiplayerLobbyState();
 
         ApplyStageScale(true);
+        roomEntryPanelView.ShowIdleState();
+    }
+
+    private void BuildLobbyJackpotPanel()
+    {
+        GameObject tile = CreateAnchoredPanel(contentRoot, "JackpotWheelspin", new Color(0.35f, 0.08f, 0.48f), 300, 178, 610f, 118f);
+        Color textColor = Color.white;
+        Text titleText = CreateAnchoredText(tile.transform, "Jackpot\nWheelspin", 22, FontStyle.Bold, textColor, 274f, 62f, 0f, 42f);
+        Text detailText = CreateAnchoredText(tile.transform, $"Pot {inventory.GetCurrentJackpotPotText()}\n{inventory.GetJackpotSpinText()}", 30, FontStyle.Bold, textColor, 274f, 78f, 0f, -34f);
+
+        Button spinPendingButton = CreateAnchoredButton(contentRoot, "Spin Pending", 16, 178, 34, new Color(0.12f, 0.55f, 0.08f), 610f, 36f);
+        Text spinPendingText = spinPendingButton.GetComponentInChildren<Text>();
+
+        RoomEntryJackpotView jackpotView = tile.AddComponent<RoomEntryJackpotView>();
+        jackpotView.ResetRuntimeBindings();
+        jackpotView.Initialize(titleText, detailText, spinPendingButton, spinPendingText);
+        jackpotView.SpinPendingRequested += BuildJackpotSpinUi;
+        roomEntryPanelView?.BindJackpotPanel(jackpotView);
+        roomEntryPanelView?.ApplyJackpotPanel(BuildRoomEntryJackpotDisplayModel());
+    }
+
+    private RoomEntryJackpotDisplayModel BuildRoomEntryJackpotDisplayModel()
+    {
+        return new RoomEntryJackpotDisplayModel(
+            "Jackpot\nWheelspin",
+            $"Pot {inventory.GetCurrentJackpotPotText()}\n{inventory.GetJackpotSpinText()}",
+            inventory.PendingJackpotSpins > 0,
+            "Spin Pending");
     }
 
     private void BuildLobbyClairvoyanceRail()
@@ -1087,12 +1116,60 @@ public class BingoPrototype : MonoBehaviour
         lobbyPowerUpText = CreateLobbyResourceTile(header.transform, "Power-Ups", inventory.GetPowerUpText(), "+", 230, 680f, 52f, true);
 
         GameObject titlePanel = CreateAnchoredPanel(header.transform, "LobbyRoomTitle", new Color(0.15f, 0.08f, 0.22f), 900, 104, -280f, -44f);
-        CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRoom.Name, 42, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 860, 50, 0f, 20f);
-        CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 22, FontStyle.Bold, new Color(1f, 0.78f, 0.35f), 820, 30, 0f, -16f);
-        CreateAnchoredText(titlePanel.transform, $"Potion: {RealmContentCatalog.ActivePrototypeRoom.PotionName}", 19, FontStyle.Bold, Color.white, 780, 28, 0f, -44f);
-        CreateRoomModeBadge(titlePanel.transform, RealmContentCatalog.ActivePrototypeRoom, 334f, -12f, 126f, 74f);
+        Text roomNameText = CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRoom.Name, 42, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 860, 50, 0f, 20f);
+        Text realmNameText = CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 22, FontStyle.Bold, new Color(1f, 0.78f, 0.35f), 820, 30, 0f, -16f);
+        Text potionLabelText = CreateAnchoredText(titlePanel.transform, $"Potion: {RealmContentCatalog.ActivePrototypeRoom.PotionName}", 19, FontStyle.Bold, Color.white, 780, 28, 0f, -44f);
 
-        CreateAnchoredText(header.transform, BuildGameplayRankText(), 14, FontStyle.Bold, new Color(0.75f, 0.95f, 1f), 220, 58, 12f, 52f);
+        GameObject modeBadge = CreateAnchoredPanel(titlePanel.transform, $"{RealmContentCatalog.ActivePrototypeRoom.ModeLabel}ModeBadge", new Color(0.18f, 0.11f, 0.34f), 126f, 74f, 334f, -12f);
+        Text modeBadgeText = CreateAnchoredText(modeBadge.transform, RealmContentCatalog.ActivePrototypeRoom.ModeLabel.ToUpperInvariant(), 13, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 116f, 18f, 0f, 20f);
+        GameObject modeIcon = CreateAnchoredPanel(modeBadge.transform, $"{RealmContentCatalog.ActivePrototypeRoom.ModeLabel}ModeIcon", new Color(0.96f, 0.86f, 0.62f), 104f, 28f, 0f, -10f);
+        Text modeIconText = CreateAnchoredText(modeIcon.transform, GetRoomModeIconText(RealmContentCatalog.ActivePrototypeRoom), 15, FontStyle.Bold, new Color(0.9f, 0.18f, 1f), 96f, 22f, 0f, 0f);
+
+        Text rankText = CreateAnchoredText(header.transform, BuildGameplayRankText(), 14, FontStyle.Bold, new Color(0.75f, 0.95f, 1f), 220, 58, 12f, 52f);
+
+        RoomEntryHeaderView headerView = header.AddComponent<RoomEntryHeaderView>();
+        headerView.ResetRuntimeBindings();
+        headerView.Initialize(
+            roomNameText,
+            realmNameText,
+            potionLabelText,
+            rankText,
+            modeBadge.GetComponent<Image>(),
+            modeBadgeText,
+            modeIconText);
+        roomEntryPanelView?.BindHeader(headerView);
+        roomEntryPanelView?.ApplyHeader(BuildRoomEntryHeaderDisplayModel());
+    }
+
+    private RoomEntryHeaderDisplayModel BuildRoomEntryHeaderDisplayModel()
+    {
+        RoomDefinition room = RealmContentCatalog.ActivePrototypeRoom;
+        return new RoomEntryHeaderDisplayModel(
+            room.Name,
+            RealmContentCatalog.ActivePrototypeRealm.Name,
+            $"Potion: {room.PotionName}",
+            BuildGameplayRankText(),
+            room.ModeLabel.ToUpperInvariant(),
+            GetRoomModeIconText(room),
+            room.IsSpecial);
+    }
+
+    private RoomEntryRestorePanelDisplayModel BuildRoomEntryRestorePanelDisplayModel()
+    {
+        return new RoomEntryRestorePanelDisplayModel(
+            RealmContentCatalog.ActivePrototypeRoom.PotionName,
+            "Collect ingredients while you play bingo.",
+            inventory.GetRestoreStatusText(),
+            "Ingredients",
+            inventory.GetFullIngredientProgressText(),
+            $"Restore Reward\n{inventory.GetRestoreRewardText()}",
+            inventory.ActiveRoomRestored ? "Restored" : "Restore",
+            inventory.CanRestoreActiveRoom());
+    }
+
+    private static string GetRoomModeIconText(RoomDefinition room)
+    {
+        return room.IsSpecial ? "25" : "*****";
     }
 
     private Text CreateLobbyResourceTile(Transform parent, string label, string value, string icon, float width, float x)
@@ -1128,8 +1205,7 @@ public class BingoPrototype : MonoBehaviour
     private void BuildPlayerDenUi()
     {
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        roundState.StopRound();
-        calledHistory.Clear();
+        StopRoundAndClearCalledHistory();
 
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.07f, 0.035f, 0.1f, 0.98f), 0, 0);
         layout.enabled = false;
@@ -1144,79 +1220,171 @@ public class BingoPrototype : MonoBehaviour
         CreateAnchoredPanel(contentRoot, "DenFloor", new Color(0.17f, 0.09f, 0.07f), 1500, 210, 0f, -346f);
 
         CreateAnchoredPanel(contentRoot, "DenTopBand", new Color(0.06f, 0.03f, 0.1f), 1450, 76, 0f, 382f);
-        CreateAnchoredText(contentRoot, "BINGO\nMAGIC MAYHEM", 32, FontStyle.Bold, gold, 310, 68, -10f, 382f);
-        CreateLobbyResourceTile(contentRoot, "Mana", profile.Mana.ToString("N0"), "*", 230, 356f, 382f);
-        CreateLobbyResourceTile(contentRoot, "Crystals", profile.Crystals.ToString("N0"), "<>", 230, 606f, 382f);
-        Button rankButton = CreateAnchoredButton(contentRoot, $"Profile\nL{profile.Level} | Aura TBD", 14, 300, 58, new Color(0.09f, 0.04f, 0.15f), -600f, 382f);
-        rankButton.onClick.AddListener(() => BuildPlayerProfileUi("Profile"));
+        Text brandText = CreateAnchoredText(contentRoot, string.Empty, 32, FontStyle.Bold, gold, 310, 68, -10f, 382f);
+        Text manaValueText = CreateLobbyResourceTile(contentRoot, "Mana", profile.Mana.ToString("N0"), "*", 230, 356f, 382f);
+        Text crystalsValueText = CreateLobbyResourceTile(contentRoot, "Crystals", profile.Crystals.ToString("N0"), "<>", 230, 606f, 382f);
+        Button rankButton = CreateAnchoredButton(contentRoot, string.Empty, 14, 300, 58, new Color(0.09f, 0.04f, 0.15f), -600f, 382f);
+        Button map = CreateAnchoredButton(contentRoot, string.Empty, 18, 104, 50, new Color(0.35f, 0.12f, 0.62f), -474f, 382f);
+        Button room = CreateAnchoredButton(contentRoot, string.Empty, 18, 104, 50, new Color(0.35f, 0.12f, 0.62f), -354f, 382f);
+        Button settings = CreateAnchoredButton(contentRoot, string.Empty, 16, 72, 50, new Color(0.18f, 0.08f, 0.28f), 700f, 382f);
 
-        Button map = CreateAnchoredButton(contentRoot, "Map", 18, 104, 50, new Color(0.35f, 0.12f, 0.62f), -474f, 382f);
-        map.onClick.AddListener(BuildWorldMapUi);
-        Button room = CreateAnchoredButton(contentRoot, "Room", 18, 104, 50, new Color(0.35f, 0.12f, 0.62f), -354f, 382f);
-        room.onClick.AddListener(BuildLobbyUi);
-        Button settings = CreateAnchoredButton(contentRoot, "SET", 16, 72, 50, new Color(0.18f, 0.08f, 0.28f), 700f, 382f);
-        settings.onClick.AddListener(() => BuildDevSettingsUi(false, true));
+        PlayerDenTopBandView topBandView = contentRoot.gameObject.GetComponent<PlayerDenTopBandView>();
+        if (topBandView == null)
+        {
+            topBandView = contentRoot.gameObject.AddComponent<PlayerDenTopBandView>();
+        }
+
+        topBandView.ResetRuntimeBindings();
+        topBandView.Initialize(brandText, manaValueText, crystalsValueText, rankButton, map, room, settings);
+        topBandView.RankRequested += OpenPlayerProfileSummaryRequested;
+        topBandView.MapRequested += BuildWorldMapUi;
+        topBandView.RoomRequested += BuildLobbyUi;
+        topBandView.SettingsRequested += OpenDenSettingsRequested;
+        topBandView.Apply(new PlayerDenTopBandDisplayModel
+        {
+            BrandText = "BINGO\nMAGIC MAYHEM",
+            ManaText = profile.Mana.ToString("N0"),
+            CrystalsText = profile.Crystals.ToString("N0"),
+            RankButtonText = $"Profile\nL{profile.Level} | Aura TBD",
+            MapButtonText = "Map",
+            RoomButtonText = "Room",
+            SettingsButtonText = "SET"
+        });
 
         GameObject titlePanel = CreateAnchoredPanel(contentRoot, "DenTitle", new Color(0.15f, 0.08f, 0.22f), 720, 82, 0f, 286f);
-        CreateAnchoredText(titlePanel.transform, "PLAYER'S DEN", 40, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 660, 48, 0f, 12f);
-        CreateAnchoredText(titlePanel.transform, "Inventory, claims, and account hub | Rank now derives from Aura Strength", 16, FontStyle.Bold, muted, 680, 26, 0f, -24f);
+        Text denTitleText = CreateAnchoredText(titlePanel.transform, "PLAYER'S DEN", 40, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 660, 48, 0f, 12f);
+        Text denSubtitleText = CreateAnchoredText(titlePanel.transform, "Inventory, claims, and account hub | Rank now derives from Aura Strength", 16, FontStyle.Bold, muted, 680, 26, 0f, -24f);
 
         GameObject library = CreateDenDoorTile("Library\nGrimoire", "Albums and cards", -530f, 150f, 280, 150, new Color(0.18f, 0.1f, 0.16f));
-        Button libraryButton = library.AddComponent<Button>();
-        libraryButton.onClick.AddListener(BuildLibraryGrimoireUi);
+        BindPlayerDenDoorInteraction(library, BuildLibraryGrimoireUi);
         GameObject bazaar = CreateDenDoorTile("Bewitchment\nBazaar", "Oracle Alley", 0f, 138f, 320, 142, new Color(0.18f, 0.07f, 0.26f));
-        Button bazaarButton = bazaar.AddComponent<Button>();
-        bazaarButton.onClick.AddListener(BuildBewitchmentBazaarUi);
+        BindPlayerDenDoorInteraction(bazaar, BuildBewitchmentBazaarUi);
         GameObject apothecary = CreateDenDoorTile("Apothecary", "Potion workshop", 358f, 145f, 260, 132, new Color(0.12f, 0.18f, 0.11f));
-        Button apothecaryButton = apothecary.AddComponent<Button>();
-        apothecaryButton.onClick.AddListener(BuildApothecaryUi);
+        BindPlayerDenDoorInteraction(apothecary, BuildApothecaryUi);
         GameObject relicWall = CreateDenDoorTile("Relic Wall", "Badges later", 626f, 128f, 220, 210, new Color(0.16f, 0.1f, 0.08f));
-        Button relicWallButton = relicWall.AddComponent<Button>();
-        relicWallButton.onClick.AddListener(BuildRelicWallUi);
+        BindPlayerDenDoorInteraction(relicWall, BuildRelicWallUi);
         GameObject cabinet = CreateDenDoorTile("Cabinet of\nCuriosities", "Inventory stash", 536f, -176f, 300, 172, wood);
-        Button cabinetButton = cabinet.AddComponent<Button>();
-        cabinetButton.onClick.AddListener(BuildPowerUpInventoryUi);
+        BindPlayerDenDoorInteraction(cabinet, BuildPowerUpInventoryUi);
 
         Button cauldron = CreateAnchoredButton(contentRoot, GetDenManaCauldronButtonText(), 22, 420, 184, new Color(0.16f, 0.08f, 0.2f), 0f, -118f);
         denManaCauldronText = cauldron.GetComponentInChildren<Text>();
-        cauldron.onClick.AddListener(BuildManaCauldronUi);
-        CreateAnchoredText(contentRoot, $"Restored rooms: {inventory.GetRestoredRoomCount()} | +{inventory.GetManaCauldronHourlyRefillAmount()}/hour", 18, FontStyle.Bold, muted, 520, 28, 0f, -232f);
+        Text cauldronSummaryText = CreateAnchoredText(contentRoot, $"Restored rooms: {inventory.GetRestoredRoomCount()} | +{inventory.GetManaCauldronHourlyRefillAmount()}/hour", 18, FontStyle.Bold, muted, 520, 28, 0f, -232f);
 
-        GameObject trailTile = CreateAnchoredPanel(contentRoot, "DenEnchantedTrailTile", deepPurple, 370, 268, -568f, -174f);
-        Button trailButton = trailTile.AddComponent<Button>();
-        trailButton.onClick.AddListener(BuildEnchantedTrailUi);
-        CreateAnchoredText(trailTile.transform, "ENCHANTED\nTRAIL", 29, FontStyle.Bold, gold, 330, 76, 0f, 62f);
-        CreateAnchoredText(trailTile.transform, "Task path and free rewards", 16, FontStyle.Bold, muted, 320, 28, 0f, 2f);
-        CreateAnchoredText(trailTile.transform, "Prototype shell", 18, FontStyle.Bold, Color.white, 300, 32, 0f, -62f);
-        CreateAnchoredText(trailTile.transform, "Tap to view", 13, FontStyle.Bold, muted, 300, 24, 0f, -104f);
+        playerDenPanelView = contentRoot.gameObject.GetComponent<PlayerDenPanelView>();
+        if (playerDenPanelView == null)
+        {
+            playerDenPanelView = contentRoot.gameObject.AddComponent<PlayerDenPanelView>();
+        }
+
+        playerDenPanelView.ResetRuntimeBindings();
+        playerDenPanelView.Initialize(
+            denTitleText,
+            denSubtitleText,
+            cauldron,
+            denManaCauldronText,
+            cauldronSummaryText);
+        playerDenPanelView.CauldronRequested += OpenManaCauldronRequested;
+        playerDenPanelView.Apply(BuildPlayerDenDisplayModel());
+
+        PlayerDenFeatureTileView trailTile = CreateDenFeatureTile(
+            "DenEnchantedTrailTile",
+            deepPurple,
+            370,
+            268,
+            -568f,
+            -174f,
+            "ENCHANTED\nTRAIL",
+            "Task path and free rewards",
+            "Prototype shell",
+            "Tap to view",
+            29,
+            gold,
+            muted);
+        trailTile.Selected += BuildEnchantedTrailUi;
 
         GameObject covenTile = CreateDenDoorTile("Coven\nCircle", "Orbs and sharing", -292f, -172f, 176, 148, new Color(0.08f, 0.05f, 0.1f));
-        Button covenButton = covenTile.AddComponent<Button>();
-        covenButton.onClick.AddListener(BuildCovenCircleUi);
+        BindPlayerDenDoorInteraction(covenTile, BuildCovenCircleUi);
 
-        GameObject freebies = CreateDenBottomButton("Freebies", "social link", -620f);
-        Button freebiesButton = freebies.AddComponent<Button>();
-        freebiesButton.onClick.AddListener(BuildSocialFreebiesUi);
-        GameObject friends = CreateDenBottomButton("Friends", $"{prototypeFriends.Count} friends", -440f);
-        Button friendsButton = friends.AddComponent<Button>();
-        friendsButton.onClick.AddListener(BuildFriendsUi);
-        GameObject leaders = CreateDenBottomButton("Leaders", "friends | team | global", -260f);
-        Button leadersButton = leaders.AddComponent<Button>();
-        leadersButton.onClick.AddListener(BuildLeaderboardUi);
-        GameObject market = CreateDenBottomButton("Mayhem\nMarket", "IAP shell", -80f);
-        Button marketButton = market.AddComponent<Button>();
-        marketButton.onClick.AddListener(BuildMayhemMarketUi);
-        GameObject dailyBonus = CreateDenBottomButton("Daily Bonus", inventory.GetDailyBonusClaimStateText(), 250f);
-        Button dailyBonusButton = dailyBonus.AddComponent<Button>();
-        dailyBonusButton.onClick.AddListener(BuildDailyBonusUi);
-        GameObject dailySpin = CreateDenBottomButton("Daily Spin", inventory.GetDailySpinClaimStateText(), 430f);
-        Button dailySpinButton = dailySpin.AddComponent<Button>();
-        dailySpinButton.onClick.AddListener(BuildDailySpinUi);
-        GameObject inbox = CreateDenBottomButton("Inbox", GetDenInboxStatusText(), 610f);
-        Button inboxButton = inbox.AddComponent<Button>();
-        inboxButton.onClick.AddListener(BuildInboxUi);
+        PlayerDenActionTileView freebies = CreateDenBottomButton("Freebies", "social link", -620f);
+        freebies.Selected += BuildSocialFreebiesUi;
+        PlayerDenActionTileView friends = CreateDenBottomButton("Friends", $"{prototypeFriends.Count} friends", -440f);
+        friends.Selected += BuildFriendsUi;
+        PlayerDenActionTileView leaders = CreateDenBottomButton("Leaders", "friends | team | global", -260f);
+        leaders.Selected += BuildLeaderboardUi;
+        PlayerDenActionTileView market = CreateDenBottomButton("Mayhem\nMarket", "IAP shell", -80f);
+        market.Selected += BuildMayhemMarketUi;
+        PlayerDenActionTileView dailyBonus = CreateDenBottomButton("Daily Bonus", inventory.GetDailyBonusClaimStateText(), 250f);
+        dailyBonus.Selected += BuildDailyBonusUi;
+        PlayerDenActionTileView dailySpin = CreateDenBottomButton("Daily Spin", inventory.GetDailySpinClaimStateText(), 430f);
+        dailySpin.Selected += BuildDailySpinUi;
+        PlayerDenActionTileView inbox = CreateDenBottomButton("Inbox", GetDenInboxStatusText(), 610f);
+        inbox.Selected += BuildInboxUi;
 
         ApplyStageScale(true);
+    }
+
+    private PlayerDenDisplayModel BuildPlayerDenDisplayModel()
+    {
+        return new PlayerDenDisplayModel(
+            "PLAYER'S DEN",
+            "Inventory, claims, and account hub | Rank now derives from Aura Strength",
+            GetDenManaCauldronButtonText(),
+            $"Restored rooms: {inventory.GetRestoredRoomCount()} | +{inventory.GetManaCauldronHourlyRefillAmount()}/hour");
+    }
+
+    private void BindUiInteraction(Button button, System.Action action)
+    {
+        if (button == null || action == null)
+        {
+            return;
+        }
+
+        UIInteractionHandler handler = button.gameObject.GetComponent<UIInteractionHandler>();
+        if (handler == null)
+        {
+            handler = button.gameObject.AddComponent<UIInteractionHandler>();
+        }
+
+        handler.Initialize(button);
+        handler.Requested += action;
+    }
+
+    private void BindPlayerDenDoorInteraction(GameObject tile, System.Action action)
+    {
+        if (tile == null || action == null)
+        {
+            return;
+        }
+
+        Button button = tile.GetComponent<Button>();
+        if (button == null)
+        {
+            button = tile.AddComponent<Button>();
+        }
+
+        PlayerDenDoorView doorView = tile.GetComponent<PlayerDenDoorView>();
+        if (doorView == null)
+        {
+            doorView = tile.AddComponent<PlayerDenDoorView>();
+        }
+
+        doorView.Initialize(button);
+        doorView.Selected += action;
+    }
+
+    private void OpenPlayerProfileSummaryRequested()
+    {
+        BuildPlayerProfileUi(PlayerProfileTabIds.Profile);
+    }
+
+    private void OpenDenSettingsRequested()
+    {
+        BuildDevSettingsUi(false, true);
+    }
+
+    private void OpenManaCauldronRequested()
+    {
+        BuildManaCauldronUi();
     }
 
     private void CreateInventoryRows(Transform parent, IReadOnlyList<ProfileInventoryLine> lines)
@@ -1230,14 +1398,23 @@ public class BingoPrototype : MonoBehaviour
             float y = 156f - row * 70f;
             ProfileInventoryLine line = lines[index];
             GameObject rowPanel = CreateAnchoredPanel(parent, $"Inventory_{line.Label}", new Color(0.99f, 0.94f, 0.78f), 330, 54, xPositions[column], y);
-            CreateAnchoredText(rowPanel.transform, line.Label, 17, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 300, 22, 0f, 10f);
-            CreateAnchoredText(rowPanel.transform, line.Value, 15, FontStyle.Bold, new Color(0.18f, 0.14f, 0.28f), 300, 22, 0f, -13f);
+            Text labelText = CreateAnchoredText(rowPanel.transform, line.Label, 17, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 300, 22, 0f, 10f);
+            Text valueText = CreateAnchoredText(rowPanel.transform, line.Value, 15, FontStyle.Bold, new Color(0.18f, 0.14f, 0.28f), 300, 22, 0f, -13f);
+            UILabelValueCardView rowView = rowPanel.GetComponent<UILabelValueCardView>();
+            if (rowView == null)
+            {
+                rowView = rowPanel.AddComponent<UILabelValueCardView>();
+            }
+
+            rowView.ResetRuntimeBindings();
+            rowView.Initialize(labelText, valueText);
+            rowView.Apply(line.Label, line.Value);
         }
     }
 
     private void BuildPlayerProfileUi(string tab)
     {
-        playerProfileActiveTab = tab;
+        playerProfileActiveTab = string.IsNullOrWhiteSpace(tab) ? PlayerProfileTabIds.Profile : tab;
         RemovePlayerProfileModal();
 
         PlayerProfileState profile = PlayerProfileState.FromPrototype(inventory, rewards);
@@ -1245,35 +1422,72 @@ public class BingoPrototype : MonoBehaviour
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
 
-        CreateAnchoredText(panel.transform, "PLAYER PROFILE", 42, FontStyle.Bold, gold, 820, 56, 0f, 274f);
-        CreateAnchoredText(panel.transform, $"Level {profile.Level}  |  {profile.LevelProgressText}  |  {profile.AuraStrengthText}", 18, FontStyle.Bold, muted, 820, 28, 0f, 232f);
+        PlayerProfileModalDisplayModel modalDisplayModel = BuildPlayerProfileModalDisplayModel(profile);
+        UIModalChromeView modalChromeView = CreateModalChrome(
+            panel,
+            modalDisplayModel.Title,
+            modalDisplayModel.Subtitle,
+            modalDisplayModel.CloseButtonText,
+            gold,
+            muted,
+            new Color(0.35f, 0.12f, 0.62f),
+            820f,
+            274f,
+            820f,
+            28f,
+            232f,
+            18,
+            220f,
+            48f,
+            0f,
+            -286f,
+            20);
 
-        CreatePlayerProfileTabButton(panel.transform, "Profile", -220f, 184f);
-        CreatePlayerProfileTabButton(panel.transform, "Avatars", 0f, 184f);
-        CreatePlayerProfileTabButton(panel.transform, "Settings", 220f, 184f);
+        PlayerProfileTabButtonView profileTabView = CreatePlayerProfileTabButton(panel.transform, PlayerProfileTabIds.Profile, -220f, 184f);
+        PlayerProfileTabButtonView avatarsTabView = CreatePlayerProfileTabButton(panel.transform, PlayerProfileTabIds.Avatars, 0f, 184f);
+        PlayerProfileTabButtonView settingsTabView = CreatePlayerProfileTabButton(panel.transform, PlayerProfileTabIds.Settings, 220f, 184f);
 
-        if (playerProfileActiveTab == "Avatars")
-        {
-            BuildPlayerAvatarTab(panel.transform, profile);
-        }
-        else if (playerProfileActiveTab == "Settings")
-        {
-            BuildPlayerSettingsTab(panel.transform);
-        }
-        else
-        {
-            BuildPlayerProfileSummaryTab(panel.transform, profile);
-        }
+        BuildPlayerProfileTabContent(panel.transform, profile);
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -286f);
-        close.onClick.AddListener(RemovePlayerProfileModal);
+        playerProfileModalView = panel.AddComponent<PlayerProfileModalView>();
+        playerProfileModalView.ResetRuntimeBindings();
+        playerProfileModalView.Initialize(modalChromeView);
+        playerProfileModalView.RegisterTab(profileTabView);
+        playerProfileModalView.RegisterTab(avatarsTabView);
+        playerProfileModalView.RegisterTab(settingsTabView);
+        playerProfileModalView.SetActiveTab(playerProfileActiveTab);
+        playerProfileModalView.Apply(modalDisplayModel);
+        playerProfileModalView.CloseRequested += RemovePlayerProfileModal;
+        playerProfileModalView.TabRequested += BuildPlayerProfileUi;
     }
 
-    private void CreatePlayerProfileTabButton(Transform parent, string tab, float x, float y)
+    private PlayerProfileTabButtonView CreatePlayerProfileTabButton(Transform parent, string tab, float x, float y)
     {
         bool active = playerProfileActiveTab == tab;
         Button button = CreateAnchoredButton(parent, tab, 18, 190, 42, active ? new Color(0.55f, 0.18f, 0.78f) : new Color(0.18f, 0.16f, 0.28f), x, y);
-        button.onClick.AddListener(() => BuildPlayerProfileUi(tab));
+        UITabButtonBinder binder = button.gameObject.AddComponent<UITabButtonBinder>();
+        binder.SetSelected(active);
+        PlayerProfileTabButtonView tabView = button.gameObject.AddComponent<PlayerProfileTabButtonView>();
+        tabView.ResetRuntimeBindings();
+        tabView.Initialize(binder, tab);
+        return tabView;
+    }
+
+    private void BuildPlayerProfileTabContent(Transform parent, PlayerProfileState profile)
+    {
+        if (playerProfileActiveTab == PlayerProfileTabIds.Avatars)
+        {
+            BuildPlayerAvatarTab(parent, profile);
+            return;
+        }
+
+        if (playerProfileActiveTab == PlayerProfileTabIds.Settings)
+        {
+            BuildPlayerSettingsTab(parent);
+            return;
+        }
+
+        BuildPlayerProfileSummaryTab(parent, profile);
     }
 
     private void BuildPlayerProfileSummaryTab(Transform parent, PlayerProfileState profile)
@@ -1283,7 +1497,7 @@ public class BingoPrototype : MonoBehaviour
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
 
-        GameObject identity = CreateAnchoredPanel(parent, "ProfileIdentity", cream, 320, 334, -330f, -26f);
+        GameObject identity = CreateProfileSectionPanel(parent, "ProfileIdentity", cream, 320, 334, -330f, -26f);
         GameObject summaryAvatar = CreateAnchoredPanel(identity.transform, "AvatarFrame", GetPrototypeFrameColor(), 150, 150, 0f, 70f);
         if (!TryCreateCosmeticSprite(summaryAvatar.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].PrimaryAssetKey, "AvatarSprite", 126f, 126f))
         {
@@ -1291,59 +1505,115 @@ public class BingoPrototype : MonoBehaviour
         }
         TryCreateCosmeticSprite(summaryAvatar.transform, PrototypeAvatarFrames[selectedPrototypeFrameIndex].PrimaryAssetKey, "FrameSprite", 150f, 150f);
         CreateAnchoredText(identity.transform, "Player Name", 16, FontStyle.Bold, purple, 260, 24, 0f, -8f);
-        CreateAnchoredText(identity.transform, profileSettingsState.DisplayName, 30, FontStyle.Bold, purple, 280, 40, 0f, -42f);
-        CreateAnchoredText(identity.transform, $"Level {profile.Level}\nRank: Aura TBD", 18, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 260, 58, 0f, -102f);
+        Text displayNameText = CreateAnchoredText(identity.transform, profileSettingsState.DisplayName, 30, FontStyle.Bold, purple, 280, 40, 0f, -42f);
+        Text levelAndRankText = CreateAnchoredText(identity.transform, $"Level {profile.Level}\nRank: Aura TBD", 18, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 260, 58, 0f, -102f);
 
-        GameObject progress = CreateAnchoredPanel(parent, "ProfileProgress", new Color(0.12f, 0.06f, 0.18f), 640, 334, 190f, -26f);
-        CreateAnchoredText(progress.transform, "ACCOUNT SUMMARY", 24, FontStyle.Bold, gold, 560, 32, 0f, 132f);
-        CreateProfileSummaryRow(progress.transform, "Mana", profile.Mana.ToString("N0"), -188f, 82f);
-        CreateProfileSummaryRow(progress.transform, "Crystals", profile.Crystals.ToString("N0"), 188f, 82f);
-        CreateProfileSummaryRow(progress.transform, "Album", $"{inventory.GetOwnedGrimoireCardCount()}/{CardAlbumCatalog.TotalCards} Grimoire", -188f, 18f);
-        CreateProfileSummaryRow(progress.transform, "Book", inventory.BookOfShadowsPurchased ? $"{inventory.GetOwnedBookOfShadowsCardCount()}/{CardAlbumCatalog.BookOfShadowsTotalCards}" : "Locked", 188f, 18f);
-        CreateProfileSummaryRow(progress.transform, "Rooms", $"{inventory.GetRestoredRoomCount()} restored", -188f, -46f);
-        CreateProfileSummaryRow(progress.transform, "Aura", "Strength formula TBD", 188f, -46f);
-        CreateAnchoredText(progress.transform, profile.AuraRankNoteText, 15, FontStyle.Bold, muted, 560, 42, 0f, -116f);
+        GameObject progress = CreateProfileSectionPanel(parent, "ProfileProgress", new Color(0.12f, 0.06f, 0.18f), 640, 334, 190f, -26f);
+        CreateProfileSectionTitle(progress.transform, "ACCOUNT SUMMARY", 24, gold, 560f, 132f);
+        Text manaValueText = CreateProfileSummaryRow(progress.transform, "Mana", profile.Mana.ToString("N0"), -188f, 82f);
+        Text crystalsValueText = CreateProfileSummaryRow(progress.transform, "Crystals", profile.Crystals.ToString("N0"), 188f, 82f);
+        Text albumValueText = CreateProfileSummaryRow(progress.transform, "Album", $"{inventory.GetOwnedGrimoireCardCount()}/{CardAlbumCatalog.TotalCards} Grimoire", -188f, 18f);
+        Text bookValueText = CreateProfileSummaryRow(progress.transform, "Book", inventory.BookOfShadowsPurchased ? $"{inventory.GetOwnedBookOfShadowsCardCount()}/{CardAlbumCatalog.BookOfShadowsTotalCards}" : "Locked", 188f, 18f);
+        Text roomsValueText = CreateProfileSummaryRow(progress.transform, "Rooms", $"{inventory.GetRestoredRoomCount()} restored", -188f, -46f);
+        Text auraValueText = CreateProfileSummaryRow(progress.transform, "Aura", "Strength formula TBD", 188f, -46f);
+        Text auraRankNoteText = CreateAnchoredText(progress.transform, profile.AuraRankNoteText, 15, FontStyle.Bold, muted, 560, 42, 0f, -116f);
 
         Button rank = CreateAnchoredButton(parent, "Aura Ranks", 18, 210, 42, new Color(0.35f, 0.12f, 0.62f), -330f, -218f);
-        rank.onClick.AddListener(BuildRankInfoUi);
+        PlayerProfileSummaryTabView summaryView = parent.gameObject.AddComponent<PlayerProfileSummaryTabView>();
+        summaryView.ResetRuntimeBindings();
+        summaryView.Initialize(
+            displayNameText,
+            levelAndRankText,
+            auraRankNoteText,
+            manaValueText,
+            crystalsValueText,
+            albumValueText,
+            bookValueText,
+            roomsValueText,
+            auraValueText,
+            rank);
+        summaryView.AuraRanksRequested += BuildRankInfoUi;
+        summaryView.Apply(BuildPlayerProfileSummaryDisplayModel(profile));
     }
 
-    private void CreateProfileSummaryRow(Transform parent, string label, string value, float x, float y)
+    private Text CreateProfileSummaryRow(Transform parent, string label, string value, float x, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"ProfileSummary_{label}", new Color(0.96f, 0.86f, 0.62f), 286, 48, x, y);
-        CreateAnchoredText(row.transform, label, 14, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 250, 18, 0f, 10f);
-        CreateAnchoredText(row.transform, value, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 250, 22, 0f, -10f);
+        GameObject row = CreateModalInfoCard(parent, $"ProfileSummary_{label}", 286, 48, x, y);
+        Text labelText = CreateAnchoredText(row.transform, label, 14, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 250, 18, 0f, 10f);
+        Text valueText = CreateAnchoredText(row.transform, value, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 250, 22, 0f, -10f);
+        PlayerProfileSummaryRowView rowView = row.GetComponent<PlayerProfileSummaryRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<PlayerProfileSummaryRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(labelText, valueText);
+        rowView.Apply(label, value);
+        return rowView.ValueText;
     }
 
     private void BuildPlayerAvatarTab(Transform parent, PlayerProfileState profile)
     {
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
-        GameObject preview = CreateAnchoredPanel(parent, "AvatarPreview", new Color(0.12f, 0.06f, 0.18f), 360, 360, -300f, -30f);
+        GameObject preview = CreateProfileSectionPanel(parent, "AvatarPreview", new Color(0.12f, 0.06f, 0.18f), 360, 360, -300f, -30f);
         GameObject previewAvatar = CreateAnchoredPanel(preview.transform, "AvatarFramePreview", GetPrototypeFrameColor(), 190, 190, 0f, 58f);
         if (!TryCreateCosmeticSprite(previewAvatar.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].PrimaryAssetKey, "AvatarSprite", 160f, 160f))
         {
             CreateAnchoredText(previewAvatar.transform, GetPrototypeAvatarIcon(), 58, FontStyle.Bold, Color.white, 160, 100, 0f, 16f);
         }
         TryCreateCosmeticSprite(previewAvatar.transform, PrototypeAvatarFrames[selectedPrototypeFrameIndex].PrimaryAssetKey, "FrameSprite", 190f, 190f);
-        CreateAnchoredText(preview.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName, 25, FontStyle.Bold, gold, 300, 34, 0f, -54f);
-        CreateAnchoredText(preview.transform, $"{PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName}\n{PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName} dauber", 17, FontStyle.Bold, muted, 300, 58, 0f, -106f);
+        Text avatarNameText = CreateAnchoredText(preview.transform, PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName, 25, FontStyle.Bold, gold, 300, 34, 0f, -54f);
+        Text cosmeticsSummaryText = CreateAnchoredText(preview.transform, $"{PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName}\n{PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName} dauber", 17, FontStyle.Bold, muted, 300, 58, 0f, -106f);
 
-        GameObject controls = CreateAnchoredPanel(parent, "AvatarControls", new Color(0.96f, 0.86f, 0.62f), 560, 360, 190f, -30f);
-        CreateAnchoredText(controls.transform, "COSMETICS", 26, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 480, 34, 0f, 132f);
-        CreateCosmeticSelectorRow(controls.transform, "Avatar", PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName, -6f, 70f, CyclePrototypeAvatar);
-        CreateCosmeticSelectorRow(controls.transform, "Frame", PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName, -6f, 6f, CyclePrototypeFrame);
-        CreateCosmeticSelectorRow(controls.transform, "Dauber", PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName, -6f, -58f, CyclePrototypeDauber);
-        CreateAnchoredText(controls.transform, "Avatar unlock rules, rank cosmetics, and custom avatar behavior are placeholders only.", 14, FontStyle.Bold, new Color(0.34f, 0.26f, 0.34f), 480, 42, 0f, -128f);
+        GameObject controls = CreateProfileSectionPanel(parent, "AvatarControls", new Color(0.96f, 0.86f, 0.62f), 560, 360, 190f, -30f);
+        CreateProfileSectionTitle(controls.transform, "COSMETICS", 26, new Color(0.18f, 0.08f, 0.32f), 480f, 132f);
+        (Text avatarValueText, Button avatarNextButton) = CreateCosmeticSelectorRow(controls.transform, "Avatar", PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName, -6f, 70f, CyclePrototypeAvatar);
+        (Text frameValueText, Button frameNextButton) = CreateCosmeticSelectorRow(controls.transform, "Frame", PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName, -6f, 6f, CyclePrototypeFrame);
+        (Text dauberValueText, Button dauberNextButton) = CreateCosmeticSelectorRow(controls.transform, "Dauber", PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName, -6f, -58f, CyclePrototypeDauber);
+        Text footnoteText = CreateAnchoredText(controls.transform, "Avatar unlock rules, rank cosmetics, and custom avatar behavior are placeholders only.", 14, FontStyle.Bold, new Color(0.34f, 0.26f, 0.34f), 480, 42, 0f, -128f);
+
+        PlayerAvatarTabView avatarTabView = parent.gameObject.AddComponent<PlayerAvatarTabView>();
+        avatarTabView.ResetRuntimeBindings();
+        avatarTabView.Initialize(
+            avatarNameText,
+            cosmeticsSummaryText,
+            avatarValueText,
+            frameValueText,
+            dauberValueText,
+            footnoteText,
+            avatarNextButton,
+            frameNextButton,
+            dauberNextButton);
+        avatarTabView.AvatarNextRequested += CyclePrototypeAvatar;
+        avatarTabView.FrameNextRequested += CyclePrototypeFrame;
+        avatarTabView.DauberNextRequested += CyclePrototypeDauber;
+        avatarTabView.Apply(BuildPlayerAvatarTabDisplayModel());
     }
 
-    private void CreateCosmeticSelectorRow(Transform parent, string label, string value, float x, float y, UnityEngine.Events.UnityAction action)
+    private (Text valueText, Button nextButton) CreateCosmeticSelectorRow(Transform parent, string label, string value, float x, float y, UnityEngine.Events.UnityAction action)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"Cosmetic_{label}", new Color(0.18f, 0.13f, 0.2f), 480, 48, x, y);
-        CreateAnchoredText(row.transform, label, 16, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 118, 22, -164f, 0f);
-        CreateAnchoredText(row.transform, value, 16, FontStyle.Bold, Color.white, 210, 24, -18f, 0f);
+        GameObject row = CreateProfileOptionRowPanel(parent, $"Cosmetic_{label}", 480f, 48f, x, y);
+        Text labelText = CreateProfileOptionRowLabel(row.transform, label, 16, new Color(1f, 0.9f, 0.32f), 118, 22, -164f);
+        Text valueText = CreateProfileOptionRowValue(row.transform, value, 16, Color.white, 210, 24, -18f);
         Button next = CreateAnchoredButton(row.transform, "Next", 13, 82, 28, new Color(0.35f, 0.12f, 0.62f), 184f, 0f);
-        next.onClick.AddListener(action);
+        ProfileSelectorRowView rowView = row.GetComponent<ProfileSelectorRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<ProfileSelectorRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(labelText, valueText, next);
+        rowView.Apply(new ProfileSelectorRowDisplayModel
+        {
+            LabelText = label,
+            ValueText = value,
+            ActionButtonText = "Next"
+        });
+        rowView.ActionRequested += () => action?.Invoke();
+        return (valueText, next);
     }
 
     private bool TryCreateCosmeticSprite(Transform parent, string assetKey, string objectName, float width, float height)
@@ -1374,33 +1644,105 @@ public class BingoPrototype : MonoBehaviour
     {
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
-        GameObject account = CreateAnchoredPanel(parent, "ProfileAccountSettings", new Color(0.12f, 0.06f, 0.18f), 460, 360, -250f, -30f);
-        CreateAnchoredText(account.transform, "ACCOUNT", 25, FontStyle.Bold, gold, 380, 34, 0f, 132f);
+        GameObject account = CreateProfileSectionPanel(parent, "ProfileAccountSettings", new Color(0.12f, 0.06f, 0.18f), 460, 360, -250f, -30f);
+        CreateProfileSectionHeader(account.transform, "ACCOUNT", 25, gold, 380f, 132f);
         profileDisplayNameInput = CreateAnchoredInputField(account.transform, "ProfileDisplayNameInput", "Display name", 360, 44, 0f, 84f);
         profileDisplayNameInput.text = profileSettingsState.DisplayName;
         profileDisplayNameInput.characterLimit = ProfileDisplayNameValidator.BetaMaximumLength;
         profileDisplayNameInput.lineType = InputField.LineType.SingleLine;
         profileDisplayNameInput.textComponent.alignment = TextAnchor.MiddleLeft;
         Button saveName = CreateAnchoredButton(account.transform, "Save Display Name", 16, 220, 38, new Color(0.12f, 0.55f, 0.08f), 0f, 38f);
-        saveName.onClick.AddListener(SavePrototypeDisplayName);
         profileDisplayNameStatusText = CreateAnchoredText(account.transform, lastProfileDisplayNameStatus, 12, FontStyle.Bold, muted, 380, 34, 0f, -2f);
-        CreateAnchoredText(account.transform, "LOGIN PLACEHOLDERS", 14, FontStyle.Bold, gold, 380, 22, 0f, -42f);
+        CreateProfileSectionHeader(account.transform, "LOGIN PLACEHOLDERS", 14, gold, 380f, -42f, 22f);
         CreateCompactLoginOptionButton(account.transform, "Google", -125f, -78f);
         CreateCompactLoginOptionButton(account.transform, "Facebook", 0f, -78f);
         CreateCompactLoginOptionButton(account.transform, "Apple", 125f, -78f);
-        CreateAnchoredText(account.transform, "Name validation is local Beta/test only. Login, uniqueness, and moderation require backend approval.", 12, FontStyle.Bold, muted, 390, 48, 0f, -132f);
+        CreateProfileSectionNote(account.transform, "Name validation is local Beta/test only. Login, uniqueness, and moderation require backend approval.", 12, muted, 390, 48, 0f, -132f);
 
-        GameObject preferences = CreateAnchoredPanel(parent, "ProfilePreferences", new Color(0.96f, 0.86f, 0.62f), 460, 360, 250f, -30f);
-        CreateAnchoredText(preferences.transform, "PREFERENCES", 25, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 380, 34, 0f, 132f);
-        CreatePreferenceToggle(preferences.transform, "Sound", prototypeSoundEnabled, 58f, TogglePrototypeSound);
-        CreatePreferenceToggle(preferences.transform, "Notifications", prototypeNotificationsEnabled, -8f, TogglePrototypeNotifications);
-        CreateAnchoredText(preferences.transform, "Cosmetics and preferences save locally. Name editing and platform permissions wire up later.", 14, FontStyle.Bold, new Color(0.34f, 0.26f, 0.34f), 380, 58, 0f, -112f);
+        GameObject preferences = CreateProfileSectionPanel(parent, "ProfilePreferences", new Color(0.96f, 0.86f, 0.62f), 460, 360, 250f, -30f);
+        CreateProfileSectionHeader(preferences.transform, "PREFERENCES", 25, new Color(0.18f, 0.08f, 0.32f), 380f, 132f);
+        (Button soundToggleButton, Text soundToggleText) = CreatePreferenceToggle(preferences.transform, "Sound", prototypeSoundEnabled, 58f, TogglePrototypeSound);
+        (Button notificationsToggleButton, Text notificationsToggleText) = CreatePreferenceToggle(preferences.transform, "Notifications", prototypeNotificationsEnabled, -8f, TogglePrototypeNotifications);
+        CreateProfileSectionNote(preferences.transform, "Cosmetics and preferences save locally. Name editing and platform permissions wire up later.", 14, new Color(0.34f, 0.26f, 0.34f), 380, 58, 0f, -112f);
+
+        PlayerSettingsTabView settingsTabView = parent.gameObject.AddComponent<PlayerSettingsTabView>();
+        settingsTabView.ResetRuntimeBindings();
+        settingsTabView.Initialize(
+            profileDisplayNameInput,
+            profileDisplayNameStatusText,
+            saveName,
+            soundToggleButton,
+            soundToggleText,
+            notificationsToggleButton,
+            notificationsToggleText);
+        settingsTabView.SaveNameRequested += SavePrototypeDisplayName;
+        settingsTabView.SoundToggleRequested += TogglePrototypeSound;
+        settingsTabView.NotificationsToggleRequested += TogglePrototypeNotifications;
+        settingsTabView.Apply(BuildPlayerSettingsTabDisplayModel());
     }
 
     private void CreateCompactLoginOptionButton(Transform parent, string provider, float x, float y)
     {
         Button button = CreateAnchoredButton(parent, provider, 13, 110, 32, new Color(0.18f, 0.16f, 0.28f), x, y);
-        button.interactable = false;
+        ProfileLoginOptionView view = button.gameObject.GetComponent<ProfileLoginOptionView>();
+        if (view == null)
+        {
+            view = button.gameObject.AddComponent<ProfileLoginOptionView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(button);
+        view.Apply(new ProfileLoginOptionDisplayModel
+        {
+            ProviderName = provider,
+            IsAvailable = false
+        });
+    }
+
+    private GameObject CreateProfileSectionPanel(Transform parent, string name, Color color, float width, float height, float x, float y)
+    {
+        return CreateAnchoredPanel(parent, name, color, width, height, x, y);
+    }
+
+    private Text CreateProfileSectionTitle(Transform parent, string text, int fontSize, Color color, float width, float y, float height = 34f)
+    {
+        return CreateAnchoredText(parent, text, fontSize, FontStyle.Bold, color, (int)width, (int)height, 0f, y);
+    }
+
+    private Text CreateProfileSectionHeader(Transform parent, string text, int fontSize, Color color, float width, float y, float height = 34f)
+    {
+        Text title = CreateProfileSectionTitle(parent, string.Empty, fontSize, color, width, y, height);
+        ProfileSectionHeaderView view = title.gameObject.GetComponent<ProfileSectionHeaderView>();
+        if (view == null)
+        {
+            view = title.gameObject.AddComponent<ProfileSectionHeaderView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(title);
+        view.Apply(new ProfileSectionHeaderDisplayModel
+        {
+            TitleText = text
+        });
+        return title;
+    }
+
+    private Text CreateProfileSectionNote(Transform parent, string text, int fontSize, Color color, int width, int height, float x, float y)
+    {
+        Text note = CreateAnchoredText(parent, string.Empty, fontSize, FontStyle.Bold, color, width, height, x, y);
+        ProfileSectionNoteView view = note.gameObject.GetComponent<ProfileSectionNoteView>();
+        if (view == null)
+        {
+            view = note.gameObject.AddComponent<ProfileSectionNoteView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(note);
+        view.Apply(new ProfileSectionNoteDisplayModel
+        {
+            NoteText = text
+        });
+        return note;
     }
 
     private void SavePrototypeDisplayName()
@@ -1429,12 +1771,192 @@ public class BingoPrototype : MonoBehaviour
         PersistProfileSettings("display_name_changed");
     }
 
-    private void CreatePreferenceToggle(Transform parent, string label, bool enabled, float y, UnityEngine.Events.UnityAction action)
+    private (Button button, Text valueText) CreatePreferenceToggle(Transform parent, string label, bool enabled, float y, UnityEngine.Events.UnityAction action)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"Preference_{label}", new Color(0.18f, 0.13f, 0.2f), 360, 50, 0f, y);
-        CreateAnchoredText(row.transform, label, 18, FontStyle.Bold, Color.white, 170, 24, -72f, 0f);
+        GameObject row = CreateProfileOptionRowPanel(parent, $"Preference_{label}", 360f, 50f, 0f, y);
+        Text labelText = CreateProfileOptionRowLabel(row.transform, label, 18, Color.white, 170, 24, -72f);
         Button toggle = CreateAnchoredButton(row.transform, enabled ? "ON" : "OFF", 16, 92, 30, enabled ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.42f, 0.12f, 0.18f), 112f, 0f);
-        toggle.onClick.AddListener(action);
+        ProfileToggleRowView rowView = row.GetComponent<ProfileToggleRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<ProfileToggleRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(labelText, toggle);
+        rowView.Apply(new ProfileToggleRowDisplayModel
+        {
+            LabelText = label,
+            ToggleText = enabled ? "ON" : "OFF"
+        });
+        rowView.ToggleRequested += () => action?.Invoke();
+        Text valueText = toggle.GetComponentInChildren<Text>();
+        return (toggle, valueText);
+    }
+
+    private GameObject CreateProfileOptionRowPanel(Transform parent, string name, float width, float height, float x, float y)
+    {
+        return CreateAnchoredPanel(parent, name, new Color(0.18f, 0.13f, 0.2f), width, height, x, y);
+    }
+
+    private Text CreateProfileOptionRowLabel(Transform parent, string text, int fontSize, Color color, int width, int height, float x)
+    {
+        return CreateAnchoredText(parent, text, fontSize, FontStyle.Bold, color, width, height, x, 0f);
+    }
+
+    private Text CreateProfileOptionRowValue(Transform parent, string text, int fontSize, Color color, int width, int height, float x)
+    {
+        return CreateAnchoredText(parent, text, fontSize, FontStyle.Bold, color, width, height, x, 0f);
+    }
+
+    private Button CreateDenReturnFooter(Transform parent, float x, float y, UnityEngine.Events.UnityAction action)
+    {
+        Button close = CreateAnchoredButton(parent, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), x, y);
+        if (action != null)
+        {
+            close.onClick.AddListener(action);
+        }
+
+        return close;
+    }
+
+    private void CreateDualFooterNavigation(
+        Transform parent,
+        string backLabel,
+        float y,
+        UnityEngine.Events.UnityAction backAction,
+        UnityEngine.Events.UnityAction closeAction,
+        string closeLabel = "Back to Den")
+    {
+        Button back = CreateAnchoredButton(parent, backLabel, 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), -130f, y);
+        if (backAction != null)
+        {
+            back.onClick.AddListener(backAction);
+        }
+
+        Button close = CreateAnchoredButton(parent, closeLabel, 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, y);
+        if (closeAction != null)
+        {
+            close.onClick.AddListener(closeAction);
+        }
+    }
+
+    private GameObject CreateModalShell(string name, float width, float height, Color color)
+    {
+        return CreateAnchoredPanel(contentRoot, name, color, width, height, 0f, -18f);
+    }
+
+    private Text CreateModalTitle(Transform parent, string text, Color color, float width = 820f, float y = 274f)
+    {
+        return CreateAnchoredText(parent, text, 44, FontStyle.Bold, color, width, 58, 0f, y);
+    }
+
+    private Text CreateModalSubtitle(Transform parent, string text, Color color, float width = 980f, float height = 34f, float y = 232f, int fontSize = 15)
+    {
+        return CreateAnchoredText(parent, text, fontSize, FontStyle.Bold, color, width, height, 0f, y);
+    }
+
+    private Text CreateModalSectionHeader(Transform parent, string text, Color color, float width, float x, float y, int fontSize = 23, float height = 32f)
+    {
+        return CreateAnchoredText(parent, text, fontSize, FontStyle.Bold, color, width, height, x, y);
+    }
+
+    private UIModalChromeView CreateModalChrome(
+        GameObject panel,
+        string title,
+        string subtitle,
+        string closeLabel,
+        Color titleColor,
+        Color subtitleColor,
+        Color closeButtonColor,
+        float titleWidth = 820f,
+        float titleY = 274f,
+        float subtitleWidth = 980f,
+        float subtitleHeight = 34f,
+        float subtitleY = 232f,
+        int subtitleFontSize = 15,
+        float closeWidth = 220f,
+        float closeHeight = 48f,
+        float closeX = 0f,
+        float closeY = -286f,
+        int closeFontSize = 20)
+    {
+        Text titleText = CreateModalTitle(panel.transform, title, titleColor, titleWidth, titleY);
+        Text subtitleText = CreateModalSubtitle(panel.transform, subtitle, subtitleColor, subtitleWidth, subtitleHeight, subtitleY, subtitleFontSize);
+        Button closeButton = CreateAnchoredButton(panel.transform, closeLabel, closeFontSize, closeWidth, closeHeight, closeButtonColor, closeX, closeY);
+        Text closeButtonText = closeButton.GetComponentInChildren<Text>();
+
+        UIModalController modalController = panel.GetComponent<UIModalController>();
+        if (modalController == null)
+        {
+            modalController = panel.AddComponent<UIModalController>();
+        }
+
+        closeButton.onClick.RemoveListener(modalController.RequestClose);
+        closeButton.onClick.AddListener(modalController.RequestClose);
+
+        UIModalChromeView chromeView = panel.GetComponent<UIModalChromeView>();
+        if (chromeView == null)
+        {
+            chromeView = panel.AddComponent<UIModalChromeView>();
+        }
+
+        chromeView.ResetRuntimeBindings();
+        chromeView.Initialize(titleText, subtitleText, closeButton, closeButtonText, modalController);
+        chromeView.Apply(title, subtitle, closeLabel);
+        return chromeView;
+    }
+
+    private GameObject CreateModalSectionPanel(Transform parent, string name, float width, float height, float x, float y, Color? colorOverride = null)
+    {
+        return CreateAnchoredPanel(parent, name, colorOverride ?? new Color(0.1f, 0.045f, 0.14f), width, height, x, y);
+    }
+
+    private GameObject CreateModalInfoCard(Transform parent, string name, float width, float height, float x, float y, Color? colorOverride = null)
+    {
+        return CreateAnchoredPanel(parent, name, colorOverride ?? new Color(0.96f, 0.86f, 0.62f), width, height, x, y);
+    }
+
+    private PlayerProfileSummaryDisplayModel BuildPlayerProfileSummaryDisplayModel(PlayerProfileState profile)
+    {
+        return new PlayerProfileSummaryDisplayModel(
+            profileSettingsState.DisplayName,
+            $"Level {profile.Level}\nRank: Aura TBD",
+            profile.AuraRankNoteText,
+            profile.Mana.ToString("N0"),
+            profile.Crystals.ToString("N0"),
+            $"{inventory.GetOwnedGrimoireCardCount()}/{CardAlbumCatalog.TotalCards} Grimoire",
+            inventory.BookOfShadowsPurchased ? $"{inventory.GetOwnedBookOfShadowsCardCount()}/{CardAlbumCatalog.BookOfShadowsTotalCards}" : "Locked",
+            $"{inventory.GetRestoredRoomCount()} restored",
+            "Strength formula TBD");
+    }
+
+    private PlayerProfileModalDisplayModel BuildPlayerProfileModalDisplayModel(PlayerProfileState profile)
+    {
+        return new PlayerProfileModalDisplayModel(
+            "PLAYER PROFILE",
+            $"Level {profile.Level}  |  {profile.LevelProgressText}  |  {profile.AuraStrengthText}",
+            "Back to Den");
+    }
+
+    private PlayerAvatarTabDisplayModel BuildPlayerAvatarTabDisplayModel()
+    {
+        return new PlayerAvatarTabDisplayModel(
+            PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName,
+            $"{PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName}\n{PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName} dauber",
+            PrototypeAvatars[selectedPrototypeAvatarIndex].DisplayName,
+            PrototypeAvatarFrames[selectedPrototypeFrameIndex].DisplayName,
+            PrototypeDaubers[selectedPrototypeDauberIndex].DisplayName,
+            "Avatar unlock rules, rank cosmetics, and custom avatar behavior are placeholders only.");
+    }
+
+    private PlayerSettingsTabDisplayModel BuildPlayerSettingsTabDisplayModel()
+    {
+        return new PlayerSettingsTabDisplayModel(
+            profileSettingsState.DisplayName,
+            lastProfileDisplayNameStatus,
+            prototypeSoundEnabled,
+            prototypeNotificationsEnabled);
     }
 
     private string GetPrototypeAvatarIcon()
@@ -1457,35 +1979,35 @@ public class BingoPrototype : MonoBehaviour
     {
         selectedPrototypeAvatarIndex = (selectedPrototypeAvatarIndex + 1) % PrototypeAvatars.Count;
         PersistProfileSettings("avatar_selected");
-        BuildPlayerProfileUi("Avatars");
+        BuildPlayerProfileUi(PlayerProfileTabIds.Avatars);
     }
 
     private void CyclePrototypeFrame()
     {
         selectedPrototypeFrameIndex = (selectedPrototypeFrameIndex + 1) % PrototypeAvatarFrames.Count;
         PersistProfileSettings("frame_selected");
-        BuildPlayerProfileUi("Avatars");
+        BuildPlayerProfileUi(PlayerProfileTabIds.Avatars);
     }
 
     private void CyclePrototypeDauber()
     {
         selectedPrototypeDauberIndex = (selectedPrototypeDauberIndex + 1) % PrototypeDaubers.Count;
         PersistProfileSettings("dauber_selected");
-        BuildPlayerProfileUi("Avatars");
+        BuildPlayerProfileUi(PlayerProfileTabIds.Avatars);
     }
 
     private void TogglePrototypeSound()
     {
         prototypeSoundEnabled = !prototypeSoundEnabled;
         PersistProfileSettings("sound_preference_changed");
-        BuildPlayerProfileUi("Settings");
+        BuildPlayerProfileUi(PlayerProfileTabIds.Settings);
     }
 
     private void TogglePrototypeNotifications()
     {
         prototypeNotificationsEnabled = !prototypeNotificationsEnabled;
         PersistProfileSettings("notification_preference_changed");
-        BuildPlayerProfileUi("Settings");
+        BuildPlayerProfileUi(PlayerProfileTabIds.Settings);
     }
 
     private void ApplyProfileSettings(ProfileSettingsState state)
@@ -1541,6 +2063,8 @@ public class BingoPrototype : MonoBehaviour
         {
             Destroy(existing.gameObject);
         }
+
+        playerProfileModalView = null;
     }
 
     private void BuildRankInfoUi()
@@ -1548,13 +2072,13 @@ public class BingoPrototype : MonoBehaviour
         RemoveRankInfoModal();
 
         PlayerProfileState profile = PlayerProfileState.FromPrototype(inventory, rewards);
-        GameObject panel = CreateAnchoredPanel(contentRoot, "RankInfoModal", new Color(0.055f, 0.025f, 0.095f, 0.985f), 960, 660, 0f, -18f);
+        GameObject panel = CreateModalShell("RankInfoModal", 960, 660, new Color(0.055f, 0.025f, 0.095f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.86f, 0.82f, 0.95f);
         Color cream = new Color(0.96f, 0.86f, 0.62f);
         Color ink = new Color(0.18f, 0.08f, 0.32f);
 
-        CreateAnchoredText(panel.transform, "AURA RANKS", 42, FontStyle.Bold, gold, 760, 56, 0f, 274f);
+        CreateModalTitle(panel.transform, "AURA RANKS", gold, 760f);
         CreateAnchoredText(panel.transform, $"Level {profile.Level}  |  {profile.LevelProgressText}", 30, FontStyle.Bold, Color.white, 760, 46, 0f, 218f);
         CreateAnchoredText(panel.transform, $"{profile.AuraStrengthText}  |  Rank thresholds TBD", 20, FontStyle.Bold, muted, 760, 34, 0f, 178f);
 
@@ -1573,8 +2097,7 @@ public class BingoPrototype : MonoBehaviour
             CreateAnchoredText(rankRow.transform, LockedRankLadder[index], 16, FontStyle.Bold, ink, 330, 24, 0f, 0f);
         }
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -286f);
-        close.onClick.AddListener(RemoveRankInfoModal);
+        CreateDenReturnFooter(panel.transform, 0f, -286f, RemoveRankInfoModal);
     }
 
     private void CreateDenFeatureTile(string title, string subtitle, float x, float y)
@@ -1595,13 +2118,20 @@ public class BingoPrototype : MonoBehaviour
     private void BuildApothecaryUi()
     {
         RemoveApothecaryModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "ApothecaryModal", new Color(0.045f, 0.035f, 0.075f, 0.985f), 1120, 660, 0f, -18f);
+        GameObject panel = CreateModalShell("ApothecaryModal", 1120, 660, new Color(0.045f, 0.035f, 0.075f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
 
         RoomDefinition room = RealmContentCatalog.ActivePrototypeRoom;
-        CreateAnchoredText(panel.transform, "APOTHECARY", 44, FontStyle.Bold, gold, 820, 58, 0f, 274f);
-        CreateAnchoredText(panel.transform, "Potion-only prototype surface. Crafting costs, recipes, upgrades, and reward tuning are not active in this pass.", 15, FontStyle.Bold, muted, 980, 34, 0f, 232f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "APOTHECARY",
+            "Potion-only prototype surface. Crafting costs, recipes, upgrades, and reward tuning are not active in this pass.",
+            "Back to Den",
+            gold,
+            muted,
+            new Color(0.35f, 0.12f, 0.62f));
+        chromeView.CloseRequested += RemoveApothecaryModal;
 
         CreateApothecarySection(panel.transform, "Active Potion", -344f, 82f, 360, 252, new Color(0.11f, 0.07f, 0.16f));
         CreateAnchoredText(panel.transform, room.PotionName, 26, FontStyle.Bold, gold, 310, 64, -344f, 126f);
@@ -1624,8 +2154,6 @@ public class BingoPrototype : MonoBehaviour
         CreateAnchoredText(panel.transform, "Mixing and crafting stay configurable until potion rules are approved.", 14, FontStyle.Bold, muted, 380, 36, 292f, -248f);
 
         CreateAnchoredText(panel.transform, "Sigils, Clairvoyance, Pandora, and other boost inventory stay in Cabinet of Curiosities.", 15, FontStyle.Bold, muted, 900, 34, 0f, -278f);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -326f);
-        close.onClick.AddListener(RemoveApothecaryModal);
     }
 
     private void CreateApothecarySection(Transform parent, string title, float x, float y, float width, float height, Color color)
@@ -1658,13 +2186,20 @@ public class BingoPrototype : MonoBehaviour
     private void BuildRelicWallUi()
     {
         RemoveRelicWallModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "RelicWallModal", new Color(0.055f, 0.025f, 0.095f, 0.985f), 1120, 660, 0f, -18f);
+        GameObject panel = CreateModalShell("RelicWallModal", 1120, 660, new Color(0.055f, 0.025f, 0.095f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         PlayerProfileState profile = PlayerProfileState.FromPrototype(inventory, rewards);
 
-        CreateAnchoredText(panel.transform, "RELIC WALL", 44, FontStyle.Bold, gold, 820, 58, 0f, 274f);
-        CreateAnchoredText(panel.transform, "Badge display shell for rank, collection, realm, and event accomplishments. Rewards and achievement rules are not active yet.", 15, FontStyle.Bold, muted, 980, 34, 0f, 232f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "RELIC WALL",
+            "Badge display shell for rank, collection, realm, and event accomplishments. Rewards and achievement rules are not active yet.",
+            "Back to Den",
+            gold,
+            muted,
+            new Color(0.35f, 0.12f, 0.62f));
+        chromeView.CloseRequested += RemoveRelicWallModal;
 
         CreateRelicSection(panel.transform, "Identity", -360f, 66f);
         CreateRelicBadge(panel.transform, "Aura Rank", "TBD", true, -470f, 66f);
@@ -1692,8 +2227,6 @@ public class BingoPrototype : MonoBehaviour
         CreateRelicBadge(panel.transform, "Beta Badge", "Later", false, 360f, -164f);
 
         CreateAnchoredText(panel.transform, "Relic Wall is display-only in this pass. Badge criteria, rewards, rarity, and event rules remain open decisions.", 15, FontStyle.Bold, muted, 900, 34, 0f, -238f);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -286f);
-        close.onClick.AddListener(RemoveRelicWallModal);
     }
 
     private void CreateRelicSection(Transform parent, string title, float x, float y)
@@ -1707,9 +2240,13 @@ public class BingoPrototype : MonoBehaviour
         Color textColor = earned ? Color.white : new Color(0.68f, 0.64f, 0.72f);
         Color accentColor = earned ? new Color(1f, 0.9f, 0.32f) : new Color(0.42f, 0.38f, 0.46f);
         GameObject badge = CreateAnchoredPanel(parent, $"RelicBadge_{title}", badgeColor, 96, 112, x, y);
-        CreateAnchoredText(badge.transform, earned ? "*" : "-", 34, FontStyle.Bold, accentColor, 70, 36, 0f, 26f);
-        CreateAnchoredText(badge.transform, title, 12, FontStyle.Bold, textColor, 82, 30, 0f, -10f);
-        CreateAnchoredText(badge.transform, detail, 10, FontStyle.Bold, textColor, 82, 24, 0f, -40f);
+        Text accentText = CreateAnchoredText(badge.transform, earned ? "*" : "-", 34, FontStyle.Bold, accentColor, 70, 36, 0f, 26f);
+        Text titleText = CreateAnchoredText(badge.transform, title, 12, FontStyle.Bold, textColor, 82, 30, 0f, -10f);
+        Text detailText = CreateAnchoredText(badge.transform, detail, 10, FontStyle.Bold, textColor, 82, 24, 0f, -40f);
+        UIBadgeCardView badgeView = badge.AddComponent<UIBadgeCardView>();
+        badgeView.ResetRuntimeBindings();
+        badgeView.Initialize(accentText, titleText, detailText);
+        badgeView.Apply(earned ? "*" : "-", title, detail);
     }
 
     private void RemoveRelicWallModal()
@@ -1729,16 +2266,37 @@ public class BingoPrototype : MonoBehaviour
     private void BuildEnchantedTrailUi()
     {
         RemoveEnchantedTrailModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "EnchantedTrailModal", new Color(0.045f, 0.03f, 0.075f, 0.985f), 1140, 650, 0f, -18f);
+        GameObject panel = CreateModalShell("EnchantedTrailModal", 1140, 650, new Color(0.045f, 0.03f, 0.075f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "ENCHANTED TRAIL", 44, FontStyle.Bold, gold, 980, 58, 0f, 274f);
-        CreateAnchoredText(panel.transform, "Medium-term task path prototype. Separate from Daily Bonus, Daily Spin, Freebies, Realm income, Inbox, and jackpot wheelspin.", 15, FontStyle.Bold, muted, 980, 38, 0f, 230f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "ENCHANTED TRAIL",
+            "Medium-term task path prototype. Separate from Daily Bonus, Daily Spin, Freebies, Realm income, Inbox, and jackpot wheelspin.",
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            980f,
+            274f,
+            980f,
+            38f,
+            230f);
+        chromeView.CloseRequested += RemoveEnchantedTrailModal;
 
-        GameObject path = CreateAnchoredPanel(panel.transform, "TrailFreePath", new Color(0.12f, 0.055f, 0.17f), 1000, 170, 0f, 112f);
-        CreateAnchoredText(path.transform, "FREE PATH", 22, FontStyle.Bold, gold, 920, 28, 0f, 52f);
+        GameObject path = CreateModalSectionPanel(panel.transform, "TrailFreePath", 1000, 170, 0f, 112f, new Color(0.12f, 0.055f, 0.17f));
+        Text freePathTitleText = CreateAnchoredText(path.transform, "FREE PATH", 22, FontStyle.Bold, gold, 920, 28, 0f, 52f);
+        TrailFreePathView freePathView = path.GetComponent<TrailFreePathView>();
+        if (freePathView == null)
+        {
+            freePathView = path.AddComponent<TrailFreePathView>();
+        }
+
+        freePathView.ResetRuntimeBindings();
+        freePathView.Initialize(freePathTitleText);
+        freePathView.Apply(new TrailFreePathDisplayModel("FREE PATH"));
         for (int index = 0; index < 7; index++)
         {
             float x = -390f + index * 130f;
@@ -1749,21 +2307,39 @@ public class BingoPrototype : MonoBehaviour
             }
         }
 
-        GameObject tasks = CreateAnchoredPanel(panel.transform, "TrailTasks", new Color(0.09f, 0.045f, 0.13f), 640, 250, -210f, -106f);
-        CreateAnchoredText(tasks.transform, "TRAIL TASKS", 24, FontStyle.Bold, gold, 570, 32, 0f, 94f);
+        GameObject tasks = CreateModalSectionPanel(panel.transform, "TrailTasks", 640, 250, -210f, -106f, new Color(0.09f, 0.045f, 0.13f));
+        Text tasksTitleText = CreateAnchoredText(tasks.transform, "TRAIL TASKS", 24, FontStyle.Bold, gold, 570, 32, 0f, 94f);
+        TrailTasksSectionView tasksView = tasks.GetComponent<TrailTasksSectionView>();
+        if (tasksView == null)
+        {
+            tasksView = tasks.AddComponent<TrailTasksSectionView>();
+        }
+
+        tasksView.ResetRuntimeBindings();
+        tasksView.Initialize(tasksTitleText);
+        tasksView.Apply(new TrailTasksSectionDisplayModel("TRAIL TASKS"));
         CreateTrailTaskRow(tasks.transform, "Daub called numbers", "18 / 50", 0.36f, -150f, 38f);
         CreateTrailTaskRow(tasks.transform, "Play bingo rounds", "2 / 5", 0.4f, 150f, 38f);
         CreateTrailTaskRow(tasks.transform, "Restore a room", "0 / 1", 0f, -150f, -50f);
         CreateTrailTaskRow(tasks.transform, "Open Pandora", "0 / 1", 0f, 150f, -50f);
 
-        GameObject rules = CreateAnchoredPanel(panel.transform, "TrailRules", new Color(0.13f, 0.08f, 0.15f), 300, 250, 386f, -106f);
-        CreateAnchoredText(rules.transform, "SCOPE", 24, FontStyle.Bold, gold, 250, 34, 0f, 92f);
-        CreateAnchoredText(rules.transform, "Free path only\nNo premium lane\nNo final reward values\nClaim state only\nNo rank scaling yet", 16, FontStyle.Bold, Color.white, 250, 140, 0f, 4f);
-        CreateAnchoredText(rules.transform, "Collect persists locally; no rewards granted.", 13, FontStyle.Bold, muted, 250, 34, 0f, -94f);
+        GameObject rules = CreateModalSectionPanel(panel.transform, "TrailRules", 300, 250, 386f, -106f, new Color(0.13f, 0.08f, 0.15f));
+        string rulesBody = "Free path only\nNo premium lane\nNo final reward values\nClaim state only\nNo rank scaling yet";
+        string rulesNote = "Collect persists locally; no rewards granted.";
+        Text rulesTitleText = CreateAnchoredText(rules.transform, "SCOPE", 24, FontStyle.Bold, gold, 250, 34, 0f, 92f);
+        Text rulesBodyText = CreateAnchoredText(rules.transform, rulesBody, 16, FontStyle.Bold, Color.white, 250, 140, 0f, 4f);
+        Text rulesNoteText = CreateAnchoredText(rules.transform, rulesNote, 13, FontStyle.Bold, muted, 250, 34, 0f, -94f);
+        TrailRulesCardView rulesView = rules.GetComponent<TrailRulesCardView>();
+        if (rulesView == null)
+        {
+            rulesView = rules.AddComponent<TrailRulesCardView>();
+        }
+
+        rulesView.ResetRuntimeBindings();
+        rulesView.Initialize(rulesTitleText, rulesBodyText, rulesNoteText);
+        rulesView.Apply(new TrailRulesCardDisplayModel("SCOPE", rulesBody, rulesNote));
 
         CreateAnchoredText(panel.transform, "Trail duration, point sources, task list, premium unlock, grand reward, and cosmetic rewards remain open decisions.", 15, FontStyle.Bold, muted, 940, 34, 0f, -238f);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, violet, 0f, -292f);
-        close.onClick.AddListener(RemoveEnchantedTrailModal);
     }
 
     private void CreateTrailRewardNode(Transform parent, int step, float x, float y)
@@ -1773,9 +2349,13 @@ public class BingoPrototype : MonoBehaviour
         Color nodeColor = claimed ? new Color(0.18f, 0.42f, 0.16f) : unlocked ? new Color(0.35f, 0.12f, 0.62f) : new Color(0.22f, 0.2f, 0.24f);
         Color textColor = unlocked ? Color.white : new Color(0.72f, 0.68f, 0.78f);
         GameObject node = CreateAnchoredPanel(parent, $"TrailNode_{step}", nodeColor, 92, 110, x, y);
-        CreateAnchoredText(node.transform, claimed ? "+" : unlocked ? "*" : "-", 26, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 52, 28, 0f, 30f);
-        CreateAnchoredText(node.transform, $"Step {step}", 12, FontStyle.Bold, textColor, 76, 18, 0f, 8f);
-        CreateAnchoredText(node.transform, "Reward", 10, FontStyle.Bold, textColor, 76, 16, 0f, -12f);
+        Text accentText = CreateAnchoredText(node.transform, claimed ? "+" : unlocked ? "*" : "-", 26, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 52, 28, 0f, 30f);
+        Text titleText = CreateAnchoredText(node.transform, $"Step {step}", 12, FontStyle.Bold, textColor, 76, 18, 0f, 8f);
+        Text detailText = CreateAnchoredText(node.transform, "Reward", 10, FontStyle.Bold, textColor, 76, 16, 0f, -12f);
+        UIBadgeCardView badgeView = node.AddComponent<UIBadgeCardView>();
+        badgeView.ResetRuntimeBindings();
+        badgeView.Initialize(accentText, titleText, detailText);
+        badgeView.Apply(claimed ? "+" : unlocked ? "*" : "-", $"Step {step}", "Reward");
         Button collect = CreateAnchoredButton(node.transform, claimed ? "Claimed" : unlocked ? "Collect" : "Locked", 10, 74, 24, claimed ? new Color(0.12f, 0.34f, 0.12f) : unlocked ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 0f, -38f);
         collect.interactable = unlocked && !claimed;
         int rewardStep = step;
@@ -1830,15 +2410,24 @@ public class BingoPrototype : MonoBehaviour
 
     private void CreateTrailTaskRow(Transform parent, string title, string progress, float ratio, float x, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"TrailTask_{title}", new Color(0.96f, 0.86f, 0.62f), 270, 74, x, y);
-        CreateAnchoredText(row.transform, title, 14, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 242, 20, 0f, 20f);
+        GameObject row = CreateModalInfoCard(parent, $"TrailTask_{title}", 270, 74, x, y);
+        Text titleText = CreateAnchoredText(row.transform, title, 14, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 242, 20, 0f, 20f);
         CreateAnchoredPanel(row.transform, "TaskBarBack", new Color(0.34f, 0.28f, 0.2f), 220, 10, 0f, -4f);
         float fillWidth = Mathf.Clamp01(ratio) * 220f;
         if (fillWidth > 0f)
         {
             CreateAnchoredPanel(row.transform, "TaskBarFill", new Color(0.35f, 0.12f, 0.62f), fillWidth, 10, -110f + fillWidth * 0.5f, -4f);
         }
-        CreateAnchoredText(row.transform, progress, 12, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 220, 18, 0f, -24f);
+        Text progressText = CreateAnchoredText(row.transform, progress, 12, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 220, 18, 0f, -24f);
+        TrailTaskRowView rowView = row.GetComponent<TrailTaskRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<TrailTaskRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(titleText, progressText);
+        rowView.Apply(new TrailTaskRowDisplayModel(title, progress));
     }
 
     private void RemoveEnchantedTrailModal()
@@ -1859,59 +2448,100 @@ public class BingoPrototype : MonoBehaviour
     {
         RefreshPrototypeFriendDailyManaState();
         RemoveFriendsModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "FriendsModal", new Color(0.055f, 0.028f, 0.085f, 0.985f), 1080, 640, 0f, -18f);
+        GameObject panel = CreateModalShell("FriendsModal", 1080, 640, new Color(0.055f, 0.028f, 0.085f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "FRIENDS", 44, FontStyle.Bold, gold, 900, 58, 0f, 266f);
-        CreateAnchoredText(panel.transform, "Add/manage friends, daily 10-mana social taps, and message actions. Messages route to Inbox > Messages.", 15, FontStyle.Bold, muted, 900, 36, 0f, 224f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "FRIENDS",
+            "Add/manage friends, daily 10-mana social taps, and message actions. Messages route to Inbox > Messages.",
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            900f,
+            266f,
+            900f,
+            36f,
+            224f);
+        chromeView.CloseRequested += RemoveFriendsModal;
         CreateAnchoredText(panel.transform, BuildPrototypeFriendManaSummaryText(), 14, FontStyle.Bold, muted, 900, 34, 0f, 194f);
 
-        GameObject listPanel = CreateAnchoredPanel(panel.transform, "FriendsList", new Color(0.1f, 0.045f, 0.14f), 330, 358, -346f, 18f);
-        CreateAnchoredText(listPanel.transform, "FRIEND LIST", 23, FontStyle.Bold, gold, 290, 32, 0f, 142f);
+        GameObject listPanel = CreateModalSectionPanel(panel.transform, "FriendsList", 330, 358, -346f, 18f);
+        Text listPanelTitleText = CreateModalSectionHeader(listPanel.transform, "FRIEND LIST", gold, 290, 0f, 142f);
         List<string> friends = new List<string>(prototypeFriends);
         friends.Sort();
+        FriendsSectionPanelView listPanelView = listPanel.GetComponent<FriendsSectionPanelView>();
+        if (listPanelView == null)
+        {
+            listPanelView = listPanel.AddComponent<FriendsSectionPanelView>();
+        }
+
+        listPanelView.ResetRuntimeBindings();
+        listPanelView.Initialize(listPanelTitleText, null);
+        listPanelView.Apply(new FriendsSectionPanelDisplayModel("FRIEND LIST", string.Empty));
         for (int index = 0; index < friends.Count && index < 4; index++)
         {
             string friendName = friends[index];
             CreateFriendListRow(listPanel.transform, friendName, index % 2 == 0 ? "Online" : "Away", 78f - index * 76f);
         }
 
-        GameObject incomingPanel = CreateAnchoredPanel(panel.transform, "FriendIncoming", new Color(0.12f, 0.055f, 0.16f), 330, 358, 0f, 18f);
-        CreateAnchoredText(incomingPanel.transform, "REQUESTS", 23, FontStyle.Bold, gold, 290, 32, 0f, 142f);
+        GameObject incomingPanel = CreateModalSectionPanel(panel.transform, "FriendIncoming", 330, 358, 0f, 18f, new Color(0.12f, 0.055f, 0.16f));
+        Text incomingTitleText = CreateModalSectionHeader(incomingPanel.transform, "REQUESTS", gold, 290, 0f, 142f);
         List<string> incoming = new List<string>(prototypeIncomingFriendRequests);
         incoming.Sort();
+        Text incomingEmptyStateText = null;
         if (incoming.Count == 0)
         {
-            CreateAnchoredText(incomingPanel.transform, "No incoming requests.", 16, FontStyle.Bold, Color.white, 260, 36, 0f, 62f);
+            incomingEmptyStateText = CreateAnchoredText(incomingPanel.transform, "No incoming requests.", 16, FontStyle.Bold, Color.white, 260, 36, 0f, 62f);
         }
+
+        FriendsSectionPanelView incomingPanelView = incomingPanel.GetComponent<FriendsSectionPanelView>();
+        if (incomingPanelView == null)
+        {
+            incomingPanelView = incomingPanel.AddComponent<FriendsSectionPanelView>();
+        }
+
+        incomingPanelView.ResetRuntimeBindings();
+        incomingPanelView.Initialize(incomingTitleText, incomingEmptyStateText);
+        incomingPanelView.Apply(new FriendsSectionPanelDisplayModel("REQUESTS", incoming.Count == 0 ? "No incoming requests." : string.Empty));
         for (int index = 0; index < incoming.Count && index < 4; index++)
         {
             CreateIncomingFriendRequestRow(incomingPanel.transform, incoming[index], 88f - index * 66f);
         }
 
-        GameObject addPanel = CreateAnchoredPanel(panel.transform, "FriendAddManage", new Color(0.09f, 0.045f, 0.13f), 330, 358, 346f, 18f);
-        CreateAnchoredText(addPanel.transform, "ADD FRIEND", 23, FontStyle.Bold, gold, 290, 32, 0f, 142f);
-        CreateAnchoredPanel(addPanel.transform, "FriendSearchBox", new Color(0.96f, 0.86f, 0.62f), 260, 46, 0f, 84f);
+        GameObject addPanel = CreateModalSectionPanel(panel.transform, "FriendAddManage", 330, 358, 346f, 18f, new Color(0.09f, 0.045f, 0.13f));
+        Text addPanelTitleText = CreateModalSectionHeader(addPanel.transform, "ADD FRIEND", gold, 290, 0f, 142f);
+        CreateModalInfoCard(addPanel.transform, "FriendSearchBox", 260, 46, 0f, 84f);
         CreateAnchoredText(addPanel.transform, "Player name search later", 15, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 238, 24, 0f, 84f);
         Button sendTest = CreateAnchoredButton(addPanel.transform, "Send Test Request", 16, 230, 42, violet, 0f, 28f);
         sendTest.onClick.AddListener(SendPrototypeFriendRequest);
-        CreateAnchoredText(addPanel.transform, "Sent Requests", 18, FontStyle.Bold, gold, 260, 28, 0f, -30f);
+        CreateModalSectionHeader(addPanel.transform, "Sent Requests", gold, 260, 0f, -30f, 18, 28f);
         List<string> sent = new List<string>(prototypeSentFriendRequests);
         sent.Sort();
+        Text sentEmptyStateText = null;
         if (sent.Count == 0)
         {
-            CreateAnchoredText(addPanel.transform, "None pending.", 14, FontStyle.Bold, Color.white, 240, 26, 0f, -76f);
+            sentEmptyStateText = CreateAnchoredText(addPanel.transform, "None pending.", 14, FontStyle.Bold, Color.white, 240, 26, 0f, -76f);
         }
+
+        FriendsSectionPanelView addPanelView = addPanel.GetComponent<FriendsSectionPanelView>();
+        if (addPanelView == null)
+        {
+            addPanelView = addPanel.AddComponent<FriendsSectionPanelView>();
+        }
+
+        addPanelView.ResetRuntimeBindings();
+        addPanelView.Initialize(addPanelTitleText, sentEmptyStateText);
+        addPanelView.Apply(new FriendsSectionPanelDisplayModel("ADD FRIEND", sent.Count == 0 ? "None pending." : string.Empty));
         for (int index = 0; index < sent.Count && index < 2; index++)
         {
             CreateSentFriendRequestRow(addPanel.transform, sent[index], -76f - index * 50f);
         }
 
         CreateAnchoredText(panel.transform, string.IsNullOrEmpty(lastFriendStatusSummary) ? "Friend mana counts are prototype-only until Aura-rank limits are locked." : lastFriendStatusSummary, 15, FontStyle.Bold, muted, 900, 34, 0f, -214f);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, violet, 0f, -286f);
-        close.onClick.AddListener(RemoveFriendsModal);
     }
 
     private void CreateFriendListRow(Transform parent, string friendName, string status, float y)
@@ -1920,25 +2550,53 @@ public class BingoPrototype : MonoBehaviour
         GameObject row = CreateAnchoredPanel(parent, $"Friend_{friendName}", blocked ? new Color(0.32f, 0.27f, 0.32f) : new Color(0.96f, 0.86f, 0.62f), 276, 66, 0f, y);
         Color textColor = blocked ? new Color(0.82f, 0.78f, 0.84f) : new Color(0.18f, 0.08f, 0.32f);
         Color subTextColor = blocked ? new Color(0.66f, 0.62f, 0.7f) : new Color(0.28f, 0.18f, 0.32f);
-        CreateAnchoredText(row.transform, friendName, 15, FontStyle.Bold, textColor, 104, 22, -76f, 16f);
-        CreateAnchoredText(row.transform, blocked ? "Blocked" : status, 10, FontStyle.Bold, subTextColor, 104, 16, -76f, -4f);
-        CreateAnchoredText(row.transform, prototypeReportedFriends.Contains(friendName) ? "Reported" : "", 9, FontStyle.Bold, new Color(0.55f, 0.09f, 0.09f), 104, 14, -76f, -22f);
+        Text friendNameText = CreateAnchoredText(row.transform, friendName, 15, FontStyle.Bold, textColor, 104, 22, -76f, 16f);
+        Text statusText = CreateAnchoredText(row.transform, blocked ? "Blocked" : status, 10, FontStyle.Bold, subTextColor, 104, 16, -76f, -4f);
+        Text reportStatusText = CreateAnchoredText(row.transform, prototypeReportedFriends.Contains(friendName) ? "Reported" : "", 9, FontStyle.Bold, new Color(0.55f, 0.09f, 0.09f), 104, 14, -76f, -22f);
 
         Button send = CreateAnchoredButton(row.transform, prototypeFriendsSentManaToday.Contains(friendName) ? "Sent" : "Give 10", 9, 58, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.12f, 0.55f, 0.08f), -2f, 15f);
-        send.interactable = !blocked && !prototypeFriendsSentManaToday.Contains(friendName) && prototypeFriendsSentManaToday.Count < PrototypeFriendDailyManaLimit;
-        send.onClick.AddListener(() => SendPrototypeFriendMana(friendName));
+        bool canSend = !blocked && !prototypeFriendsSentManaToday.Contains(friendName) && prototypeFriendsSentManaToday.Count < PrototypeFriendDailyManaLimit;
+        send.interactable = canSend;
         Button receive = CreateAnchoredButton(row.transform, prototypeFriendsReceivedManaToday.Contains(friendName) ? "Got" : "Claim", 9, 54, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.12f, 0.55f, 0.08f), 60f, 15f);
-        receive.interactable = !blocked && !prototypeFriendsReceivedManaToday.Contains(friendName) && prototypeFriendsReceivedManaToday.Count < PrototypeFriendDailyManaLimit;
-        receive.onClick.AddListener(() => ReceivePrototypeFriendMana(friendName));
+        bool canReceive = !blocked && !prototypeFriendsReceivedManaToday.Contains(friendName) && prototypeFriendsReceivedManaToday.Count < PrototypeFriendDailyManaLimit;
+        receive.interactable = canReceive;
         Button message = CreateAnchoredButton(row.transform, "Msg", 9, 48, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.35f, 0.12f, 0.62f), 116f, 15f);
-        message.interactable = !blocked;
-        message.onClick.AddListener(() => SendPrototypeFriendMessage(friendName));
+        bool canMessage = !blocked;
+        message.interactable = canMessage;
         Button block = CreateAnchoredButton(row.transform, blocked ? "Blocked" : "Block", 9, 62, 22, new Color(0.34f, 0.32f, 0.38f), 28f, -16f);
-        block.interactable = !blocked;
-        block.onClick.AddListener(() => BlockPrototypeFriend(friendName));
+        bool canBlock = !blocked;
+        block.interactable = canBlock;
         Button report = CreateAnchoredButton(row.transform, prototypeReportedFriends.Contains(friendName) ? "Filed" : "Report", 9, 62, 22, new Color(0.55f, 0.09f, 0.09f), 96f, -16f);
-        report.interactable = !prototypeReportedFriends.Contains(friendName);
-        report.onClick.AddListener(() => ReportPrototypeFriend(friendName));
+        bool canReport = !prototypeReportedFriends.Contains(friendName);
+        report.interactable = canReport;
+
+        FriendListRowView rowView = row.GetComponent<FriendListRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<FriendListRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(friendNameText, statusText, reportStatusText, send, receive, message, block, report);
+        rowView.SendRequested += () => SendPrototypeFriendMana(friendName);
+        rowView.ReceiveRequested += () => ReceivePrototypeFriendMana(friendName);
+        rowView.MessageRequested += () => SendPrototypeFriendMessage(friendName);
+        rowView.BlockRequested += () => BlockPrototypeFriend(friendName);
+        rowView.ReportRequested += () => ReportPrototypeFriend(friendName);
+        rowView.Apply(new FriendListRowDisplayModel(
+            friendName,
+            blocked ? "Blocked" : status,
+            prototypeReportedFriends.Contains(friendName) ? "Reported" : string.Empty,
+            prototypeFriendsSentManaToday.Contains(friendName) ? "Sent" : "Give 10",
+            prototypeFriendsReceivedManaToday.Contains(friendName) ? "Got" : "Claim",
+            "Msg",
+            blocked ? "Blocked" : "Block",
+            prototypeReportedFriends.Contains(friendName) ? "Filed" : "Report",
+            canSend,
+            canReceive,
+            canMessage,
+            canBlock,
+            canReport));
     }
 
     private string BuildPrototypeFriendManaSummaryText()
@@ -1950,21 +2608,41 @@ public class BingoPrototype : MonoBehaviour
 
     private void CreateIncomingFriendRequestRow(Transform parent, string friendName, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"IncomingFriend_{friendName}", new Color(0.96f, 0.86f, 0.62f), 276, 58, 0f, y);
-        CreateAnchoredText(row.transform, friendName, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 120, 24, -68f, 10f);
-        CreateAnchoredText(row.transform, "Friend request", 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 120, 16, -68f, -12f);
+        GameObject row = CreateModalInfoCard(parent, $"IncomingFriend_{friendName}", 276, 58, 0f, y);
+        Text friendNameText = CreateAnchoredText(row.transform, friendName, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 120, 24, -68f, 10f);
+        Text detailText = CreateAnchoredText(row.transform, "Friend request", 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 120, 16, -68f, -12f);
         Button accept = CreateAnchoredButton(row.transform, "Accept", 10, 64, 26, new Color(0.12f, 0.55f, 0.08f), 42f, 0f);
-        accept.onClick.AddListener(() => AcceptPrototypeFriendRequest(friendName));
         Button decline = CreateAnchoredButton(row.transform, "Decline", 10, 64, 26, new Color(0.34f, 0.32f, 0.38f), 110f, 0f);
-        decline.onClick.AddListener(() => DeclinePrototypeFriendRequest(friendName));
+
+        IncomingFriendRequestRowView rowView = row.GetComponent<IncomingFriendRequestRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<IncomingFriendRequestRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(friendNameText, detailText, accept, decline);
+        rowView.AcceptRequested += () => AcceptPrototypeFriendRequest(friendName);
+        rowView.DeclineRequested += () => DeclinePrototypeFriendRequest(friendName);
+        rowView.Apply(new IncomingFriendRequestRowDisplayModel(friendName, "Friend request", "Accept", "Decline"));
     }
 
     private void CreateSentFriendRequestRow(Transform parent, string friendName, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"SentFriend_{friendName}", new Color(0.18f, 0.13f, 0.2f), 250, 38, 0f, y);
-        CreateAnchoredText(row.transform, friendName, 14, FontStyle.Bold, Color.white, 128, 20, -48f, 0f);
+        GameObject row = CreateModalSectionPanel(parent, $"SentFriend_{friendName}", 250, 38, 0f, y, new Color(0.18f, 0.13f, 0.2f));
+        Text friendNameText = CreateAnchoredText(row.transform, friendName, 14, FontStyle.Bold, Color.white, 128, 20, -48f, 0f);
         Button cancel = CreateAnchoredButton(row.transform, "Cancel", 10, 70, 24, new Color(0.34f, 0.32f, 0.38f), 78f, 0f);
-        cancel.onClick.AddListener(() => CancelPrototypeFriendRequest(friendName));
+
+        SentFriendRequestRowView rowView = row.GetComponent<SentFriendRequestRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<SentFriendRequestRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(friendNameText, cancel);
+        rowView.CancelRequested += () => CancelPrototypeFriendRequest(friendName);
+        rowView.Apply(new SentFriendRequestRowDisplayModel(friendName, "Cancel"));
     }
 
     private void LoadPrototypeFriendsState()
@@ -2203,13 +2881,31 @@ public class BingoPrototype : MonoBehaviour
     {
         RemoveFriendMessageComposer();
 
-        GameObject panel = CreateAnchoredPanel(contentRoot, "FriendMessageComposer", new Color(0.055f, 0.028f, 0.085f, 0.995f), 700, 410, 0f, -18f);
+        GameObject panel = CreateModalShell("FriendMessageComposer", 700, 410, new Color(0.055f, 0.028f, 0.085f, 0.995f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, $"MESSAGE {friendName.ToUpperInvariant()}", 36, FontStyle.Bold, gold, 620, 46, 0f, 156f);
-        CreateAnchoredText(panel.transform, "Prototype note only. Sent messages live in Inbox > Messages.", 15, FontStyle.Bold, muted, 620, 28, 0f, 118f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            $"MESSAGE {friendName.ToUpperInvariant()}",
+            "Prototype note only. Sent messages live in Inbox > Messages.",
+            "Cancel",
+            gold,
+            muted,
+            new Color(0.18f, 0.16f, 0.22f),
+            620f,
+            156f,
+            620f,
+            28f,
+            118f,
+            15,
+            170f,
+            44f,
+            -110f,
+            -150f,
+            18);
+        chromeView.CloseRequested += RemoveFriendMessageComposer;
 
         prototypeFriendMessageInput = CreateAnchoredInputField(panel.transform, "FriendMessageInput", "Type a short message...", 560, 96, 0f, 42f);
         prototypeFriendMessageInput.text = $"Hi {friendName}! ";
@@ -2223,8 +2919,6 @@ public class BingoPrototype : MonoBehaviour
 
         prototypeFriendMessageStatusText = CreateAnchoredText(panel.transform, "", 14, FontStyle.Bold, new Color(1f, 0.58f, 0.58f), 560, 26, 0f, -82f);
 
-        Button cancel = CreateAnchoredButton(panel.transform, "Cancel", 18, 170, 44, new Color(0.18f, 0.16f, 0.22f), -110f, -150f);
-        cancel.onClick.AddListener(RemoveFriendMessageComposer);
         Button send = CreateAnchoredButton(panel.transform, "Send", 18, 170, 44, new Color(0.12f, 0.55f, 0.08f), 110f, -150f);
         send.onClick.AddListener(() => SendComposedPrototypeFriendMessage(friendName));
     }
@@ -2322,24 +3016,50 @@ public class BingoPrototype : MonoBehaviour
         RemoveDailyBonusModal();
         RemoveDailySpinModal();
 
-        GameObject panel = CreateAnchoredPanel(contentRoot, "LeaderboardModal", new Color(0.055f, 0.028f, 0.085f, 0.985f), 1040, 620, 0f, -18f);
+        GameObject panel = CreateModalShell("LeaderboardModal", 1040, 620, new Color(0.055f, 0.028f, 0.085f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "LEADERBOARDS", 44, FontStyle.Bold, gold, 860, 58, 0f, 258f);
-        CreateAnchoredText(panel.transform, "Prototype gameplay standings only. Rewards, seasons, scoring formula, and anti-abuse rules are not active.", 15, FontStyle.Bold, muted, 880, 34, 0f, 216f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "LEADERBOARDS",
+            "Prototype gameplay standings only. Rewards, seasons, scoring formula, and anti-abuse rules are not active.",
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            860f,
+            258f,
+            880f,
+            34f,
+            216f);
+        chromeView.CloseRequested += RemoveLeaderboardModal;
 
         CreateLeaderboardTabButton(panel.transform, "Friends", -240f, 168f);
         CreateLeaderboardTabButton(panel.transform, "Team", 0f, 168f);
         CreateLeaderboardTabButton(panel.transform, "Global", 240f, 168f);
 
-        GameObject board = CreateAnchoredPanel(panel.transform, "LeaderboardRows", new Color(0.1f, 0.045f, 0.14f), 850, 312, 0f, -22f);
-        CreateAnchoredText(board.transform, GetLeaderboardTitle(), 24, FontStyle.Bold, gold, 760, 32, 0f, 124f);
-        CreateAnchoredText(board.transform, "Rank", 14, FontStyle.Bold, muted, 80, 22, -352f, 86f);
-        CreateAnchoredText(board.transform, "Player", 14, FontStyle.Bold, muted, 250, 22, -200f, 86f);
-        CreateAnchoredText(board.transform, "Coven", 14, FontStyle.Bold, muted, 190, 22, 60f, 86f);
-        CreateAnchoredText(board.transform, "Weekly Score", 14, FontStyle.Bold, muted, 160, 22, 298f, 86f);
+        GameObject board = CreateModalSectionPanel(panel.transform, "LeaderboardRows", 850, 312, 0f, -22f);
+        Text boardTitleText = CreateModalSectionHeader(board.transform, GetLeaderboardTitle(), gold, 760, 0f, 124f, 24, 32f);
+        Text rankHeaderText = CreateAnchoredText(board.transform, "Rank", 14, FontStyle.Bold, muted, 80, 22, -352f, 86f);
+        Text playerHeaderText = CreateAnchoredText(board.transform, "Player", 14, FontStyle.Bold, muted, 250, 22, -200f, 86f);
+        Text covenHeaderText = CreateAnchoredText(board.transform, "Coven", 14, FontStyle.Bold, muted, 190, 22, 60f, 86f);
+        Text weeklyScoreHeaderText = CreateAnchoredText(board.transform, "Weekly Score", 14, FontStyle.Bold, muted, 160, 22, 298f, 86f);
+        LeaderboardBoardView boardView = board.GetComponent<LeaderboardBoardView>();
+        if (boardView == null)
+        {
+            boardView = board.AddComponent<LeaderboardBoardView>();
+        }
+
+        boardView.ResetRuntimeBindings();
+        boardView.Initialize(boardTitleText, rankHeaderText, playerHeaderText, covenHeaderText, weeklyScoreHeaderText);
+        boardView.Apply(new LeaderboardBoardDisplayModel(
+            GetLeaderboardTitle(),
+            "Rank",
+            "Player",
+            "Coven",
+            "Weekly Score"));
 
         string[,] rows = GetPrototypeLeaderboardRows();
         for (int index = 0; index < rows.GetLength(0); index++)
@@ -2348,21 +3068,45 @@ public class BingoPrototype : MonoBehaviour
         }
 
         GameObject scope = CreateAnchoredPanel(panel.transform, "LeaderboardScope", new Color(0.13f, 0.08f, 0.15f), 850, 76, 0f, -220f);
-        CreateAnchoredText(scope.transform, "Beta note: this is a UI shell for friends, Coven/team, and global views. Final metrics, reset cadence, rewards, ties, moderation, and backend syncing remain open.", 14, FontStyle.Bold, muted, 790, 54, 0f, 0f);
+        Text scopeNoteText = CreateAnchoredText(scope.transform, "Beta note: this is a UI shell for friends, Coven/team, and global views. Final metrics, reset cadence, rewards, ties, moderation, and backend syncing remain open.", 14, FontStyle.Bold, muted, 790, 54, 0f, 0f);
+        LeaderboardScopeNoteView scopeView = scope.GetComponent<LeaderboardScopeNoteView>();
+        if (scopeView == null)
+        {
+            scopeView = scope.AddComponent<LeaderboardScopeNoteView>();
+        }
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, violet, 0f, -286f);
-        close.onClick.AddListener(RemoveLeaderboardModal);
+        scopeView.ResetRuntimeBindings();
+        scopeView.Initialize(scopeNoteText);
+        scopeView.Apply(new LeaderboardScopeNoteDisplayModel("Beta note: this is a UI shell for friends, Coven/team, and global views. Final metrics, reset cadence, rewards, ties, moderation, and backend syncing remain open."));
     }
 
     private void CreateLeaderboardTabButton(Transform parent, string tab, float x, float y)
     {
         bool active = prototypeLeaderboardTab == tab;
         Button button = CreateAnchoredButton(parent, tab, 18, 200, 42, active ? new Color(0.55f, 0.18f, 0.78f) : new Color(0.18f, 0.16f, 0.28f), x, y);
-        button.onClick.AddListener(() =>
+        UITabButtonBinder binder = button.GetComponent<UITabButtonBinder>();
+        if (binder == null)
         {
-            prototypeLeaderboardTab = tab;
-            BuildLeaderboardUi();
-        });
+            binder = button.gameObject.AddComponent<UITabButtonBinder>();
+        }
+
+        binder.SetSelected(active);
+        LeaderboardTabButtonView tabView = button.GetComponent<LeaderboardTabButtonView>();
+        if (tabView == null)
+        {
+            tabView = button.gameObject.AddComponent<LeaderboardTabButtonView>();
+        }
+
+        tabView.ResetRuntimeBindings();
+        tabView.Initialize(binder, tab);
+        tabView.SetSelected(active);
+        tabView.TabSelected += HandleLeaderboardTabSelected;
+    }
+
+    private void HandleLeaderboardTabSelected(string tab)
+    {
+        prototypeLeaderboardTab = tab;
+        BuildLeaderboardUi();
     }
 
     private string GetLeaderboardTitle()
@@ -2422,10 +3166,19 @@ public class BingoPrototype : MonoBehaviour
         Color rowColor = isPlayer ? new Color(0.96f, 0.86f, 0.62f) : new Color(0.18f, 0.13f, 0.2f);
         Color textColor = isPlayer ? new Color(0.18f, 0.08f, 0.32f) : Color.white;
         GameObject row = CreateAnchoredPanel(parent, $"LeaderboardRow_{rank}", rowColor, 780, 40, 0f, y);
-        CreateAnchoredText(row.transform, $"#{rank}", 16, FontStyle.Bold, textColor, 78, 22, -350f, 0f);
-        CreateAnchoredText(row.transform, playerName, 16, FontStyle.Bold, textColor, 238, 22, -200f, 0f);
-        CreateAnchoredText(row.transform, covenName, 14, FontStyle.Bold, textColor, 190, 22, 60f, 0f);
-        CreateAnchoredText(row.transform, score, 16, FontStyle.Bold, textColor, 150, 22, 298f, 0f);
+        Text rankText = CreateAnchoredText(row.transform, $"#{rank}", 16, FontStyle.Bold, textColor, 78, 22, -350f, 0f);
+        Text playerNameText = CreateAnchoredText(row.transform, playerName, 16, FontStyle.Bold, textColor, 238, 22, -200f, 0f);
+        Text covenNameText = CreateAnchoredText(row.transform, covenName, 14, FontStyle.Bold, textColor, 190, 22, 60f, 0f);
+        Text scoreText = CreateAnchoredText(row.transform, score, 16, FontStyle.Bold, textColor, 150, 22, 298f, 0f);
+        LeaderboardRowView rowView = row.GetComponent<LeaderboardRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<LeaderboardRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(rankText, playerNameText, covenNameText, scoreText);
+        rowView.Apply(new LeaderboardRowDisplayModel($"#{rank}", playerName, covenName, score));
     }
 
     private void RemoveLeaderboardModal()
@@ -2452,16 +3205,38 @@ public class BingoPrototype : MonoBehaviour
         RemoveDailyBonusModal();
         RemoveDailySpinModal();
 
-        GameObject panel = CreateAnchoredPanel(contentRoot, "MayhemMarketModal", new Color(0.055f, 0.028f, 0.085f, 0.985f), 1060, 630, 0f, -18f);
+        GameObject panel = CreateModalShell("MayhemMarketModal", 1060, 630, new Color(0.055f, 0.028f, 0.085f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "MAYHEM MARKET", 44, FontStyle.Bold, gold, 880, 58, 0f, 262f);
-        CreateAnchoredText(panel.transform, "In-app purchase storefront shell. Products, prices, grants, purchase restore, platform IAP, and receipt validation are not active.", 15, FontStyle.Bold, muted, 900, 36, 0f, 220f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "MAYHEM MARKET",
+            "In-app purchase storefront shell. Products, prices, grants, purchase restore, platform IAP, and receipt validation are not active.",
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            880f,
+            262f,
+            900f,
+            36f,
+            220f);
+        chromeView.CloseRequested += RemoveMayhemMarketModal;
 
-        GameObject wallet = CreateAnchoredPanel(panel.transform, "MarketWallet", new Color(0.11f, 0.045f, 0.16f), 900, 54, 0f, 168f);
-        CreateAnchoredText(wallet.transform, $"Current wallet preview: {inventory.GetManaText()} Mana | {inventory.GetCrystalText()} Crystals", 20, FontStyle.Bold, Color.white, 820, 28, 0f, 0f);
+        GameObject wallet = CreateModalSectionPanel(panel.transform, "MarketWallet", 900, 54, 0f, 168f);
+        string walletPreviewText = $"Current wallet preview: {inventory.GetManaText()} Mana | {inventory.GetCrystalText()} Crystals";
+        Text walletText = CreateAnchoredText(wallet.transform, walletPreviewText, 20, FontStyle.Bold, Color.white, 820, 28, 0f, 0f);
+        MayhemMarketWalletView walletView = wallet.GetComponent<MayhemMarketWalletView>();
+        if (walletView == null)
+        {
+            walletView = wallet.AddComponent<MayhemMarketWalletView>();
+        }
+
+        walletView.ResetRuntimeBindings();
+        walletView.Initialize(walletText);
+        walletView.Apply(new MayhemMarketWalletDisplayModel(walletPreviewText));
 
         CreateMarketOfferCard(panel.transform, "Mana", "Small Mana Pouch", "Price TBD\nGrant TBD", -330f, 60f);
         CreateMarketOfferCard(panel.transform, "Crystals", "Crystal Bundle", "Price TBD\nGrant TBD", 0f, 60f);
@@ -2471,20 +3246,35 @@ public class BingoPrototype : MonoBehaviour
         CreateMarketOfferCard(panel.transform, "Restore", "Restore Purchases", "Platform IAP later\nNo-op prototype", 330f, -118f);
 
         GameObject rules = CreateAnchoredPanel(panel.transform, "MarketRules", new Color(0.13f, 0.08f, 0.15f), 900, 70, 0f, -236f);
-        CreateAnchoredText(rules.transform, "Guardrails: purchases may support comfort/cosmetics, but cannot bypass core progression or let players pay their way up Aura Rank.", 14, FontStyle.Bold, muted, 830, 44, 0f, 0f);
+        const string marketRulesText = "Guardrails: purchases may support comfort/cosmetics, but cannot bypass core progression or let players pay their way up Aura Rank.";
+        Text rulesText = CreateAnchoredText(rules.transform, marketRulesText, 14, FontStyle.Bold, muted, 830, 44, 0f, 0f);
+        MayhemMarketRulesNoteView rulesView = rules.GetComponent<MayhemMarketRulesNoteView>();
+        if (rulesView == null)
+        {
+            rulesView = rules.AddComponent<MayhemMarketRulesNoteView>();
+        }
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, violet, 0f, -292f);
-        close.onClick.AddListener(RemoveMayhemMarketModal);
+        rulesView.ResetRuntimeBindings();
+        rulesView.Initialize(rulesText);
+        rulesView.Apply(new MayhemMarketRulesNoteDisplayModel(marketRulesText));
     }
 
     private void CreateMarketOfferCard(Transform parent, string category, string title, string detail, float x, float y)
     {
-        GameObject card = CreateAnchoredPanel(parent, $"MarketOffer_{category}", new Color(0.96f, 0.86f, 0.62f), 280, 148, x, y);
-        CreateAnchoredText(card.transform, category.ToUpperInvariant(), 14, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 240, 22, 0f, 48f);
-        CreateAnchoredText(card.transform, title, 20, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 240, 28, 0f, 20f);
-        CreateAnchoredText(card.transform, detail, 13, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 230, 42, 0f, -18f);
+        GameObject card = CreateModalInfoCard(parent, $"MarketOffer_{category}", 280, 148, x, y);
+        Text categoryText = CreateAnchoredText(card.transform, category.ToUpperInvariant(), 14, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 240, 22, 0f, 48f);
+        Text titleText = CreateAnchoredText(card.transform, title, 20, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 240, 28, 0f, 20f);
+        Text detailText = CreateAnchoredText(card.transform, detail, 13, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 230, 42, 0f, -18f);
         Button button = CreateAnchoredButton(card.transform, "Purchase Locked", 13, 180, 28, new Color(0.34f, 0.32f, 0.38f), 0f, -56f);
-        button.interactable = false;
+        MayhemMarketOfferCardView cardView = card.GetComponent<MayhemMarketOfferCardView>();
+        if (cardView == null)
+        {
+            cardView = card.AddComponent<MayhemMarketOfferCardView>();
+        }
+
+        cardView.ResetRuntimeBindings();
+        cardView.Initialize(categoryText, titleText, detailText, button);
+        cardView.Apply(new MayhemMarketOfferDisplayModel(category.ToUpperInvariant(), title, detail, "Purchase Locked", false));
     }
 
     private void RemoveMayhemMarketModal()
@@ -2504,25 +3294,43 @@ public class BingoPrototype : MonoBehaviour
     private void BuildBewitchmentBazaarUi()
     {
         RemoveBewitchmentBazaarModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "BewitchmentBazaarModal", new Color(0.055f, 0.028f, 0.085f, 0.985f), 1140, 650, 0f, -18f);
+        GameObject panel = CreateModalShell("BewitchmentBazaarModal", 1140, 650, new Color(0.055f, 0.028f, 0.085f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "BEWITCHMENT BAZAAR", 40, FontStyle.Bold, gold, 980, 54, 0f, 274f);
-        CreateAnchoredText(panel.transform, "Prototype market hub. Center cart is the card/crystal swap area; Madame Solange and Coven are nearby destinations.", 15, FontStyle.Bold, muted, 980, 36, 0f, 232f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "BEWITCHMENT BAZAAR",
+            "Prototype market hub. Center cart is the card/crystal swap area; Madame Solange and Coven are nearby destinations.",
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            980f,
+            274f,
+            980f,
+            36f,
+            232f);
+        chromeView.CloseRequested += BuildPlayerDenUi;
 
-        GameObject oracleAlley = CreateAnchoredPanel(panel.transform, "BazaarOracleAlley", new Color(0.11f, 0.045f, 0.16f), 250, 390, -430f, 28f);
-        Button oracleArea = oracleAlley.AddComponent<Button>();
-        oracleArea.onClick.AddListener(BuildOracleAlleyReadingUi);
-        CreateAnchoredText(oracleAlley.transform, "ORACLE\nALLEY", 32, FontStyle.Bold, gold, 210, 82, 0f, 106f);
-        CreateAnchoredText(oracleAlley.transform, "Madame Solange", 18, FontStyle.Bold, Color.white, 210, 30, 0f, 34f);
-        CreateAnchoredText(oracleAlley.transform, "Reading table", 15, FontStyle.Bold, muted, 210, 28, 0f, -4f);
-        CreateAnchoredText(oracleAlley.transform, "Tap the table", 13, FontStyle.Bold, muted, 190, 28, 0f, -138f);
+        BazaarDestinationPanelView oracleAlley = CreateBazaarDestinationPanel(
+            panel.transform,
+            "BazaarOracleAlley",
+            new BazaarDestinationPanelDisplayModel(
+                "ORACLE\nALLEY",
+                "Madame Solange",
+                "Reading table",
+                "Tap the table"),
+            gold,
+            muted,
+            -430f,
+            28f);
+        oracleAlley.Selected += BuildOracleAlleyReadingUi;
 
         GameObject cart = CreateAnchoredPanel(panel.transform, "BazaarCardCart", new Color(0.14f, 0.07f, 0.16f), 570, 390, -42f, 28f);
-        CreateAnchoredText(cart.transform, "CARD / CRYSTAL SWAP CART", 30, FontStyle.Bold, gold, 510, 42, 0f, 148f);
-        CreateAnchoredText(cart.transform, "Daily market placeholder", 17, FontStyle.Bold, muted, 420, 24, 0f, 112f);
+        Text cartTitleText = CreateModalSectionHeader(cart.transform, "CARD / CRYSTAL SWAP CART", gold, 510, 0f, 148f, 30, 42f);
+        Text cartSubtitleText = CreateAnchoredText(cart.transform, "Daily market placeholder", 17, FontStyle.Bold, muted, 420, 24, 0f, 112f);
         CreateBazaarMarketCard(cart.transform, "Moonpetal", "30", -210f, 38f);
         CreateBazaarMarketCard(cart.transform, "Dewdrop", "35", -126f, 38f);
         CreateBazaarMarketCard(cart.transform, "Nightshade", "28", -42f, 38f);
@@ -2531,64 +3339,161 @@ public class BingoPrototype : MonoBehaviour
         CreateBazaarMarketCard(cart.transform, "Dreamsand", "50", 210f, 38f);
         Button swap = CreateAnchoredButton(cart.transform, "Swap Later", 20, 230, 48, new Color(0.34f, 0.32f, 0.38f), 0f, -138f);
         swap.interactable = false;
+        BazaarSwapCartView cartView = cart.GetComponent<BazaarSwapCartView>();
+        if (cartView == null)
+        {
+            cartView = cart.AddComponent<BazaarSwapCartView>();
+        }
 
-        GameObject covenDoor = CreateAnchoredPanel(panel.transform, "BazaarCovenDoor", new Color(0.13f, 0.08f, 0.12f), 250, 390, 430f, 28f);
-        Button covenArea = covenDoor.AddComponent<Button>();
-        covenArea.onClick.AddListener(BuildCovenCircleUi);
-        CreateAnchoredText(covenDoor.transform, "COVEN", 34, FontStyle.Bold, gold, 210, 48, 0f, 114f);
-        CreateAnchoredText(covenDoor.transform, coven.IsJoined ? coven.CovenName : "Coven Circle", 17, FontStyle.Bold, Color.white, 210, 30, 0f, 58f);
-        CreateAnchoredText(covenDoor.transform, "Social, orbs, requests,\nand member help live here.", 15, FontStyle.Bold, muted, 210, 74, 0f, -10f);
-        CreateAnchoredText(covenDoor.transform, "Tap the door", 13, FontStyle.Bold, muted, 190, 28, 0f, -138f);
+        cartView.ResetRuntimeBindings();
+        cartView.Initialize(cartTitleText, cartSubtitleText, swap);
+        cartView.Apply(new BazaarSwapCartDisplayModel("CARD / CRYSTAL SWAP CART", "Daily market placeholder", "Swap Later"));
 
-        CreateAnchoredText(panel.transform, "Swap costs and Bazaar catalog are placeholders only; no purchase economy is active in this pass.", 15, FontStyle.Bold, muted, 960, 36, 0f, -206f);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, violet, 0f, -292f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        BazaarDestinationPanelView covenDoor = CreateBazaarDestinationPanel(
+            panel.transform,
+            "BazaarCovenDoor",
+            new BazaarDestinationPanelDisplayModel(
+                "COVEN",
+                coven.IsJoined ? coven.CovenName : "Coven Circle",
+                "Social, orbs, requests,\nand member help live here.",
+                "Tap the door"),
+            gold,
+            muted,
+            430f,
+            28f);
+        covenDoor.Selected += BuildCovenCircleUi;
+
+        const string bazaarFooterText = "Swap costs and Bazaar catalog are placeholders only; no purchase economy is active in this pass.";
+        Text footerNoteText = CreateAnchoredText(panel.transform, bazaarFooterText, 15, FontStyle.Bold, muted, 960, 36, 0f, -206f);
+        BazaarFooterNoteView footerNoteView = panel.GetComponent<BazaarFooterNoteView>();
+        if (footerNoteView == null)
+        {
+            footerNoteView = panel.AddComponent<BazaarFooterNoteView>();
+        }
+
+        footerNoteView.ResetRuntimeBindings();
+        footerNoteView.Initialize(footerNoteText);
+        footerNoteView.Apply(new BazaarFooterNoteDisplayModel(bazaarFooterText));
     }
 
     private void CreateBazaarMarketCard(Transform parent, string title, string crystalCost, float x, float y)
     {
-        GameObject card = CreateAnchoredPanel(parent, $"BazaarCard_{title}", new Color(0.96f, 0.86f, 0.62f), 74, 128, x, y);
-        CreateAnchoredText(card.transform, "*", 32, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 56, 34, 0f, 32f);
-        CreateAnchoredText(card.transform, title, 10, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 66, 26, 0f, -6f);
-        CreateAnchoredText(card.transform, "<> " + crystalCost, 13, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 66, 22, 0f, -44f);
+        GameObject card = CreateModalInfoCard(parent, $"BazaarCard_{title}", 74, 128, x, y);
+        Text accentText = CreateAnchoredText(card.transform, "*", 32, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 56, 34, 0f, 32f);
+        Text titleText = CreateAnchoredText(card.transform, title, 10, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 66, 26, 0f, -6f);
+        Text detailText = CreateAnchoredText(card.transform, "<> " + crystalCost, 13, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 66, 22, 0f, -44f);
+        UIBadgeCardView badgeView = card.GetComponent<UIBadgeCardView>();
+        if (badgeView == null)
+        {
+            badgeView = card.AddComponent<UIBadgeCardView>();
+        }
+
+        badgeView.ResetRuntimeBindings();
+        badgeView.Initialize(accentText, titleText, detailText);
+        badgeView.Apply("*", title, "<> " + crystalCost);
+    }
+
+    private BazaarDestinationPanelView CreateBazaarDestinationPanel(Transform parent, string panelName, BazaarDestinationPanelDisplayModel displayModel, Color titleColor, Color mutedColor, float x, float y)
+    {
+        GameObject panel = CreateModalSectionPanel(parent, panelName, 250, 390, x, y);
+        Button button = panel.GetComponent<Button>();
+        if (button == null)
+        {
+            button = panel.AddComponent<Button>();
+        }
+
+        Text titleText = CreateAnchoredText(panel.transform, displayModel.Title, 32, FontStyle.Bold, titleColor, 210, 82, 0f, 106f);
+        Text subtitleText = CreateAnchoredText(panel.transform, displayModel.Subtitle, 18, FontStyle.Bold, Color.white, 210, 30, 0f, 34f);
+        Text detailText = CreateAnchoredText(panel.transform, displayModel.Detail, 15, FontStyle.Bold, mutedColor, 210, 74, 0f, -10f);
+        Text hintText = CreateAnchoredText(panel.transform, displayModel.Hint, 13, FontStyle.Bold, mutedColor, 190, 28, 0f, -138f);
+
+        BazaarDestinationPanelView panelView = panel.GetComponent<BazaarDestinationPanelView>();
+        if (panelView == null)
+        {
+            panelView = panel.AddComponent<BazaarDestinationPanelView>();
+        }
+
+        panelView.ResetRuntimeBindings();
+        panelView.Initialize(titleText, subtitleText, detailText, hintText, button);
+        panelView.Apply(displayModel);
+        return panelView;
     }
 
     private void BuildOracleAlleyReadingUi()
     {
         RemoveBewitchmentBazaarModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "BewitchmentBazaarModal", new Color(0.05f, 0.02f, 0.075f, 0.99f), 1140, 650, 0f, -18f);
+        GameObject panel = CreateModalShell("BewitchmentBazaarModal", 1140, 650, new Color(0.05f, 0.02f, 0.075f, 0.99f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
         bool readingComplete = prototypeOracleSelectedCards.Count >= 3;
 
-        CreateAnchoredText(panel.transform, "ORACLE ALLEY", 42, FontStyle.Bold, gold, 820, 54, 0f, 274f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "ORACLE ALLEY",
+            "Visual reading prototype only. Costs, odds, dust conversion, rewards, and Book of Shadows rules remain TBD.",
+            "Back to Bazaar",
+            gold,
+            muted,
+            violet,
+            820f,
+            274f,
+            920f,
+            36f,
+            232f,
+            15,
+            220f,
+            48f,
+            -130f,
+            -292f,
+            20);
+        chromeView.CloseRequested += BuildBewitchmentBazaarUi;
         CreateAnchoredText(panel.transform, "MADAME SOLANGE", 25, FontStyle.Bold, gold, 420, 36, -372f, 206f);
-        CreateAnchoredText(panel.transform, "Visual reading prototype only. Costs, odds, dust conversion, rewards, and Book of Shadows rules remain TBD.", 15, FontStyle.Bold, muted, 920, 36, 52f, 232f);
 
-        GameObject table = CreateAnchoredPanel(panel.transform, "MadameSolangeReadingTable", new Color(0.13f, 0.045f, 0.14f), 900, 390, 0f, 22f);
-        CreateAnchoredText(table.transform, "PICK 3 CARDS", 28, FontStyle.Bold, gold, 260, 42, -320f, 116f);
-        CreateAnchoredText(table.transform, $"{Mathf.Max(0, 3 - prototypeOracleSelectedCards.Count)} of 3 choices left | Cost TBD", 17, FontStyle.Bold, muted, 300, 30, -300f, 70f);
+        GameObject table = CreateModalSectionPanel(panel.transform, "MadameSolangeReadingTable", 900, 390, 0f, 22f);
+        string oracleTableTitle = "PICK 3 CARDS";
+        string oracleStatusText = $"{Mathf.Max(0, 3 - prototypeOracleSelectedCards.Count)} of 3 choices left | Cost TBD";
+        Text oracleTableTitleText = CreateModalSectionHeader(table.transform, oracleTableTitle, gold, 260, -320f, 116f, 28, 42f);
+        Text oracleStatusLabelText = CreateAnchoredText(table.transform, oracleStatusText, 17, FontStyle.Bold, muted, 300, 30, -300f, 70f);
+        OracleReadingTableView tableView = table.GetComponent<OracleReadingTableView>();
+        if (tableView == null)
+        {
+            tableView = table.AddComponent<OracleReadingTableView>();
+        }
+
+        tableView.ResetRuntimeBindings();
+        tableView.Initialize(oracleTableTitleText, oracleStatusLabelText);
+        tableView.Apply(new OracleReadingTableDisplayModel(oracleTableTitle, oracleStatusText));
         for (int index = 0; index < 5; index++)
         {
             CreateOracleFaceDownCard(table.transform, -240f + index * 120f, -22f, index + 1);
         }
 
+        string summaryTextValue;
         if (readingComplete)
         {
             CreateAnchoredPanel(table.transform, "OracleBonusPreview", new Color(0.08f, 0.04f, 0.12f), 330, 86, 280f, 102f);
             CreateAnchoredText(table.transform, "BOOK OF SHADOWS BONUS", 17, FontStyle.Bold, gold, 300, 24, 280f, 120f);
             CreateAnchoredText(table.transform, "Placeholder only - no bonus granted", 13, FontStyle.Bold, muted, 300, 28, 280f, 94f);
-            CreateAnchoredText(table.transform, "The vision is complete. Outcome categories are previews only.", 16, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 720, 32, 0f, -160f);
+            summaryTextValue = "The vision is complete. Outcome categories are previews only.";
         }
         else
         {
-            CreateAnchoredText(table.transform, string.IsNullOrWhiteSpace(lastOracleReadingSummary) ? "Tap a card to preview a reveal. Madame Solange is not a general helper." : lastOracleReadingSummary, 16, FontStyle.Bold, Color.white, 720, 42, 0f, -160f);
+            summaryTextValue = string.IsNullOrWhiteSpace(lastOracleReadingSummary) ? "Tap a card to preview a reveal. Madame Solange is not a general helper." : lastOracleReadingSummary;
         }
 
-        Button back = CreateAnchoredButton(panel.transform, "Back to Bazaar", 20, 220, 48, violet, -130f, -292f);
-        back.onClick.AddListener(BuildBewitchmentBazaarUi);
-        Button reset = CreateAnchoredButton(panel.transform, readingComplete ? "Close Reading" : "Reset Reading", 20, 220, 48, readingComplete ? new Color(0.12f, 0.55f, 0.08f) : violet, 130f, -292f);
+        Text summaryText = CreateAnchoredText(table.transform, summaryTextValue, 16, FontStyle.Bold, readingComplete ? new Color(0.8f, 1f, 0.55f) : Color.white, 720, readingComplete ? 32 : 42, 0f, -160f);
+        string resetButtonText = readingComplete ? "Close Reading" : "Reset Reading";
+        Button reset = CreateAnchoredButton(panel.transform, resetButtonText, 20, 220, 48, readingComplete ? new Color(0.12f, 0.55f, 0.08f) : violet, 130f, -292f);
+        OracleReadingSummaryView summaryView = panel.GetComponent<OracleReadingSummaryView>();
+        if (summaryView == null)
+        {
+            summaryView = panel.AddComponent<OracleReadingSummaryView>();
+        }
+
+        summaryView.ResetRuntimeBindings();
+        summaryView.Initialize(summaryText, reset);
+        summaryView.Apply(new OracleReadingSummaryDisplayModel(summaryTextValue, resetButtonText));
         reset.onClick.AddListener(() =>
         {
             ResetPrototypeOracleReading();
@@ -2685,12 +3590,31 @@ public class BingoPrototype : MonoBehaviour
         RemoveDailyBonusModal();
         RemoveDailySpinModal();
         RemoveSocialFreebiesModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "SocialFreebiesModal", new Color(0.07f, 0.035f, 0.12f, 0.985f), 860, 430, 0f, -24f);
+        GameObject panel = CreateModalShell("SocialFreebiesModal", 860, 430, new Color(0.07f, 0.035f, 0.12f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
+        Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "SOCIAL FREEBIES", 42, FontStyle.Bold, gold, 720, 56, 0f, 156f);
-        CreateAnchoredText(panel.transform, "Follow our social feeds. Freebie posts link back into the game and redeem rewards automatically.", 16, FontStyle.Bold, muted, 720, 48, 0f, 106f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "SOCIAL FREEBIES",
+            "Follow our social feeds. Freebie posts link back into the game and redeem rewards automatically.",
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            720f,
+            156f,
+            720f,
+            48f,
+            106f,
+            16,
+            220f,
+            48f,
+            0f,
+            -158f,
+            20);
+        chromeView.CloseRequested += BuildPlayerDenUi;
 
         Button instagram = CreateAnchoredButton(panel.transform, "Instagram", 18, 190, 48, new Color(0.55f, 0.18f, 0.78f), -230f, 28f);
         instagram.onClick.AddListener(() => OpenSocialFreebiesUrl(PrototypeInstagramUrl, "Instagram"));
@@ -2701,10 +3625,27 @@ public class BingoPrototype : MonoBehaviour
 
         Button simulate = CreateAnchoredButton(panel.transform, "Simulate Freebie Link", 18, 260, 42, new Color(0.12f, 0.55f, 0.08f), 0f, -58f);
         simulate.onClick.AddListener(() => HandlePrototypeDeepLink(BuildPrototypeSocialFreebieAppUrl()));
+        SocialFreebiesActionsView actionsView = panel.GetComponent<SocialFreebiesActionsView>();
+        if (actionsView == null)
+        {
+            actionsView = panel.AddComponent<SocialFreebiesActionsView>();
+        }
 
-        CreateAnchoredText(panel.transform, "Prototype social URLs are placeholders. Freebie reward values are placeholders, not final economy tuning.", 14, FontStyle.Bold, muted, 700, 44, 0f, -112f);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -158f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        actionsView.ResetRuntimeBindings();
+        actionsView.Initialize(instagram, facebook, x, simulate);
+        actionsView.Apply(new SocialFreebiesActionsDisplayModel("Instagram", "Facebook", "X", "Simulate Freebie Link"));
+
+        const string socialFreebiesNote = "Prototype social URLs are placeholders. Freebie reward values are placeholders, not final economy tuning.";
+        Text socialFreebiesNoteText = CreateAnchoredText(panel.transform, socialFreebiesNote, 14, FontStyle.Bold, muted, 700, 44, 0f, -112f);
+        SocialFreebiesFooterNoteView footerNoteView = panel.GetComponent<SocialFreebiesFooterNoteView>();
+        if (footerNoteView == null)
+        {
+            footerNoteView = panel.AddComponent<SocialFreebiesFooterNoteView>();
+        }
+
+        footerNoteView.ResetRuntimeBindings();
+        footerNoteView.Initialize(socialFreebiesNoteText);
+        footerNoteView.Apply(new SocialFreebiesFooterNoteDisplayModel(socialFreebiesNote));
     }
 
     private void OpenSocialFreebiesUrl(string url, string label)
@@ -2853,12 +3794,53 @@ public class BingoPrototype : MonoBehaviour
         return false;
     }
 
-    private GameObject CreateDenBottomButton(string title, string subtitle, float x)
+    private PlayerDenActionTileView CreateDenBottomButton(string title, string subtitle, float x)
     {
         GameObject tile = CreateAnchoredPanel(contentRoot, $"DenBottom_{title}", new Color(0.13f, 0.07f, 0.18f), 154, 86, x, -378f);
-        CreateAnchoredText(tile.transform, title, 19, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 132, 28, 0f, 18f);
-        CreateAnchoredText(tile.transform, subtitle, 12, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 132, 24, 0f, -18f);
-        return tile;
+        Button button = tile.GetComponent<Button>();
+        if (button == null)
+        {
+            button = tile.AddComponent<Button>();
+        }
+
+        Text titleText = CreateAnchoredText(tile.transform, title, 19, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 132, 28, 0f, 18f);
+        Text subtitleText = CreateAnchoredText(tile.transform, subtitle, 12, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 132, 24, 0f, -18f);
+        PlayerDenActionTileView cardView = tile.GetComponent<PlayerDenActionTileView>();
+        if (cardView == null)
+        {
+            cardView = tile.AddComponent<PlayerDenActionTileView>();
+        }
+
+        cardView.ResetRuntimeBindings();
+        cardView.Initialize(titleText, subtitleText, button);
+        cardView.Apply(title, subtitle);
+        return cardView;
+    }
+
+    private PlayerDenFeatureTileView CreateDenFeatureTile(string name, Color tileColor, float width, float height, float x, float y, string title, string subtitle, string detail, string hint, int titleFontSize, Color titleColor, Color mutedColor)
+    {
+        GameObject tile = CreateAnchoredPanel(contentRoot, name, tileColor, width, height, x, y);
+        Button button = tile.GetComponent<Button>();
+        if (button == null)
+        {
+            button = tile.AddComponent<Button>();
+        }
+
+        Text titleText = CreateAnchoredText(tile.transform, title, titleFontSize, FontStyle.Bold, titleColor, 330, 76, 0f, 62f);
+        Text subtitleText = CreateAnchoredText(tile.transform, subtitle, 16, FontStyle.Bold, mutedColor, 320, 28, 0f, 2f);
+        Text detailText = CreateAnchoredText(tile.transform, detail, 18, FontStyle.Bold, Color.white, 300, 32, 0f, -62f);
+        Text hintText = CreateAnchoredText(tile.transform, hint, 13, FontStyle.Bold, mutedColor, 300, 24, 0f, -104f);
+
+        PlayerDenFeatureTileView tileView = tile.GetComponent<PlayerDenFeatureTileView>();
+        if (tileView == null)
+        {
+            tileView = tile.AddComponent<PlayerDenFeatureTileView>();
+        }
+
+        tileView.ResetRuntimeBindings();
+        tileView.Initialize(titleText, subtitleText, detailText, hintText, button);
+        tileView.Apply(title, subtitle, detail, hint);
+        return tileView;
     }
 
     private void BuildDailyBonusUi()
@@ -2869,23 +3851,39 @@ public class BingoPrototype : MonoBehaviour
         RemoveDailyBonusModal();
 
         GameObject panel = CreateAnchoredPanel(contentRoot, "DailyBonusModal", new Color(0.055f, 0.025f, 0.095f, 0.985f), 1220, 650, 0f, -34f);
+        panel.transform.localPosition = new Vector3(panel.transform.localPosition.x, -34f, panel.transform.localPosition.z);
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
 
-        CreateAnchoredText(panel.transform, "DAILY BONUS", 54, FontStyle.Bold, gold, 800, 66, 0f, 270f);
+        Text headerTitleText = CreateAnchoredText(panel.transform, "DAILY BONUS", 54, FontStyle.Bold, gold, 800, 66, 0f, 270f);
         Button info = CreateAnchoredButton(panel.transform, "i", 22, 42, 42, new Color(0.18f, 0.16f, 0.28f), 338f, 272f);
         info.onClick.AddListener(() => coven.AddPrototypeChatLine("Daily Bonus: claim once per day. The 7-day track is the main loop; the streak rail tracks long-running chest milestones."));
-        CreateAnchoredText(panel.transform, $"Daily Streak: {inventory.DailyBonusStreak} days", 26, FontStyle.Bold, Color.white, 420, 42, -350f, 214f);
+        Text streakText = CreateAnchoredText(panel.transform, $"Daily Streak: {inventory.DailyBonusStreak} days", 26, FontStyle.Bold, Color.white, 420, 42, -350f, 214f);
         int nextChest = inventory.GetNextDailyBonusChestDay();
-        CreateAnchoredText(panel.transform, $"Next Chest: Day {nextChest}", 26, FontStyle.Bold, Color.white, 420, 42, 350f, 214f);
+        Text nextChestText = CreateAnchoredText(panel.transform, $"Next Chest: Day {nextChest}", 26, FontStyle.Bold, Color.white, 420, 42, 350f, 214f);
+        Text streakWarningText = null;
 
         if (inventory.HasMissedDailyBonusStreak())
         {
-            CreateAnchoredText(panel.transform, "You missed a day. Save the streak or claim to restart at Day 1.", 17, FontStyle.Bold, new Color(1f, 0.86f, 0.62f), 760, 28, 0f, 184f);
+            streakWarningText = CreateAnchoredText(panel.transform, "You missed a day. Save the streak or claim to restart at Day 1.", 17, FontStyle.Bold, new Color(1f, 0.86f, 0.62f), 760, 28, 0f, 184f);
             Button saveStreak = CreateAnchoredButton(panel.transform, inventory.GetDailyBonusStreakSaveSummary(), 16, 280, 38, inventory.CanUseDailyBonusStreakSave() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 0f, 184f);
             saveStreak.interactable = inventory.CanUseDailyBonusStreakSave();
             saveStreak.onClick.AddListener(SaveDailyBonusStreakFromDen);
         }
+
+        DailyBonusHeaderView headerView = panel.GetComponent<DailyBonusHeaderView>();
+        if (headerView == null)
+        {
+            headerView = panel.AddComponent<DailyBonusHeaderView>();
+        }
+
+        headerView.ResetRuntimeBindings();
+        headerView.Initialize(headerTitleText, streakText, nextChestText, streakWarningText);
+        headerView.Apply(new DailyBonusHeaderDisplayModel(
+            "DAILY BONUS",
+            $"Daily Streak: {inventory.DailyBonusStreak} days",
+            $"Next Chest: Day {nextChest}",
+            inventory.HasMissedDailyBonusStreak() ? "You missed a day. Save the streak or claim to restart at Day 1." : string.Empty));
 
         CreateDailyBonusMilestoneRail(panel.transform, nextChest);
         CreateAnchoredText(panel.transform, "7-DAY DAILY BONUS", 34, FontStyle.Bold, gold, 620, 48, 0f, 62f);
@@ -2901,8 +3899,17 @@ public class BingoPrototype : MonoBehaviour
         claim.interactable = inventory.CanClaimDailyBonus();
         claim.onClick.AddListener(ClaimDailyBonusFromDen);
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), -470f, -262f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        Button close = CreateDenReturnFooter(panel.transform, -470f, -262f, BuildPlayerDenUi);
+        close.GetComponent<Image>().color = new Color(0.18f, 0.16f, 0.22f);
+        DailyBonusActionAreaView actionAreaView = panel.GetComponent<DailyBonusActionAreaView>();
+        if (actionAreaView == null)
+        {
+            actionAreaView = panel.AddComponent<DailyBonusActionAreaView>();
+        }
+
+        actionAreaView.ResetRuntimeBindings();
+        actionAreaView.Initialize(claim, close);
+        actionAreaView.Apply(new DailyBonusActionAreaDisplayModel(claimText, "Back to Den"));
     }
 
     private void CreateDailyBonusMilestoneRail(Transform parent, int nextChest)
@@ -2923,12 +3930,31 @@ public class BingoPrototype : MonoBehaviour
             bool reached = inventory.DailyBonusStreak >= day;
             bool target = day == nextChest;
             GameObject marker = CreateAnchoredPanel(parent, $"DailyMilestone_{day}", target ? new Color(0.55f, 0.18f, 0.78f) : reached ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.2f, 0.12f, 0.28f), target ? 74 : 58, target ? 58 : 46, x, 150f);
-            CreateAnchoredText(marker.transform, target ? "CHEST" : "GIFT", target ? 13 : 11, FontStyle.Bold, Color.white, target ? 66 : 50, 18, 0f, 8f);
-            CreateAnchoredText(parent, day.ToString(), 22, FontStyle.Bold, Color.white, 80, 26, x, 108f);
+            Text badgeText = CreateAnchoredText(marker.transform, target ? "CHEST" : "GIFT", target ? 13 : 11, FontStyle.Bold, Color.white, target ? 66 : 50, 18, 0f, 8f);
+            Text dayText = CreateAnchoredText(parent, day.ToString(), 22, FontStyle.Bold, Color.white, 80, 26, x, 108f);
+            DailyBonusMilestoneMarkerView markerView = marker.GetComponent<DailyBonusMilestoneMarkerView>();
+            if (markerView == null)
+            {
+                markerView = marker.AddComponent<DailyBonusMilestoneMarkerView>();
+            }
+
+            markerView.ResetRuntimeBindings();
+            markerView.Initialize(badgeText, dayText);
+            markerView.Apply(new DailyBonusMilestoneMarkerDisplayModel(target ? "CHEST" : "GIFT", day.ToString()));
         }
 
         int progressTarget = Mathf.Max(1, nextChest);
-        CreateAnchoredText(parent, $"{Mathf.Min(inventory.DailyBonusStreak, progressTarget)}/{progressTarget}", 24, FontStyle.Bold, Color.white, 160, 34, 0f, 108f);
+        string progressTextValue = $"{Mathf.Min(inventory.DailyBonusStreak, progressTarget)}/{progressTarget}";
+        Text progressText = CreateAnchoredText(parent, progressTextValue, 24, FontStyle.Bold, Color.white, 160, 34, 0f, 108f);
+        DailyBonusMilestoneRailView railView = parent.gameObject.GetComponent<DailyBonusMilestoneRailView>();
+        if (railView == null)
+        {
+            railView = parent.gameObject.AddComponent<DailyBonusMilestoneRailView>();
+        }
+
+        railView.ResetRuntimeBindings();
+        railView.Initialize(progressText);
+        railView.Apply(new DailyBonusMilestoneRailDisplayModel(progressTextValue));
     }
 
     private void CreateDailyRewardTile(Transform parent, DailyBonusRewardDefinition reward, int day, float x, float y)
@@ -2938,19 +3964,31 @@ public class BingoPrototype : MonoBehaviour
         bool ready = current && inventory.CanClaimDailyBonus();
         Color tileColor = ready ? new Color(0.72f, 0.44f, 0.08f) : new Color(0.18f, 0.08f, 0.28f);
         GameObject tile = CreateAnchoredPanel(parent, $"DailyReward_{day}", tileColor, 142, 190, x, y);
-        CreateAnchoredText(tile.transform, $"DAY {day}", 23, FontStyle.Bold, Color.white, 124, 28, 0f, 68f);
-        CreateAnchoredText(tile.transform, GetDailyRewardIcon(reward), 38, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 120, 54, 0f, 18f);
+        Text dayText = CreateAnchoredText(tile.transform, $"DAY {day}", 23, FontStyle.Bold, Color.white, 124, 28, 0f, 68f);
+        Text iconText = CreateAnchoredText(tile.transform, GetDailyRewardIcon(reward), 38, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 120, 54, 0f, 18f);
         string rewardText = reward.Label == "Daily Chest" ? "Daily Bonus\nChest" : reward.Summary;
-        CreateAnchoredText(tile.transform, rewardText, 13, FontStyle.Bold, new Color(0.92f, 0.88f, 1f), 124, 54, 0f, -46f);
+        Text rewardSummaryText = CreateAnchoredText(tile.transform, rewardText, 13, FontStyle.Bold, new Color(0.92f, 0.88f, 1f), 124, 54, 0f, -46f);
+        string status = string.Empty;
 
         if (claimedCurrent)
         {
-            CreateAnchoredText(tile.transform, "CLAIMED", 14, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 112, 24, 0f, -78f);
+            status = "CLAIMED";
         }
         else if (ready)
         {
-            CreateAnchoredText(tile.transform, "READY", 14, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 112, 24, 0f, -78f);
+            status = "READY";
         }
+
+        Text statusText = CreateAnchoredText(tile.transform, status, 14, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 112, 24, 0f, -78f);
+        DailyRewardTileView tileView = tile.GetComponent<DailyRewardTileView>();
+        if (tileView == null)
+        {
+            tileView = tile.AddComponent<DailyRewardTileView>();
+        }
+
+        tileView.ResetRuntimeBindings();
+        tileView.Initialize(dayText, iconText, rewardSummaryText, statusText);
+        tileView.Apply(new DailyRewardTileDisplayModel($"DAY {day}", GetDailyRewardIcon(reward), rewardText, status));
     }
 
     private string GetDailyRewardIcon(DailyBonusRewardDefinition reward)
@@ -2989,36 +4027,53 @@ public class BingoPrototype : MonoBehaviour
         RemoveDailyBonusModal();
         RemoveDailySpinModal();
 
-        GameObject panel = CreateAnchoredPanel(contentRoot, "DailySpinModal", new Color(0.035f, 0.014f, 0.055f, 0.985f), 1320, 700, 0f, -42f);
+        GameObject panel = CreateModalShell("DailySpinModal", 1320, 700, new Color(0.035f, 0.014f, 0.055f, 0.985f));
+        panel.transform.localPosition = new Vector3(panel.transform.localPosition.x, -42f, panel.transform.localPosition.z);
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         bool ready = inventory.CanClaimDailySpin() && !dailySpinAnimating;
 
         IReadOnlyList<PrototypeRewardGrant> rewards = inventory.GetDailySpinPrototypeRewards();
         CreateAnchoredPanel(panel.transform, "DailySpinHeaderRibbon", new Color(0.14f, 0.04f, 0.18f), 1040, 84, 0f, 270f);
-        CreateAnchoredText(panel.transform, "Daily Wheelspin", 54, FontStyle.Bold, gold, 760, 64, -30f, 284f);
-        CreateAnchoredText(panel.transform, "One free daily spin. Separate from Daily Bonus and jackpot wheelspin.", 18, FontStyle.Bold, muted, 800, 28, -30f, 238f);
+        Text spinHeaderTitleText = CreateAnchoredText(panel.transform, "Daily Wheelspin", 54, FontStyle.Bold, gold, 760, 64, -30f, 284f);
+        Text spinHeaderSubtitleText = CreateAnchoredText(panel.transform, "One free daily spin. Separate from Daily Bonus and jackpot wheelspin.", 18, FontStyle.Bold, muted, 800, 28, -30f, 238f);
 
         GameObject wheel = CreateAnchoredPanel(panel.transform, "DailySpinWheel", new Color(0.13f, 0.04f, 0.19f), 540, 540, -350f, 6f);
         BuildDailySpinWheel(wheel.transform, rewards, dailySpinAnimating ? -1 : lastDailySpinRewardIndex);
 
         GameObject prizePanel = CreateAnchoredPanel(panel.transform, "DailySpinPrizePanel", new Color(0.08f, 0.12f, 0.08f), 480, 426, 340f, 22f);
-        CreateAnchoredText(prizePanel.transform, "TODAY'S SPIN", 28, FontStyle.Bold, gold, 420, 42, 0f, 162f);
-        CreateAnchoredText(prizePanel.transform, dailySpinAnimating ? "Wheel spinning..." : ready ? "Free spin ready" : "Come back tomorrow", 20, FontStyle.Bold, Color.white, 400, 30, 0f, 122f);
-
+        string panelSubtitle = dailySpinAnimating ? "Wheel spinning..." : ready ? "Free spin ready" : "Come back tomorrow";
+        string sectionLabel;
+        string panelMainText;
+        string panelNoteText;
         if (!dailySpinAnimating && lastDailySpinRewardIndex >= 0 && lastDailySpinRewardIndex < rewards.Count)
         {
             PrototypeRewardGrant result = rewards[lastDailySpinRewardIndex];
-            CreateAnchoredText(prizePanel.transform, "RESULT", 18, FontStyle.Bold, muted, 380, 26, 0f, 64f);
-            CreateAnchoredText(prizePanel.transform, BuildRewardGrantSummary(result), 36, FontStyle.Bold, gold, 420, 58, 0f, 16f);
-            CreateAnchoredText(prizePanel.transform, "Reward added directly to inventory.", 16, FontStyle.Bold, muted, 380, 28, 0f, -34f);
+            sectionLabel = "RESULT";
+            panelMainText = BuildRewardGrantSummary(result);
+            panelNoteText = "Reward added directly to inventory.";
         }
         else
         {
-            CreateAnchoredText(prizePanel.transform, "SPIN FOR", 18, FontStyle.Bold, muted, 380, 26, 0f, 64f);
-            CreateAnchoredText(prizePanel.transform, "Mana, Crystals,\nSigils, Boosts", 34, FontStyle.Bold, gold, 420, 94, 0f, 10f);
-            CreateAnchoredText(prizePanel.transform, "Prototype reward values and odds are not final.", 16, FontStyle.Bold, muted, 380, 32, 0f, -62f);
+            sectionLabel = "SPIN FOR";
+            panelMainText = "Mana, Crystals,\nSigils, Boosts";
+            panelNoteText = "Prototype reward values and odds are not final.";
         }
+
+        Text prizeTitleText = CreateAnchoredText(prizePanel.transform, "TODAY'S SPIN", 28, FontStyle.Bold, gold, 420, 42, 0f, 162f);
+        Text prizeSubtitleText = CreateAnchoredText(prizePanel.transform, panelSubtitle, 20, FontStyle.Bold, Color.white, 400, 30, 0f, 122f);
+        Text prizeSectionText = CreateAnchoredText(prizePanel.transform, sectionLabel, 18, FontStyle.Bold, muted, 380, 26, 0f, 64f);
+        Text prizeMainText = CreateAnchoredText(prizePanel.transform, panelMainText, sectionLabel == "RESULT" ? 36 : 34, FontStyle.Bold, gold, 420, sectionLabel == "RESULT" ? 58 : 94, 0f, sectionLabel == "RESULT" ? 16f : 10f);
+        Text prizeNoteText = CreateAnchoredText(prizePanel.transform, panelNoteText, 16, FontStyle.Bold, muted, 380, sectionLabel == "RESULT" ? 28 : 32, 0f, sectionLabel == "RESULT" ? -34f : -62f);
+        DailySpinPrizePanelView prizeView = prizePanel.GetComponent<DailySpinPrizePanelView>();
+        if (prizeView == null)
+        {
+            prizeView = prizePanel.AddComponent<DailySpinPrizePanelView>();
+        }
+
+        prizeView.ResetRuntimeBindings();
+        prizeView.Initialize(prizeTitleText, prizeSubtitleText, prizeSectionText, prizeMainText, prizeNoteText);
+        prizeView.Apply(new DailySpinPrizePanelDisplayModel("TODAY'S SPIN", panelSubtitle, sectionLabel, panelMainText, panelNoteText));
 
         if (!string.IsNullOrWhiteSpace(lastDailySpinSummary))
         {
@@ -3029,9 +4084,31 @@ public class BingoPrototype : MonoBehaviour
         spin.interactable = ready;
         spin.onClick.AddListener(ClaimDailySpinFromDen);
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 340f, -214f);
+        Button close = CreateDenReturnFooter(panel.transform, 340f, -214f, BuildPlayerDenUi);
+        close.GetComponent<Image>().color = new Color(0.18f, 0.16f, 0.22f);
         close.interactable = !dailySpinAnimating;
-        close.onClick.AddListener(BuildPlayerDenUi);
+        DailySpinActionAreaView actionAreaView = panel.GetComponent<DailySpinActionAreaView>();
+        if (actionAreaView == null)
+        {
+            actionAreaView = panel.AddComponent<DailySpinActionAreaView>();
+        }
+
+        string spinButtonText = dailySpinAnimating ? "SPINNING" : ready ? "SPIN" : "SPUN";
+        actionAreaView.ResetRuntimeBindings();
+        actionAreaView.Initialize(spin, close);
+        actionAreaView.Apply(new DailySpinActionAreaDisplayModel(spinButtonText, "Back to Den"));
+        DailySpinChromeView chromeView = panel.GetComponent<DailySpinChromeView>();
+        if (chromeView == null)
+        {
+            chromeView = panel.AddComponent<DailySpinChromeView>();
+        }
+
+        chromeView.ResetRuntimeBindings();
+        chromeView.Initialize(spinHeaderTitleText, spinHeaderSubtitleText, close);
+        chromeView.Apply(new DailySpinChromeDisplayModel(
+            "Daily Wheelspin",
+            "One free daily spin. Separate from Daily Bonus and jackpot wheelspin.",
+            "Back to Den"));
     }
 
     private void BuildDailySpinWheel(Transform wheel, IReadOnlyList<PrototypeRewardGrant> rewards, int winningIndex)
@@ -3071,11 +4148,29 @@ public class BingoPrototype : MonoBehaviour
             int labelSize = rewards[index].Mana > 0 ? 28 : 17;
             Text label = CreateAnchoredText(wheel, labelText, winner ? labelSize + 3 : labelSize, FontStyle.Bold, Color.white, 104, 42, labelX, labelY);
             label.rectTransform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
+            DailySpinWheelSegmentView segmentView = segment.GetComponent<DailySpinWheelSegmentView>();
+            if (segmentView == null)
+            {
+                segmentView = segment.AddComponent<DailySpinWheelSegmentView>();
+            }
+
+            segmentView.ResetRuntimeBindings();
+            segmentView.Initialize(label);
+            segmentView.Apply(new DailySpinWheelSegmentDisplayModel(labelText));
         }
 
         CreateAnchoredPanel(wheel, "DailySpinPointer", new Color(0.78f, 0.48f, 0.06f), 42, 66, 0f, 262f);
-        CreateAnchoredText(wheel, "v", 30, FontStyle.Bold, new Color(0.18f, 0.04f, 0.2f), 42, 42, 0f, 268f);
+        Text pointerText = CreateAnchoredText(wheel, "v", 30, FontStyle.Bold, new Color(0.18f, 0.04f, 0.2f), 42, 42, 0f, 268f);
         CreateAnchoredPanel(wheel, "DailySpinHub", new Color(0.43f, 0.12f, 0.55f), 204, 204, 0f, 0f);
+        DailySpinWheelChromeView chromeView = wheel.gameObject.GetComponent<DailySpinWheelChromeView>();
+        if (chromeView == null)
+        {
+            chromeView = wheel.gameObject.AddComponent<DailySpinWheelChromeView>();
+        }
+
+        chromeView.ResetRuntimeBindings();
+        chromeView.Initialize(pointerText);
+        chromeView.Apply(new DailySpinWheelChromeDisplayModel("v"));
     }
 
     private string GetDailySpinWheelLabel(PrototypeRewardGrant reward)
@@ -3203,12 +4298,32 @@ public class BingoPrototype : MonoBehaviour
         RemoveSocialFreebiesModal();
         RemoveDailyBonusModal();
         RemoveDailySpinModal();
-        GameObject panel = CreateAnchoredPanel(contentRoot, "InboxModal", new Color(0.07f, 0.035f, 0.12f, 0.985f), 840, 560, 0f, -22f);
+        GameObject panel = CreateModalShell("InboxModal", 840, 560, new Color(0.07f, 0.035f, 0.12f, 0.985f));
+        panel.transform.localPosition = new Vector3(panel.transform.localPosition.x, -22f, panel.transform.localPosition.z);
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
+        Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "INBOX", 42, FontStyle.Bold, gold, 700, 56, 0f, 236f);
-        CreateAnchoredText(panel.transform, GetInboxHeaderText(), 16, FontStyle.Bold, muted, 700, 30, 0f, 200f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            "INBOX",
+            GetInboxHeaderText(),
+            "Back to Den",
+            gold,
+            muted,
+            violet,
+            700f,
+            236f,
+            700f,
+            30f,
+            200f,
+            16,
+            220f,
+            48f,
+            0f,
+            -246f,
+            20);
+        chromeView.CloseRequested += BuildPlayerDenUi;
         CreateInboxTabButton(panel.transform, PrototypeInboxCategory.Messages, -210f, 158f);
         CreateInboxTabButton(panel.transform, PrototypeInboxCategory.Cards, 0f, 158f);
         CreateInboxTabButton(panel.transform, PrototypeInboxCategory.Gifts, 210f, 158f);
@@ -3240,9 +4355,6 @@ public class BingoPrototype : MonoBehaviour
         {
             CreateAnchoredText(panel.transform, BuildSentInboxPreview(), 13, FontStyle.Bold, muted, 690, 58, 0f, -194f);
         }
-
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), visibleItemIndexes.Count > 0 ? -42f : 0f, -246f);
-        close.onClick.AddListener(BuildPlayerDenUi);
     }
 
     private string GetDenInboxStatusText()
@@ -3261,16 +4373,36 @@ public class BingoPrototype : MonoBehaviour
     {
         bool active = inboxActiveCategory == category;
         Button tab = CreateAnchoredButton(parent, $"{category} ({GetInboxCategoryCount(category)})", 15, 190, 36, active ? new Color(0.55f, 0.18f, 0.78f) : new Color(0.18f, 0.16f, 0.28f), x, y);
-        tab.onClick.AddListener(() =>
+        UITabButtonBinder binder = tab.GetComponent<UITabButtonBinder>();
+        if (binder == null)
+        {
+            binder = tab.gameObject.AddComponent<UITabButtonBinder>();
+        }
+
+        binder.SetSelected(active);
+        InboxTabButtonView tabView = tab.gameObject.GetComponent<InboxTabButtonView>();
+        if (tabView == null)
+        {
+            tabView = tab.gameObject.AddComponent<InboxTabButtonView>();
+        }
+
+        tabView.ResetRuntimeBindings();
+        tabView.Initialize(binder, category.ToString());
+        tabView.TabSelected += HandleInboxTabSelected;
+    }
+
+    private void HandleInboxTabSelected(string tabId)
+    {
+        if (System.Enum.TryParse(tabId, out PrototypeInboxCategory category))
         {
             inboxActiveCategory = category;
             BuildInboxUi();
-        });
+        }
     }
 
     private void CreateInboxItemRow(Transform parent, PrototypeInboxItem item, int index, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"InboxItem_{index}", new Color(0.96f, 0.86f, 0.62f), 680, 62, 0f, y);
+        GameObject row = CreateModalInfoCard(parent, $"InboxItem_{index}", 680, 62, 0f, y);
         bool isMessage = item.Category == PrototypeInboxCategory.Messages;
         if (isMessage)
         {
@@ -3279,27 +4411,63 @@ public class BingoPrototype : MonoBehaviour
             rowOpen.onClick.AddListener(() => OpenInboxMessage(index));
         }
 
-        CreateAnchoredText(row.transform, item.Title, 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), isMessage ? 350 : 430, 22, isMessage ? -126f : -88f, 14f);
-        CreateAnchoredText(row.transform, BuildInboxItemDetail(item), 11, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), isMessage ? 350 : 430, 30, isMessage ? -126f : -88f, -12f);
+        string detail = BuildInboxItemDetail(item);
+        Text titleText = CreateAnchoredText(row.transform, item.Title, 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), isMessage ? 350 : 430, 22, isMessage ? -126f : -88f, 14f);
+        Text detailText = CreateAnchoredText(row.transform, detail, 11, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), isMessage ? 350 : 430, 30, isMessage ? -126f : -88f, -12f);
 
         if (isMessage)
         {
             Color badgeColor = item.Title.StartsWith("Message to", System.StringComparison.OrdinalIgnoreCase)
                 ? new Color(0.35f, 0.12f, 0.62f)
                 : new Color(0.12f, 0.55f, 0.08f);
-            CreateAnchoredText(row.transform, GetInboxMessageDirectionLabel(item), 10, FontStyle.Bold, badgeColor, 72, 18, 116f, 10f);
-            CreateAnchoredText(row.transform, item.IsUnread ? "NEW" : "", 10, FontStyle.Bold, new Color(0.12f, 0.55f, 0.08f), 72, 18, 116f, -12f);
+            string directionLabel = GetInboxMessageDirectionLabel(item);
+            Text primaryBadgeText = CreateAnchoredText(row.transform, directionLabel, 10, FontStyle.Bold, badgeColor, 72, 18, 116f, 10f);
+            Text secondaryBadgeText = CreateAnchoredText(row.transform, item.IsUnread ? "NEW" : "", 10, FontStyle.Bold, new Color(0.12f, 0.55f, 0.08f), 72, 18, 116f, -12f);
 
             Button read = CreateAnchoredButton(row.transform, item.IsUnread ? "Read" : "Open", 12, 74, 30, new Color(0.12f, 0.55f, 0.08f), 220f, 0f);
-            read.onClick.AddListener(() => OpenInboxMessage(index));
             Button reply = CreateAnchoredButton(row.transform, "Reply", 12, 78, 30, new Color(0.35f, 0.12f, 0.62f), 304f, 0f);
-            reply.onClick.AddListener(() => ReplyToInboxMessage(item));
+            InboxItemRowView rowView = row.GetComponent<InboxItemRowView>();
+            if (rowView == null)
+            {
+                rowView = row.AddComponent<InboxItemRowView>();
+            }
+
+            rowView.ResetRuntimeBindings();
+            rowView.Initialize(titleText, detailText, primaryBadgeText, secondaryBadgeText, read, reply);
+            rowView.Apply(new InboxItemRowDisplayModel(
+                item.Title,
+                detail,
+                directionLabel,
+                item.IsUnread ? "NEW" : "",
+                item.IsUnread ? "Read" : "Open",
+                "Reply",
+                true,
+                true));
+            rowView.PrimaryActionRequested += () => OpenInboxMessage(index);
+            rowView.SecondaryActionRequested += () => ReplyToInboxMessage(item);
             return;
         }
 
-        CreateAnchoredText(row.transform, item.IsUnread ? "NEW" : "", 12, FontStyle.Bold, new Color(0.12f, 0.55f, 0.08f), 54, 22, 168f, 12f);
+        Text claimBadgeText = CreateAnchoredText(row.transform, item.IsUnread ? "NEW" : "", 12, FontStyle.Bold, new Color(0.12f, 0.55f, 0.08f), 54, 22, 168f, 12f);
         Button collect = CreateAnchoredButton(row.transform, "Claim", 14, 112, 32, new Color(0.12f, 0.55f, 0.08f), 272f, 0f);
-        collect.onClick.AddListener(() => ClaimInboxItem(index));
+        InboxItemRowView claimRowView = row.GetComponent<InboxItemRowView>();
+        if (claimRowView == null)
+        {
+            claimRowView = row.AddComponent<InboxItemRowView>();
+        }
+
+        claimRowView.ResetRuntimeBindings();
+        claimRowView.Initialize(titleText, detailText, claimBadgeText, null, collect, null);
+        claimRowView.Apply(new InboxItemRowDisplayModel(
+            item.Title,
+            detail,
+            item.IsUnread ? "NEW" : "",
+            string.Empty,
+            "Claim",
+            string.Empty,
+            true,
+            false));
+        claimRowView.PrimaryActionRequested += () => ClaimInboxItem(index);
     }
 
     private void OpenInboxMessage(int index)
@@ -3322,37 +4490,73 @@ public class BingoPrototype : MonoBehaviour
     {
         RemoveInboxMessageDetailModal();
 
-        GameObject panel = CreateAnchoredPanel(contentRoot, "InboxMessageDetailModal", new Color(0.055f, 0.028f, 0.085f, 0.995f), 680, 400, 0f, -20f);
+        GameObject panel = CreateModalShell("InboxMessageDetailModal", 680, 400, new Color(0.055f, 0.028f, 0.085f, 0.995f));
+        panel.transform.localPosition = new Vector3(panel.transform.localPosition.x, -20f, panel.transform.localPosition.z);
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color violet = new Color(0.35f, 0.12f, 0.62f);
 
-        CreateAnchoredText(panel.transform, GetInboxMessageDirectionLabel(message), 16, FontStyle.Bold, muted, 560, 24, 0f, 144f);
-        CreateAnchoredText(panel.transform, message.Title.ToUpperInvariant(), 30, FontStyle.Bold, gold, 560, 42, 0f, 108f);
-        CreateAnchoredPanel(panel.transform, "InboxMessageBody", new Color(0.96f, 0.86f, 0.62f), 560, 148, 0f, 18f);
+        UIModalChromeView chromeView = CreateModalChrome(
+            panel,
+            message.Title.ToUpperInvariant(),
+            GetInboxMessageDirectionLabel(message),
+            "Close",
+            gold,
+            muted,
+            violet,
+            560f,
+            108f,
+            560f,
+            24f,
+            144f,
+            16,
+            150f,
+            42f,
+            178f,
+            -142f,
+            18);
+        CreateModalInfoCard(panel.transform, "InboxMessageBody", 560, 148, 0f, 18f);
         Text body = CreateAnchoredText(panel.transform, string.IsNullOrWhiteSpace(message.Detail) ? "(No message text.)" : message.Detail, 18, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 520, 118, 0f, 18f);
         body.alignment = TextAnchor.MiddleLeft;
-        CreateAnchoredText(panel.transform, "Messages live in Inbox until cleared.", 14, FontStyle.Bold, muted, 560, 24, 0f, -78f);
+        Text footnoteText = CreateAnchoredText(panel.transform, "Messages live in Inbox until cleared.", 14, FontStyle.Bold, muted, 560, 24, 0f, -78f);
 
         Button back = CreateAnchoredButton(panel.transform, "Back", 18, 150, 42, new Color(0.18f, 0.16f, 0.22f), -178f, -142f);
-        back.onClick.AddListener(() =>
+        bool canReply = TryGetFriendNameFromInboxMessage(message, out string friendName) && !prototypeBlockedFriends.Contains(friendName);
+        Button reply = canReply
+            ? CreateAnchoredButton(panel.transform, "Reply", 18, 150, 42, violet, 0f, -142f)
+            : null;
+
+        InboxMessageDetailView detailView = panel.GetComponent<InboxMessageDetailView>();
+        if (detailView == null)
+        {
+            detailView = panel.AddComponent<InboxMessageDetailView>();
+        }
+
+        detailView.ResetRuntimeBindings();
+        detailView.Initialize(body, footnoteText, back, reply);
+        detailView.Apply(new InboxMessageDetailDisplayModel
+        {
+            BodyText = string.IsNullOrWhiteSpace(message.Detail) ? "(No message text.)" : message.Detail,
+            FootnoteText = "Messages live in Inbox until cleared.",
+            BackButtonText = "Back",
+            ReplyButtonText = "Reply",
+            ShowReplyButton = canReply
+        });
+        detailView.BackRequested += () =>
         {
             RemoveInboxMessageDetailModal();
             BuildInboxUi();
-        });
-
-        if (TryGetFriendNameFromInboxMessage(message, out string friendName) && !prototypeBlockedFriends.Contains(friendName))
+        };
+        if (canReply)
         {
-            Button reply = CreateAnchoredButton(panel.transform, "Reply", 18, 150, 42, violet, 0f, -142f);
-            reply.onClick.AddListener(() =>
+            detailView.ReplyRequested += () =>
             {
                 RemoveInboxMessageDetailModal();
                 BuildFriendMessageComposerUi(friendName);
-            });
+            };
         }
 
-        Button clear = CreateAnchoredButton(panel.transform, "Close", 18, 150, 42, violet, 178f, -142f);
-        clear.onClick.AddListener(RemoveInboxMessageDetailModal);
+        chromeView.CloseRequested += RemoveInboxMessageDetailModal;
     }
 
     private string GetInboxMessageDirectionLabel(PrototypeInboxItem item)
@@ -3716,8 +4920,7 @@ public class BingoPrototype : MonoBehaviour
     private void BuildManaCauldronUi()
     {
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        roundState.StopRound();
-        calledHistory.Clear();
+        StopRoundAndClearCalledHistory();
 
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.055f, 0.025f, 0.08f, 0.98f), 0, 0);
         layout.enabled = false;
@@ -3761,8 +4964,8 @@ public class BingoPrototype : MonoBehaviour
         int albumOwnedCards = inventory.GetOwnedGrimoireCardCount();
         int bookOfShadowsOwnedCards = inventory.GetOwnedBookOfShadowsCardCount();
 
-        CreateAnchoredText(panel.transform, "COLLECTION BOOKS", 48, FontStyle.Bold, gold, 1080, 62, 0f, 286f);
-        CreateAnchoredText(panel.transform, "Choose a book, then browse potion sets and ingredient cards.", 18, FontStyle.Bold, muted, 1060, 30, 0f, 242f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 48, FontStyle.Bold, gold, 1080, 62, 0f, 286f);
+        Text subtitleText = CreateAnchoredText(panel.transform, string.Empty, 18, FontStyle.Bold, muted, 1060, 30, 0f, 242f);
         CreateAnchoredPanel(panel.transform, "LibraryTotals", new Color(0.14f, 0.07f, 0.18f), 1000, 76, 0f, 186f);
         CreateLibraryStat(panel.transform, "Grimoire Cards", $"{albumOwnedCards}/{CardAlbumCatalog.TotalCards}", -310f, 186f);
         CreateLibraryStat(panel.transform, "Potions", $"{BuildCompletedGrimoireEntryCount()}/{CardAlbumCatalog.GrimoireOneEntries.Count}", -60f, 186f);
@@ -3780,9 +4983,24 @@ public class BingoPrototype : MonoBehaviour
         });
 
         Button gifts = CreateAnchoredButton(panel.transform, "Card Gifts", 18, 220, 44, new Color(0.12f, 0.55f, 0.08f), 0f, -250f);
-        gifts.onClick.AddListener(BuildLibraryCardGiftingUi);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -306f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        Button back = CreateDenReturnFooter(panel.transform, 0f, -306f, BuildPlayerDenUi);
+        LibraryBooksLandingView landingView = panel.GetComponent<LibraryBooksLandingView>();
+        if (landingView == null)
+        {
+            landingView = panel.AddComponent<LibraryBooksLandingView>();
+        }
+
+        landingView.ResetRuntimeBindings();
+        landingView.Initialize(titleText, subtitleText, gifts, back);
+        landingView.GiftsRequested += BuildLibraryCardGiftingUi;
+        landingView.BackRequested += BuildPlayerDenUi;
+        landingView.Apply(new LibraryBooksLandingDisplayModel
+        {
+            TitleText = "COLLECTION BOOKS",
+            SubtitleText = "Choose a book, then browse potion sets and ingredient cards.",
+            GiftsButtonText = "Card Gifts",
+            BackButtonText = "Back to Den"
+        });
     }
 
     private void BuildLibraryCardGiftingUi()
@@ -3793,8 +5011,8 @@ public class BingoPrototype : MonoBehaviour
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         Color cream = new Color(0.96f, 0.86f, 0.62f);
 
-        CreateAnchoredText(panel.transform, "CARD GIFTS", 46, FontStyle.Bold, gold, 960, 58, 0f, 284f);
-        CreateAnchoredText(panel.transform, "Library handles card giving. Only extra Regular Grimoire copies can be sent; received cards are claimed from Inbox.", 16, FontStyle.Bold, muted, 1040, 28, 0f, 244f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 46, FontStyle.Bold, gold, 960, 58, 0f, 284f);
+        Text subtitleText = CreateAnchoredText(panel.transform, string.Empty, 16, FontStyle.Bold, muted, 1040, 28, 0f, 244f);
         CreateLibraryStat(panel.transform, "Giftable Duplicates", CountGiftableRegularDuplicates().ToString(), -280f, 194f);
         CreateLibraryStat(panel.transform, "Aura Cap Draft", GetPrototypeCardGiftLimitText(), 0f, 194f);
         CreateLibraryStat(panel.transform, "Inbox Card Gifts", GetInboxCategoryCount(PrototypeInboxCategory.Cards).ToString(), 280f, 194f);
@@ -3810,26 +5028,48 @@ public class BingoPrototype : MonoBehaviour
         CreateMissingRegularCardRows(missingPanel.transform);
         CreateAnchoredText(missingPanel.transform, "Real request/trade actions come after Aura rank and Friends rules are locked.", 14, FontStyle.Bold, muted, 440, 42, 0f, -156f);
 
-        if (!string.IsNullOrWhiteSpace(lastLibraryCardGiftSummary))
-        {
-            CreateAnchoredText(panel.transform, lastLibraryCardGiftSummary, 16, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 900, 30, 0f, -238f);
-        }
-        else
-        {
-            CreateAnchoredText(panel.transform, "Only extra copies can be gifted. Your last copy stays protected.", 16, FontStyle.Bold, cream, 900, 30, 0f, -238f);
-        }
+        string summary = !string.IsNullOrWhiteSpace(lastLibraryCardGiftSummary)
+            ? lastLibraryCardGiftSummary
+            : "Only extra copies can be gifted. Your last copy stays protected.";
+        Text summaryText = CreateAnchoredText(
+            panel.transform,
+            string.Empty,
+            16,
+            FontStyle.Bold,
+            !string.IsNullOrWhiteSpace(lastLibraryCardGiftSummary) ? new Color(0.8f, 1f, 0.55f) : cream,
+            900,
+            30,
+            0f,
+            -238f);
 
         Button sample = CreateAnchoredButton(panel.transform, CanReceivePrototypeCardGift() ? "Receive Any Test Card" : "Receive Locked", 15, 250, 42, CanReceivePrototypeCardGift() ? new Color(0.35f, 0.12f, 0.62f) : new Color(0.34f, 0.32f, 0.38f), -280f, -302f);
-        sample.interactable = CanReceivePrototypeCardGift();
-        sample.onClick.AddListener(QueueIncomingPrototypeCardGift);
         Button back = CreateAnchoredButton(panel.transform, "Back to Library", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -302f);
-        back.onClick.AddListener(BuildLibraryGrimoireUi);
         int waitingCardGifts = GetInboxCategoryCount(PrototypeInboxCategory.Cards);
         Button inbox = CreateAnchoredButton(panel.transform, waitingCardGifts > 0 ? $"Open Inbox Cards ({waitingCardGifts})" : "Open Inbox Cards", 17, 230, 46, waitingCardGifts > 0 ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.18f, 0.16f, 0.22f), 280f, -302f);
-        inbox.onClick.AddListener(() =>
+        LibraryCardGiftingView view = panel.GetComponent<LibraryCardGiftingView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<LibraryCardGiftingView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, subtitleText, summaryText, sample, back, inbox);
+        view.SampleRequested += QueueIncomingPrototypeCardGift;
+        view.BackRequested += BuildLibraryGrimoireUi;
+        view.InboxRequested += () =>
         {
             inboxActiveCategory = PrototypeInboxCategory.Cards;
             BuildInboxUi();
+        };
+        view.Apply(new LibraryCardGiftingDisplayModel
+        {
+            TitleText = "CARD GIFTS",
+            SubtitleText = "Library handles card giving. Only extra Regular Grimoire copies can be sent; received cards are claimed from Inbox.",
+            SummaryText = summary,
+            SampleButtonText = CanReceivePrototypeCardGift() ? "Receive Any Test Card" : "Receive Locked",
+            BackButtonText = "Back to Library",
+            InboxButtonText = waitingCardGifts > 0 ? $"Open Inbox Cards ({waitingCardGifts})" : "Open Inbox Cards",
+            CanSample = CanReceivePrototypeCardGift()
         });
     }
 
@@ -3861,12 +5101,27 @@ public class BingoPrototype : MonoBehaviour
     private void CreateLibraryCardGiftRow(Transform parent, AlbumCardDefinition card, int copies, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"GiftDuplicate_{card.Id}", new Color(0.96f, 0.86f, 0.62f), 460, 46, 0f, y);
-        CreateAnchoredText(row.transform, card.CardName, 14, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 230, 22, -86f, 8f);
-        CreateAnchoredText(row.transform, $"{card.PotionName} | owned {copies}", 9, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 230, 16, -86f, -12f);
-        CreateAnchoredText(row.transform, BuildStarText(card.Stars), 14, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 54, 22, 74f, 0f);
+        Text cardNameText = CreateAnchoredText(row.transform, card.CardName, 14, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 230, 22, -86f, 8f);
+        Text detailText = CreateAnchoredText(row.transform, $"{card.PotionName} | owned {copies}", 9, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 230, 16, -86f, -12f);
+        Text starText = CreateAnchoredText(row.transform, BuildStarText(card.Stars), 14, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 54, 22, 74f, 0f);
         Button gift = CreateAnchoredButton(row.transform, CanSendPrototypeCardGift() ? "Send" : "Locked", 13, 86, 30, CanSendPrototypeCardGift() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 176f, 0f);
-        gift.interactable = CanSendPrototypeCardGift();
-        gift.onClick.AddListener(() => SendPrototypeLibraryCardGift(card, "Mira"));
+        LibraryCardGiftRowView view = row.GetComponent<LibraryCardGiftRowView>();
+        if (view == null)
+        {
+            view = row.AddComponent<LibraryCardGiftRowView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(cardNameText, detailText, starText, gift);
+        view.Apply(new LibraryCardGiftRowDisplayModel
+        {
+            CardName = card.CardName,
+            DetailText = $"{card.PotionName} | owned {copies}",
+            StarText = BuildStarText(card.Stars),
+            ActionButtonText = CanSendPrototypeCardGift() ? "Send" : "Locked",
+            ActionInteractable = CanSendPrototypeCardGift()
+        });
+        view.ActionRequested += () => SendPrototypeLibraryCardGift(card, "Mira");
     }
 
     private void CreateMissingRegularCardRows(Transform parent)
@@ -3894,11 +5149,25 @@ public class BingoPrototype : MonoBehaviour
     private void CreateMissingRegularCardRow(Transform parent, AlbumCardDefinition card, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"MissingRegular_{card.Id}", new Color(0.2f, 0.17f, 0.2f), 460, 46, 0f, y);
-        CreateAnchoredText(row.transform, card.CardName, 14, FontStyle.Bold, Color.white, 260, 22, -78f, 8f);
-        CreateAnchoredText(row.transform, $"{card.PotionName} | {BuildStarText(card.Stars)}", 9, FontStyle.Bold, new Color(0.84f, 0.82f, 0.94f), 260, 16, -78f, -12f);
+        Text cardNameText = CreateAnchoredText(row.transform, card.CardName, 14, FontStyle.Bold, Color.white, 260, 22, -78f, 8f);
+        Text detailText = CreateAnchoredText(row.transform, $"{card.PotionName} | {BuildStarText(card.Stars)}", 9, FontStyle.Bold, new Color(0.84f, 0.82f, 0.94f), 260, 16, -78f, -12f);
         Button request = CreateAnchoredButton(row.transform, CanReceivePrototypeCardGift() ? "Receive" : "Locked", 12, 86, 30, CanReceivePrototypeCardGift() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 176f, 0f);
-        request.interactable = CanReceivePrototypeCardGift();
-        request.onClick.AddListener(() => QueueIncomingPrototypeCardGift(card));
+        LibraryMissingCardRowView view = row.GetComponent<LibraryMissingCardRowView>();
+        if (view == null)
+        {
+            view = row.AddComponent<LibraryMissingCardRowView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(cardNameText, detailText, request);
+        view.Apply(new LibraryMissingCardRowDisplayModel
+        {
+            CardName = card.CardName,
+            DetailText = $"{card.PotionName} | {BuildStarText(card.Stars)}",
+            ActionButtonText = CanReceivePrototypeCardGift() ? "Receive" : "Locked",
+            ActionInteractable = CanReceivePrototypeCardGift()
+        });
+        view.ActionRequested += () => QueueIncomingPrototypeCardGift(card);
     }
 
     private void AddPrototypeGiftableRegularDuplicate()
@@ -4112,39 +5381,66 @@ public class BingoPrototype : MonoBehaviour
         int start = selectedGrimoireIndexPage * 8;
         int end = Mathf.Min(start + 8, entries.Count);
 
-        CreateAnchoredText(panel.transform, "GRIMOIRE", 48, FontStyle.Bold, gold, 940, 62, -30f, 286f);
-        CreateAnchoredText(panel.transform, $"Index {selectedGrimoireIndexPage + 1}/{Mathf.Max(1, (entries.Count + 7) / 8)}  |  Sets {start + 1}-{end}  |  {inventory.GetAlbumSeasonSummaryText()}", 18, FontStyle.Bold, muted, 980, 30, 0f, 242f);
-        CreateAnchoredText(panel.transform, $"{inventory.GetOwnedGrimoireCardCount()}/{CardAlbumCatalog.TotalCards} cards collected", 23, FontStyle.Bold, Color.white, 360, 34, -362f, 194f);
-        CreateAnchoredText(panel.transform, $"Complete Grimoire Reward: {CardAlbumCatalog.BuildRewardLine(CardAlbumCatalog.GrimoireOneCompletionReward)}", 17, FontStyle.Bold, muted, 740, 34, 216f, 194f);
-        Button fullClaim = CreateAnchoredButton(panel.transform, GetGrimoireCompletionClaimButtonText(), 15, 190, 38, GetAlbumClaimButtonColor(inventory.CanClaimGrimoireCompletionReward(), inventory.IsGrimoireCompletionRewardClaimed()), 454f, 238f);
-        fullClaim.interactable = inventory.CanClaimGrimoireCompletionReward();
-        fullClaim.onClick.AddListener(ClaimGrimoireCompletionReward);
+        Text titleText = CreateModalTitle(panel.transform, string.Empty, gold, 940f, 286f);
+        Text subtitleText = CreateModalSubtitle(panel.transform, string.Empty, muted, 980f, 30f, 242f, 18);
+        Text collectedCountText = CreateAnchoredText(panel.transform, string.Empty, 23, FontStyle.Bold, Color.white, 360, 34, -362f, 194f);
+        Text completionRewardText = CreateAnchoredText(panel.transform, string.Empty, 17, FontStyle.Bold, muted, 740, 34, 216f, 194f);
+        Button fullClaim = CreateAnchoredButton(panel.transform, string.Empty, 15, 190, 38, GetAlbumClaimButtonColor(inventory.CanClaimGrimoireCompletionReward(), inventory.IsGrimoireCompletionRewardClaimed()), 454f, 238f);
 
         for (int index = start; index < end; index++)
         {
             CreateGrimoireIndexPotionTile(panel.transform, entries[index], index - start);
         }
 
-        Button previous = CreateAnchoredButton(panel.transform, "<", 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), -548f, -18f);
-        previous.interactable = selectedGrimoireIndexPage > 0;
-        previous.onClick.AddListener(() =>
+        Button previous = CreateAnchoredButton(panel.transform, string.Empty, 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), -548f, -18f);
+        Button next = CreateAnchoredButton(panel.transform, string.Empty, 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), 548f, -18f);
+        CreateDualFooterNavigation(panel.transform, "Back to Books", -306f, BuildLibraryGrimoireUi, BuildPlayerDenUi);
+        GrimoireIndexPanelView view = panel.GetComponent<GrimoireIndexPanelView>();
+        if (view == null)
         {
-            selectedGrimoireIndexPage--;
-            BuildGrimoireIndexUi();
-        });
+            view = panel.AddComponent<GrimoireIndexPanelView>();
+        }
 
-        Button next = CreateAnchoredButton(panel.transform, ">", 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), 548f, -18f);
-        next.interactable = end < entries.Count;
-        next.onClick.AddListener(() =>
+        CollectionModalHeaderView headerView = panel.GetComponent<CollectionModalHeaderView>();
+        if (headerView == null)
         {
-            selectedGrimoireIndexPage++;
-            BuildGrimoireIndexUi();
-        });
+            headerView = panel.AddComponent<CollectionModalHeaderView>();
+        }
 
-        Button back = CreateAnchoredButton(panel.transform, "Back to Books", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), -130f, -306f);
-        back.onClick.AddListener(BuildLibraryGrimoireUi);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, -306f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        CollectionPagerView pagerView = panel.GetComponent<CollectionPagerView>();
+        if (pagerView == null)
+        {
+            pagerView = panel.AddComponent<CollectionPagerView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(collectedCountText, completionRewardText, fullClaim);
+        view.ClaimRequested += ClaimGrimoireCompletionReward;
+        headerView.ResetRuntimeBindings();
+        headerView.Initialize(titleText, subtitleText);
+        pagerView.ResetRuntimeBindings();
+        pagerView.Initialize(previous, next);
+        pagerView.PreviousRequested += HandleGrimoireIndexPreviousRequested;
+        pagerView.NextRequested += HandleGrimoireIndexNextRequested;
+        headerView.Apply(new CollectionModalHeaderDisplayModel
+        {
+            TitleText = "GRIMOIRE",
+            SubtitleText = $"Index {selectedGrimoireIndexPage + 1}/{Mathf.Max(1, (entries.Count + 7) / 8)}  |  Sets {start + 1}-{end}  |  {inventory.GetAlbumSeasonSummaryText()}"
+        });
+        view.Apply(new GrimoireIndexPanelDisplayModel
+        {
+            CollectedCountText = $"{inventory.GetOwnedGrimoireCardCount()}/{CardAlbumCatalog.TotalCards} cards collected",
+            CompletionRewardText = $"Complete Grimoire Reward: {CardAlbumCatalog.BuildRewardLine(CardAlbumCatalog.GrimoireOneCompletionReward)}",
+            ClaimButtonText = GetGrimoireCompletionClaimButtonText(),
+            ClaimButtonInteractable = inventory.CanClaimGrimoireCompletionReward()
+        });
+        pagerView.Apply(new CollectionPagerDisplayModel
+        {
+            PreviousButtonText = "<",
+            PreviousButtonInteractable = selectedGrimoireIndexPage > 0,
+            NextButtonText = ">",
+            NextButtonInteractable = end < entries.Count
+        });
     }
 
     private void BuildGrimoireDetailUi()
@@ -4159,39 +5455,82 @@ public class BingoPrototype : MonoBehaviour
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         int owned = inventory.GetOwnedGrimoireEntryCardCount(entry);
 
-        CreateAnchoredText(panel.transform, "GRIMOIRE", 42, FontStyle.Bold, gold, 1000, 54, 0f, 286f);
-        CreateAnchoredText(panel.transform, $"Potion {entry.EntryNumber}/{entries.Count}  |  {inventory.GetAlbumSeasonSummaryText()}", 17, FontStyle.Bold, muted, 980, 28, 0f, 248f);
+        Text titleText = CreateModalTitle(panel.transform, string.Empty, gold, 1000f, 286f);
+        Text subtitleText = CreateModalSubtitle(panel.transform, string.Empty, muted, 980f, 28f, 248f, 17);
 
         GameObject leftPage = CreateAnchoredPanel(panel.transform, "GrimoireLeftPage", new Color(0.94f, 0.82f, 0.62f), 500, 430, -260f, 12f);
-        CreateAnchoredText(leftPage.transform, entry.PotionName, 34, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 440, 80, 0f, 142f);
-        CreateAnchoredText(leftPage.transform, "Potion Set", 18, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 280, 26, 0f, 82f);
-        CreateAnchoredText(leftPage.transform, "*\nPOTION\n*", 52, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 260, 150, 0f, -12f);
-        CreateAnchoredText(leftPage.transform, $"{owned}/{entry.Cards.Count} Ingredients Found", 26, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 420, 42, 0f, -114f);
+        Text potionNameText = CreateAnchoredText(leftPage.transform, string.Empty, 34, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 440, 80, 0f, 142f);
+        Text setLabelText = CreateAnchoredText(leftPage.transform, string.Empty, 18, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 280, 26, 0f, 82f);
+        Text artPlaceholderText = CreateAnchoredText(leftPage.transform, string.Empty, 52, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 260, 150, 0f, -12f);
+        Text progressText = CreateAnchoredText(leftPage.transform, string.Empty, 26, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 420, 42, 0f, -114f);
         CreateProgressBar(leftPage.transform, owned, entry.Cards.Count, 300, 24, 0f, -158f);
 
         GameObject rightPage = CreateAnchoredPanel(panel.transform, "GrimoireRightPage", new Color(0.94f, 0.82f, 0.62f), 500, 430, 260f, 12f);
-        CreateAnchoredText(rightPage.transform, "Complete this potion to earn", 20, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 430, 30, 0f, 154f);
+        Text rewardIntroText = CreateAnchoredText(rightPage.transform, string.Empty, 20, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 430, 30, 0f, 154f);
         CreateRewardBadgeRow(rightPage.transform, entry.Reward, 0f, 82f);
-        Button claim = CreateAnchoredButton(rightPage.transform, GetGrimoireEntryClaimButtonText(entry), 17, 220, 40, GetAlbumClaimButtonColor(inventory.CanClaimGrimoireEntryReward(entry), inventory.IsGrimoireEntryRewardClaimed(entry)), 0f, 26f);
-        claim.interactable = inventory.CanClaimGrimoireEntryReward(entry);
-        claim.onClick.AddListener(() => ClaimGrimoireEntryReward(entry));
-        CreateAnchoredText(rightPage.transform, "Ingredient Preview", 20, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 430, 30, 0f, -20f);
+        Button claim = CreateAnchoredButton(rightPage.transform, string.Empty, 17, 220, 40, GetAlbumClaimButtonColor(inventory.CanClaimGrimoireEntryReward(entry), inventory.IsGrimoireEntryRewardClaimed(entry)), 0f, 26f);
+        Text ingredientPreviewText = CreateAnchoredText(rightPage.transform, string.Empty, 20, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 430, 30, 0f, -20f);
         CreateMiniCardPreviewGrid(rightPage.transform, entry, 0f, -102f);
 
-        Button view = CreateAnchoredButton(rightPage.transform, "View Ingredients", 22, 300, 54, new Color(0.12f, 0.55f, 0.08f), 0f, -172f);
-        view.onClick.AddListener(() => BuildGrimoireIngredientOverlay(entry));
+        Button view = CreateAnchoredButton(rightPage.transform, string.Empty, 22, 300, 54, new Color(0.12f, 0.55f, 0.08f), 0f, -172f);
 
-        Button previous = CreateAnchoredButton(panel.transform, "<", 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), -548f, -18f);
-        previous.interactable = selectedGrimoireEntryIndex > 0;
-        previous.onClick.AddListener(() => SelectGrimoireEntry(selectedGrimoireEntryIndex - 1));
-        Button next = CreateAnchoredButton(panel.transform, ">", 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), 548f, -18f);
-        next.interactable = selectedGrimoireEntryIndex < entries.Count - 1;
-        next.onClick.AddListener(() => SelectGrimoireEntry(selectedGrimoireEntryIndex + 1));
+        Button previous = CreateAnchoredButton(panel.transform, string.Empty, 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), -548f, -18f);
+        Button next = CreateAnchoredButton(panel.transform, string.Empty, 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), 548f, -18f);
 
-        Button back = CreateAnchoredButton(panel.transform, "Back to Index", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), -130f, -306f);
-        back.onClick.AddListener(BuildGrimoireIndexUi);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, -306f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        GrimoireDetailPanelView detailView = panel.GetComponent<GrimoireDetailPanelView>();
+        if (detailView == null)
+        {
+            detailView = panel.AddComponent<GrimoireDetailPanelView>();
+        }
+
+        CollectionModalHeaderView headerView = panel.GetComponent<CollectionModalHeaderView>();
+        if (headerView == null)
+        {
+            headerView = panel.AddComponent<CollectionModalHeaderView>();
+        }
+
+        CollectionPagerView pagerView = panel.GetComponent<CollectionPagerView>();
+        if (pagerView == null)
+        {
+            pagerView = panel.AddComponent<CollectionPagerView>();
+        }
+
+        detailView.ResetRuntimeBindings();
+        detailView.Initialize(potionNameText, setLabelText, artPlaceholderText, progressText, rewardIntroText, claim, ingredientPreviewText, view);
+        detailView.ClaimRequested += () => ClaimGrimoireEntryReward(entry);
+        detailView.ViewIngredientsRequested += () => BuildGrimoireIngredientOverlay(entry);
+        headerView.ResetRuntimeBindings();
+        headerView.Initialize(titleText, subtitleText);
+        pagerView.ResetRuntimeBindings();
+        pagerView.Initialize(previous, next);
+        pagerView.PreviousRequested += HandleGrimoireDetailPreviousRequested;
+        pagerView.NextRequested += HandleGrimoireDetailNextRequested;
+        headerView.Apply(new CollectionModalHeaderDisplayModel
+        {
+            TitleText = "GRIMOIRE",
+            SubtitleText = $"Potion {entry.EntryNumber}/{entries.Count}  |  {inventory.GetAlbumSeasonSummaryText()}"
+        });
+        detailView.Apply(new GrimoireDetailPanelDisplayModel
+        {
+            PotionNameText = entry.PotionName,
+            SetLabelText = "Potion Set",
+            ArtPlaceholderText = "*\nPOTION\n*",
+            ProgressText = $"{owned}/{entry.Cards.Count} Ingredients Found",
+            RewardIntroText = "Complete this potion to earn",
+            ClaimButtonText = GetGrimoireEntryClaimButtonText(entry),
+            ClaimButtonInteractable = inventory.CanClaimGrimoireEntryReward(entry),
+            IngredientPreviewText = "Ingredient Preview",
+            ViewIngredientsButtonText = "View Ingredients"
+        });
+        pagerView.Apply(new CollectionPagerDisplayModel
+        {
+            PreviousButtonText = "<",
+            PreviousButtonInteractable = selectedGrimoireEntryIndex > 0,
+            NextButtonText = ">",
+            NextButtonInteractable = selectedGrimoireEntryIndex < entries.Count - 1
+        });
+
+        CreateDualFooterNavigation(panel.transform, "Back to Index", -306f, BuildGrimoireIndexUi, BuildPlayerDenUi);
     }
 
     private void BuildBookOfShadowsLibraryUi()
@@ -4204,26 +5543,50 @@ public class BingoPrototype : MonoBehaviour
         int activeShadowSetIndex = Mathf.Clamp(inventory.GetActiveBookOfShadowsSetNumber() - 1, 0, shadowSets.Count - 1);
         BookOfShadowsSetDefinition activeShadowSet = shadowSets[activeShadowSetIndex];
 
-        CreateAnchoredText(panel.transform, "BOOK OF SHADOWS", 42, FontStyle.Bold, gold, 980, 58, 0f, 264f);
-        CreateAnchoredText(panel.transform, inventory.GetBookOfShadowsSeasonSummaryText(), 17, FontStyle.Bold, muted, 980, 28, 0f, 224f);
+        Text titleText = CreateModalTitle(panel.transform, string.Empty, gold, 980f, 264f);
+        Text subtitleText = CreateModalSubtitle(panel.transform, string.Empty, muted, 980f, 28f, 224f, 17);
         CreateLibraryStat(panel.transform, "Active Set", $"{inventory.GetOwnedBookOfShadowsSetCardCount(activeShadowSet)}/{CardAlbumCatalog.CountBookOfShadowsInSet(activeShadowSet)}", -280f, 166f);
         CreateLibraryStat(panel.transform, "All Sets", $"{inventory.GetOwnedBookOfShadowsCardCount()}/{CardAlbumCatalog.BookOfShadowsTotalCards}", 0f, 166f);
         CreateLibraryStat(panel.transform, "Collections", $"{BuildCompletedBookOfShadowsEntryCount(activeShadowSet)}/{activeShadowSet.Entries.Count}", 280f, 166f);
-        Button fullClaim = CreateAnchoredButton(panel.transform, GetBookOfShadowsCompletionClaimButtonText(), 15, 210, 38, GetAlbumClaimButtonColor(inventory.CanClaimBookOfShadowsCompletionReward(), inventory.IsBookOfShadowsCompletionRewardClaimed()), 430f, 166f);
-        fullClaim.interactable = inventory.CanClaimBookOfShadowsCompletionReward();
-        fullClaim.onClick.AddListener(ClaimBookOfShadowsCompletionReward);
+        Button fullClaim = CreateAnchoredButton(panel.transform, string.Empty, 15, 210, 38, GetAlbumClaimButtonColor(inventory.CanClaimBookOfShadowsCompletionReward(), inventory.IsBookOfShadowsCompletionRewardClaimed()), 430f, 166f);
 
         for (int index = 0; index < activeShadowSet.Entries.Count; index++)
         {
             CreateBookOfShadowsIndexTile(panel.transform, activeShadowSet.Entries[index], index);
         }
 
-        CreateAnchoredText(panel.transform, "Book of Shadows cards are regular-only. Each monthly set closes when its 30-day window ends.", 15, FontStyle.Bold, muted, 860, 36, 0f, -220f);
+        Text footerNoteText = CreateAnchoredText(panel.transform, string.Empty, 15, FontStyle.Bold, muted, 860, 36, 0f, -220f);
 
-        Button back = CreateAnchoredButton(panel.transform, "Back to Library", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), -130f, -284f);
-        back.onClick.AddListener(BuildLibraryGrimoireUi);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, -284f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        BookOfShadowsLibraryPanelView libraryView = panel.GetComponent<BookOfShadowsLibraryPanelView>();
+        if (libraryView == null)
+        {
+            libraryView = panel.AddComponent<BookOfShadowsLibraryPanelView>();
+        }
+
+        CollectionModalHeaderView headerView = panel.GetComponent<CollectionModalHeaderView>();
+        if (headerView == null)
+        {
+            headerView = panel.AddComponent<CollectionModalHeaderView>();
+        }
+
+        libraryView.ResetRuntimeBindings();
+        libraryView.Initialize(fullClaim, footerNoteText);
+        libraryView.FullClaimRequested += ClaimBookOfShadowsCompletionReward;
+        headerView.ResetRuntimeBindings();
+        headerView.Initialize(titleText, subtitleText);
+        headerView.Apply(new CollectionModalHeaderDisplayModel
+        {
+            TitleText = "BOOK OF SHADOWS",
+            SubtitleText = inventory.GetBookOfShadowsSeasonSummaryText()
+        });
+        libraryView.Apply(new BookOfShadowsLibraryPanelDisplayModel
+        {
+            FullClaimButtonText = GetBookOfShadowsCompletionClaimButtonText(),
+            FullClaimButtonInteractable = inventory.CanClaimBookOfShadowsCompletionReward(),
+            FooterNoteText = "Book of Shadows cards are regular-only. Each monthly set closes when its 30-day window ends."
+        });
+
+        CreateDualFooterNavigation(panel.transform, "Back to Library", -284f, BuildLibraryGrimoireUi, BuildPlayerDenUi);
     }
 
     private void BuildBookOfShadowsDetailUi()
@@ -4239,33 +5602,93 @@ public class BingoPrototype : MonoBehaviour
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         int owned = inventory.GetOwnedBookOfShadowsEntryCardCount(shadowEntry);
 
-        CreateAnchoredText(panel.transform, "BOOK OF SHADOWS", 42, FontStyle.Bold, gold, 980, 58, 0f, 264f);
-        CreateAnchoredText(panel.transform, $"Set {activeShadowSet.SetNumber}/3  |  Collection {shadowEntry.EntryNumber}/{activeShadowSet.Entries.Count}  |  {inventory.GetBookOfShadowsSeasonSummaryText()}", 17, FontStyle.Bold, muted, 980, 28, 0f, 224f);
+        Text titleText = CreateModalTitle(panel.transform, string.Empty, gold, 980f, 264f);
+        Text subtitleText = CreateModalSubtitle(panel.transform, string.Empty, muted, 980f, 28f, 224f, 17);
 
         GameObject page = CreateAnchoredPanel(panel.transform, "ShadowsDetailPage", new Color(0.94f, 0.82f, 0.62f), 880, 390, 0f, 14f);
-        CreateAnchoredText(page.transform, shadowEntry.PotionName, 34, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 760, 54, 0f, 136f);
-        CreateAnchoredText(page.transform, $"{owned}/{shadowEntry.Cards.Count} cards collected", 25, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 360, 42, -230f, 78f);
+        Text potionNameText = CreateAnchoredText(page.transform, string.Empty, 34, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 760, 54, 0f, 136f);
+        Text progressText = CreateAnchoredText(page.transform, string.Empty, 25, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 360, 42, -230f, 78f);
         CreateProgressBar(page.transform, owned, shadowEntry.Cards.Count, 300, 24, -230f, 40f);
-        CreateAnchoredText(page.transform, $"Reward: {CardAlbumCatalog.BuildRewardLine(shadowEntry.Reward)}", 18, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 400, 70, 220f, 66f);
-        Button claim = CreateAnchoredButton(page.transform, GetBookOfShadowsEntryClaimButtonText(shadowEntry), 17, 220, 40, GetAlbumClaimButtonColor(inventory.CanClaimBookOfShadowsEntryReward(shadowEntry), inventory.IsBookOfShadowsEntryRewardClaimed(shadowEntry)), 220f, 12f);
-        claim.interactable = inventory.CanClaimBookOfShadowsEntryReward(shadowEntry);
-        claim.onClick.AddListener(() => ClaimBookOfShadowsEntryReward(shadowEntry));
+        Text rewardText = CreateAnchoredText(page.transform, string.Empty, 18, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 400, 70, 220f, 66f);
+        Button claim = CreateAnchoredButton(page.transform, string.Empty, 17, 220, 40, GetAlbumClaimButtonColor(inventory.CanClaimBookOfShadowsEntryReward(shadowEntry), inventory.IsBookOfShadowsEntryRewardClaimed(shadowEntry)), 220f, 12f);
         CreateBookOfShadowsCardSlotGrid(page.transform, shadowEntry, 0f, -18f);
 
-        Button ingredients = CreateAnchoredButton(page.transform, "View Ingredients", 22, 300, 54, new Color(0.12f, 0.55f, 0.08f), 0f, -146f);
-        ingredients.onClick.AddListener(() => BuildBookOfShadowsIngredientOverlay(shadowEntry));
+        Button ingredients = CreateAnchoredButton(page.transform, string.Empty, 22, 300, 54, new Color(0.12f, 0.55f, 0.08f), 0f, -146f);
 
-        Button previousShadow = CreateAnchoredButton(panel.transform, "<", 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), -548f, -18f);
-        previousShadow.interactable = selectedBookOfShadowsEntryIndex > 0;
-        previousShadow.onClick.AddListener(() => SelectBookOfShadowsEntry(selectedBookOfShadowsEntryIndex - 1));
-        Button nextShadow = CreateAnchoredButton(panel.transform, ">", 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), 548f, -18f);
-        nextShadow.interactable = selectedBookOfShadowsEntryIndex < activeShadowSet.Entries.Count - 1;
-        nextShadow.onClick.AddListener(() => SelectBookOfShadowsEntry(selectedBookOfShadowsEntryIndex + 1));
+        Button previousShadow = CreateAnchoredButton(panel.transform, string.Empty, 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), -548f, -18f);
+        Button nextShadow = CreateAnchoredButton(panel.transform, string.Empty, 28, 62, 54, new Color(0.35f, 0.12f, 0.62f), 548f, -18f);
 
-        Button back = CreateAnchoredButton(panel.transform, "Back to Index", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), -130f, -284f);
-        back.onClick.AddListener(BuildBookOfShadowsLibraryUi);
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, -284f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        BookOfShadowsDetailPanelView detailView = panel.GetComponent<BookOfShadowsDetailPanelView>();
+        if (detailView == null)
+        {
+            detailView = panel.AddComponent<BookOfShadowsDetailPanelView>();
+        }
+
+        CollectionModalHeaderView headerView = panel.GetComponent<CollectionModalHeaderView>();
+        if (headerView == null)
+        {
+            headerView = panel.AddComponent<CollectionModalHeaderView>();
+        }
+
+        CollectionPagerView pagerView = panel.GetComponent<CollectionPagerView>();
+        if (pagerView == null)
+        {
+            pagerView = panel.AddComponent<CollectionPagerView>();
+        }
+
+        detailView.ResetRuntimeBindings();
+        detailView.Initialize(potionNameText, progressText, rewardText, claim, ingredients);
+        detailView.ClaimRequested += () => ClaimBookOfShadowsEntryReward(shadowEntry);
+        detailView.ViewIngredientsRequested += () => BuildBookOfShadowsIngredientOverlay(shadowEntry);
+        headerView.ResetRuntimeBindings();
+        headerView.Initialize(titleText, subtitleText);
+        pagerView.ResetRuntimeBindings();
+        pagerView.Initialize(previousShadow, nextShadow);
+        pagerView.PreviousRequested += HandleBookOfShadowsDetailPreviousRequested;
+        pagerView.NextRequested += HandleBookOfShadowsDetailNextRequested;
+        headerView.Apply(new CollectionModalHeaderDisplayModel
+        {
+            TitleText = "BOOK OF SHADOWS",
+            SubtitleText = $"Set {activeShadowSet.SetNumber}/3  |  Collection {shadowEntry.EntryNumber}/{activeShadowSet.Entries.Count}  |  {inventory.GetBookOfShadowsSeasonSummaryText()}"
+        });
+        detailView.Apply(new BookOfShadowsDetailPanelDisplayModel
+        {
+            PotionNameText = shadowEntry.PotionName,
+            ProgressText = $"{owned}/{shadowEntry.Cards.Count} cards collected",
+            RewardText = $"Reward: {CardAlbumCatalog.BuildRewardLine(shadowEntry.Reward)}",
+            ClaimButtonText = GetBookOfShadowsEntryClaimButtonText(shadowEntry),
+            ClaimButtonInteractable = inventory.CanClaimBookOfShadowsEntryReward(shadowEntry),
+            ViewIngredientsButtonText = "View Ingredients"
+        });
+        pagerView.Apply(new CollectionPagerDisplayModel
+        {
+            PreviousButtonText = "<",
+            PreviousButtonInteractable = selectedBookOfShadowsEntryIndex > 0,
+            NextButtonText = ">",
+            NextButtonInteractable = selectedBookOfShadowsEntryIndex < activeShadowSet.Entries.Count - 1
+        });
+
+        CreateDualFooterNavigation(panel.transform, "Back to Index", -284f, BuildBookOfShadowsLibraryUi, BuildPlayerDenUi);
+    }
+
+    private void HandleGrimoireDetailPreviousRequested()
+    {
+        SelectGrimoireEntry(selectedGrimoireEntryIndex - 1);
+    }
+
+    private void HandleGrimoireDetailNextRequested()
+    {
+        SelectGrimoireEntry(selectedGrimoireEntryIndex + 1);
+    }
+
+    private void HandleBookOfShadowsDetailPreviousRequested()
+    {
+        SelectBookOfShadowsEntry(selectedBookOfShadowsEntryIndex - 1);
+    }
+
+    private void HandleBookOfShadowsDetailNextRequested()
+    {
+        SelectBookOfShadowsEntry(selectedBookOfShadowsEntryIndex + 1);
     }
 
     private void BuildCovenCircleUi()
@@ -4349,8 +5772,7 @@ public class BingoPrototype : MonoBehaviour
 
         CreateAnchoredText(panel.transform, "Personal album cards stay in Library. Coven uses team cards for challenges, standings, gifts, requests, and emporium systems.", 16, FontStyle.Bold, Color.white, 900, 34, 0f, -284f);
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -326f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        CreateDenReturnFooter(panel.transform, 0f, -326f, BuildPlayerDenUi);
     }
 
     private void JoinPrototypeCoven()
@@ -4390,16 +5812,30 @@ public class BingoPrototype : MonoBehaviour
     {
         bool requested = prototypeRequestedCovenNames.Contains(name);
         GameObject row = CreateAnchoredPanel(parent, $"CovenDiscovery_{name}", new Color(0.96f, 0.86f, 0.62f), 280, 64, x, y);
-        CreateAnchoredText(row.transform, name, 15, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 168, 20, -46f, 16f);
-        CreateAnchoredText(row.transform, $"{summary}\n{note}", 9, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 168, 32, -46f, -10f);
+        Text nameText = CreateAnchoredText(row.transform, name, 15, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 168, 20, -46f, 16f);
+        Text summaryText = CreateAnchoredText(row.transform, $"{summary}\n{note}", 9, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 168, 32, -46f, -10f);
         Button action = CreateAnchoredButton(row.transform, name == "Moonpetal Circle" ? "Join" : requested ? "Cancel" : "Request", 10, 72, 28, requested ? new Color(0.42f, 0.12f, 0.18f) : new Color(0.12f, 0.55f, 0.08f), 88f, 0f);
+        CovenDiscoveryRowView view = row.GetComponent<CovenDiscoveryRowView>();
+        if (view == null)
+        {
+            view = row.AddComponent<CovenDiscoveryRowView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(nameText, summaryText, action);
+        view.Apply(new CovenDiscoveryRowDisplayModel
+        {
+            NameText = name,
+            SummaryText = $"{summary}\n{note}",
+            ActionButtonText = name == "Moonpetal Circle" ? "Join" : requested ? "Cancel" : "Request"
+        });
         if (name == "Moonpetal Circle")
         {
-            action.onClick.AddListener(JoinPrototypeCovenFromDiscovery);
+            view.ActionRequested += JoinPrototypeCovenFromDiscovery;
         }
         else
         {
-            action.onClick.AddListener(() => TogglePrototypeCovenJoinRequest(name));
+            view.ActionRequested += () => TogglePrototypeCovenJoinRequest(name);
         }
     }
 
@@ -4684,19 +6120,34 @@ public class BingoPrototype : MonoBehaviour
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
         int owned = inventory.GetOwnedGrimoireEntryCardCount(entry);
-        CreateAnchoredText(overlay.transform, entry.PotionName, 48, FontStyle.Bold, gold, 980, 60, -160f, 320f);
-        CreateAnchoredText(overlay.transform, $"{owned}/{entry.Cards.Count} ingredients found", 27, FontStyle.Bold, Color.white, 520, 40, -408f, 262f);
+        Text titleText = CreateAnchoredText(overlay.transform, string.Empty, 48, FontStyle.Bold, gold, 980, 60, -160f, 320f);
+        Text progressText = CreateAnchoredText(overlay.transform, string.Empty, 27, FontStyle.Bold, Color.white, 520, 40, -408f, 262f);
         CreateProgressBar(overlay.transform, owned, entry.Cards.Count, 360, 24, -408f, 226f);
         CreateRewardBadgeRow(overlay.transform, entry.Reward, 350f, 262f);
-        CreateAnchoredText(overlay.transform, "Tap an ingredient card for details, help requests, or Wild use.", 18, FontStyle.Bold, muted, 900, 30, 0f, -340f);
+        Text helperText = CreateAnchoredText(overlay.transform, string.Empty, 18, FontStyle.Bold, muted, 900, 30, 0f, -340f);
         CreateGrimoireIngredientCardGrid(overlay.transform, entry, 0f, 10f);
         inventory.MarkGrimoireEntryCardsSeen(entry);
 
-        Button back = CreateAnchoredButton(overlay.transform, "Back", 24, 150, 54, new Color(0.35f, 0.12f, 0.62f), -640f, 338f);
-        back.onClick.AddListener(() =>
+        Button back = CreateAnchoredButton(overlay.transform, string.Empty, 24, 150, 54, new Color(0.35f, 0.12f, 0.62f), -640f, 338f);
+        LibraryIngredientOverlayView overlayView = overlay.GetComponent<LibraryIngredientOverlayView>();
+        if (overlayView == null)
+        {
+            overlayView = overlay.AddComponent<LibraryIngredientOverlayView>();
+        }
+
+        overlayView.ResetRuntimeBindings();
+        overlayView.Initialize(titleText, progressText, helperText, back);
+        overlayView.BackRequested += () =>
         {
             Destroy(overlay);
             BuildGrimoireDetailUi();
+        };
+        overlayView.Apply(new LibraryIngredientOverlayDisplayModel
+        {
+            TitleText = entry.PotionName,
+            ProgressText = $"{owned}/{entry.Cards.Count} ingredients found",
+            HelperText = "Tap an ingredient card for details, help requests, or Wild use.",
+            BackButtonText = "Back"
         });
     }
 
@@ -4711,18 +6162,34 @@ public class BingoPrototype : MonoBehaviour
         GameObject overlay = CreateAnchoredPanel(contentRoot, "LibraryIngredientOverlay", new Color(0.035f, 0.018f, 0.07f, 0.985f), 1500, 820, 0f, -12f);
         Color gold = new Color(1f, 0.9f, 0.32f);
         int owned = inventory.GetOwnedBookOfShadowsEntryCardCount(entry);
-        CreateAnchoredText(overlay.transform, entry.PotionName, 48, FontStyle.Bold, gold, 980, 60, -160f, 320f);
-        CreateAnchoredText(overlay.transform, $"{owned}/{entry.Cards.Count} ingredients found", 27, FontStyle.Bold, Color.white, 520, 40, -408f, 262f);
+        Text titleText = CreateAnchoredText(overlay.transform, string.Empty, 48, FontStyle.Bold, gold, 980, 60, -160f, 320f);
+        Text progressText = CreateAnchoredText(overlay.transform, string.Empty, 27, FontStyle.Bold, Color.white, 520, 40, -408f, 262f);
         CreateProgressBar(overlay.transform, owned, entry.Cards.Count, 360, 24, -408f, 226f);
         CreateRewardBadgeRow(overlay.transform, entry.Reward, 350f, 262f);
+        Text helperText = CreateAnchoredText(overlay.transform, string.Empty, 18, FontStyle.Bold, new Color(0.84f, 0.82f, 0.94f), 900, 30, 0f, -340f);
         CreateBookOfShadowsIngredientCardGrid(overlay.transform, entry, 0f, -10f);
         inventory.MarkBookOfShadowsEntryCardsSeen(entry);
 
-        Button back = CreateAnchoredButton(overlay.transform, "Back", 24, 150, 54, new Color(0.35f, 0.12f, 0.62f), -640f, 338f);
-        back.onClick.AddListener(() =>
+        Button back = CreateAnchoredButton(overlay.transform, string.Empty, 24, 150, 54, new Color(0.35f, 0.12f, 0.62f), -640f, 338f);
+        LibraryIngredientOverlayView overlayView = overlay.GetComponent<LibraryIngredientOverlayView>();
+        if (overlayView == null)
+        {
+            overlayView = overlay.AddComponent<LibraryIngredientOverlayView>();
+        }
+
+        overlayView.ResetRuntimeBindings();
+        overlayView.Initialize(titleText, progressText, helperText, back);
+        overlayView.BackRequested += () =>
         {
             Destroy(overlay);
             BuildBookOfShadowsDetailUi();
+        };
+        overlayView.Apply(new LibraryIngredientOverlayDisplayModel
+        {
+            TitleText = entry.PotionName,
+            ProgressText = $"{owned}/{entry.Cards.Count} ingredients found",
+            HelperText = "Tap an ingredient card for details, duplicates, and collection progress.",
+            BackButtonText = "Back"
         });
     }
 
@@ -4774,31 +6241,54 @@ public class BingoPrototype : MonoBehaviour
         Color muted = new Color(0.34f, 0.26f, 0.34f);
         int copies = inventory.GetGrimoireCardCopies(card.Id);
 
-        CreateAnchoredText(panel.transform, card.CardName, 36, FontStyle.Bold, purple, 820, 54, 10f, 242f);
-        CreateAnchoredText(panel.transform, $"{entry.PotionName} | {GetAlbumTierLabel(card.Tier)} | {BuildStarText(card.Stars)}", 17, FontStyle.Bold, muted, 760, 26, 18f, 204f);
+        Text cardNameText = CreateAnchoredText(panel.transform, string.Empty, 36, FontStyle.Bold, purple, 820, 54, 10f, 242f);
+        Text metadataText = CreateAnchoredText(panel.transform, string.Empty, 17, FontStyle.Bold, muted, 760, 26, 18f, 204f);
 
         GameObject art = CreateAnchoredPanel(panel.transform, "IngredientArtwork", GetAlbumTierColor(card.Tier), 330, 320, -270f, 24f);
-        CreateAnchoredText(art.transform, BuildIngredientSpecimenText(card.CardName), 30, FontStyle.Bold, Color.white, 280, 170, 0f, 22f);
-        CreateAnchoredText(art.transform, "ingredient card", 15, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 240, 28, 0f, -122f);
+        Text artPlaceholderText = CreateAnchoredText(art.transform, string.Empty, 30, FontStyle.Bold, Color.white, 280, 170, 0f, 22f);
+        Text artFooterText = CreateAnchoredText(art.transform, string.Empty, 15, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 240, 28, 0f, -122f);
 
         GameObject countPanel = CreateAnchoredPanel(panel.transform, "IngredientCountPanel", new Color(0.98f, 0.9f, 0.7f), 400, 126, 230f, 96f);
-        CreateAnchoredText(countPanel.transform, "YOU HAVE", 18, FontStyle.Bold, new Color(0.16f, 0.38f, 0.08f), 260, 26, 0f, 36f);
-        CreateAnchoredText(countPanel.transform, $"{copies} / 1", 44, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 280, 60, 0f, -8f);
-        CreateAnchoredText(countPanel.transform, copies > 0 ? "Owned" : "Missing", 17, FontStyle.Bold, muted, 260, 24, 0f, -48f);
+        Text countTitleText = CreateAnchoredText(countPanel.transform, string.Empty, 18, FontStyle.Bold, new Color(0.16f, 0.38f, 0.08f), 260, 26, 0f, 36f);
+        Text countValueText = CreateAnchoredText(countPanel.transform, string.Empty, 44, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 280, 60, 0f, -8f);
+        Text countStatusText = CreateAnchoredText(countPanel.transform, string.Empty, 17, FontStyle.Bold, muted, 260, 24, 0f, -48f);
 
-        Button help = CreateAnchoredButton(panel.transform, "Ask for Help", 20, 230, 50, new Color(0.35f, 0.12f, 0.62f), 104f, -40f);
-        help.onClick.AddListener(() => BuildIngredientAskForHelpModal(entry, card, true, ""));
+        Button help = CreateAnchoredButton(panel.transform, string.Empty, 20, 230, 50, new Color(0.35f, 0.12f, 0.62f), 104f, -40f);
 
-        Button wild = CreateAnchoredButton(panel.transform, inventory.JokerWildCards > 0 ? "Use Wild" : "No Wild Cards", 20, 230, 50, inventory.JokerWildCards > 0 ? green : new Color(0.34f, 0.32f, 0.38f), 356f, -40f);
-        wild.interactable = inventory.JokerWildCards > 0;
-        wild.onClick.AddListener(() => BuildUseWildConfirmation(entry, card));
+        Button wild = CreateAnchoredButton(panel.transform, string.Empty, 20, 230, 50, inventory.JokerWildCards > 0 ? green : new Color(0.34f, 0.32f, 0.38f), 356f, -40f);
 
         GameObject sourcePanel = CreateAnchoredPanel(panel.transform, "WhereToGet", new Color(0.98f, 0.9f, 0.7f), 500, 88, 230f, -152f);
-        CreateAnchoredText(sourcePanel.transform, "WHERE TO GET", 16, FontStyle.Bold, purple, 450, 22, 0f, 22f);
-        CreateAnchoredText(sourcePanel.transform, "Play realm rooms, open card packs, or ask eligible Coven/Friend helpers.", 15, FontStyle.Bold, muted, 450, 38, 0f, -12f);
+        Text sourceTitleText = CreateAnchoredText(sourcePanel.transform, string.Empty, 16, FontStyle.Bold, purple, 450, 22, 0f, 22f);
+        Text sourceBodyText = CreateAnchoredText(sourcePanel.transform, string.Empty, 15, FontStyle.Bold, muted, 450, 38, 0f, -12f);
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Ingredients", 18, 240, 46, new Color(0.35f, 0.12f, 0.62f), 0f, -252f);
-        close.onClick.AddListener(RemoveIngredientDetailModal);
+        Button close = CreateAnchoredButton(panel.transform, string.Empty, 18, 240, 46, new Color(0.35f, 0.12f, 0.62f), 0f, -252f);
+        IngredientDetailModalView view = panel.GetComponent<IngredientDetailModalView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<IngredientDetailModalView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(cardNameText, metadataText, artPlaceholderText, artFooterText, countTitleText, countValueText, countStatusText, help, wild, sourceTitleText, sourceBodyText, close);
+        view.HelpRequested += () => BuildIngredientAskForHelpModal(entry, card, true, "");
+        view.WildRequested += () => BuildUseWildConfirmation(entry, card);
+        view.CloseRequested += RemoveIngredientDetailModal;
+        view.Apply(new IngredientDetailModalDisplayModel
+        {
+            CardNameText = card.CardName,
+            MetadataText = $"{entry.PotionName} | {GetAlbumTierLabel(card.Tier)} | {BuildStarText(card.Stars)}",
+            ArtPlaceholderText = BuildIngredientSpecimenText(card.CardName),
+            ArtFooterText = "ingredient card",
+            CountTitleText = "YOU HAVE",
+            CountValueText = $"{copies} / 1",
+            CountStatusText = copies > 0 ? "Owned" : "Missing",
+            HelpButtonText = "Ask for Help",
+            WildButtonText = inventory.JokerWildCards > 0 ? "Use Wild" : "No Wild Cards",
+            WildButtonInteractable = inventory.JokerWildCards > 0,
+            SourceTitleText = "WHERE TO GET",
+            SourceBodyText = "Play realm rooms, open card packs, or ask eligible Coven/Friend helpers.",
+            CloseButtonText = "Back to Ingredients"
+        });
     }
 
     private void BuildIngredientAskForHelpModal(GrimoireEntryDefinition entry, AlbumCardDefinition card, bool covenTab, string statusMessage)
@@ -4815,33 +6305,41 @@ public class BingoPrototype : MonoBehaviour
         bool friendsAvailable = IsFriendHelpEligibleToday(card);
         bool activeTabAvailable = covenTab || friendsAvailable;
 
-        CreateAnchoredText(panel.transform, "ASK FOR HELP", 44, FontStyle.Bold, gold, 620, 56, 120f, 242f);
-        CreateAnchoredText(panel.transform, $"Daily Help Requests  {used} / {limit} Used", 24, FontStyle.Bold, Color.white, 520, 42, 188f, 184f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 44, FontStyle.Bold, gold, 620, 56, 120f, 242f);
+        Text usageText = CreateAnchoredText(panel.transform, string.Empty, 24, FontStyle.Bold, Color.white, 520, 42, 188f, 184f);
 
         GameObject summary = CreateAnchoredPanel(panel.transform, "HelpIngredientSummary", cream, 360, 390, -320f, 0f);
-        CreateAnchoredText(summary.transform, card.CardName, 30, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 310, 76, 0f, 118f);
-        CreateAnchoredText(summary.transform, BuildIngredientSpecimenText(card.CardName), 54, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 260, 100, 0f, 12f);
-        CreateAnchoredText(summary.transform, $"You Have\n{inventory.GetGrimoireCardCopies(card.Id)} / 1", 28, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 260, 92, 0f, -118f);
+        Text summaryCardNameText = CreateAnchoredText(summary.transform, string.Empty, 30, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 310, 76, 0f, 118f);
+        Text summarySpecimenText = CreateAnchoredText(summary.transform, string.Empty, 54, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 260, 100, 0f, 12f);
+        Text summaryCountText = CreateAnchoredText(summary.transform, string.Empty, 28, FontStyle.Bold, new Color(0.04f, 0.32f, 0.1f), 260, 92, 0f, -118f);
 
-        Button coven = CreateAnchoredButton(panel.transform, "Coven", 21, 260, 48, covenTab ? purple : new Color(0.28f, 0.26f, 0.32f), 62f, 98f);
-        coven.onClick.AddListener(() => BuildIngredientAskForHelpModal(entry, card, true, statusMessage));
-        Button friends = CreateAnchoredButton(panel.transform, friendsAvailable ? "Friends" : "Friends Locked", 21, 260, 48, !covenTab ? blue : new Color(0.28f, 0.26f, 0.32f), 330f, 98f);
-        friends.interactable = friendsAvailable;
-        friends.onClick.AddListener(() => BuildIngredientAskForHelpModal(entry, card, false, statusMessage));
+        Button coven = CreateAnchoredButton(panel.transform, string.Empty, 21, 260, 48, covenTab ? purple : new Color(0.28f, 0.26f, 0.32f), 62f, 98f);
+        Button friends = CreateAnchoredButton(panel.transform, string.Empty, 21, 260, 48, !covenTab ? blue : new Color(0.28f, 0.26f, 0.32f), 330f, 98f);
 
         GameObject recipientPanel = CreateAnchoredPanel(panel.transform, "HelpRecipients", cream, 640, 238, 196f, -38f);
-        CreateAnchoredText(recipientPanel.transform, covenTab ? "Coven helpers" : "Friend helpers", 22, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 560, 30, 0f, 86f);
+        Text recipientsTitleText = CreateAnchoredText(recipientPanel.transform, string.Empty, 22, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 560, 30, 0f, 86f);
         CreateHelpRecipientGrid(recipientPanel.transform, covenTab, activeTabAvailable);
 
         string helpNote = !activeTabAvailable
             ? "Friends rotate by ingredient/day. Try Coven or come back later."
             : string.IsNullOrWhiteSpace(statusMessage) ? "Select helpers, then send. Prototype sends to visible helpers." : statusMessage;
-        CreateAnchoredText(panel.transform, helpNote, 16, FontStyle.Bold, muted, 640, 36, 196f, -184f);
+        Text helpNoteText = CreateAnchoredText(panel.transform, string.Empty, 16, FontStyle.Bold, muted, 640, 36, 196f, -184f);
 
         bool canSend = activeTabAvailable && inventory.CanSendSocialHelpRequest();
-        Button send = CreateAnchoredButton(panel.transform, canSend ? "Send Request" : "Limit Reached", 22, 300, 54, canSend ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 196f, -242f);
-        send.interactable = canSend;
-        send.onClick.AddListener(() =>
+        Button send = CreateAnchoredButton(panel.transform, string.Empty, 22, 300, 54, canSend ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 196f, -242f);
+        Button back = CreateAnchoredButton(panel.transform, string.Empty, 18, 240, 46, new Color(0.18f, 0.16f, 0.22f), -390f, -242f);
+
+        IngredientHelpModalView view = panel.GetComponent<IngredientHelpModalView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<IngredientHelpModalView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, usageText, summaryCardNameText, summarySpecimenText, summaryCountText, coven, friends, recipientsTitleText, helpNoteText, send, back);
+        view.CovenRequested += () => BuildIngredientAskForHelpModal(entry, card, true, statusMessage);
+        view.FriendsRequested += () => BuildIngredientAskForHelpModal(entry, card, false, statusMessage);
+        view.SendRequested += () =>
         {
             bool sent = inventory.TrySendSocialHelpRequest();
             if (sent)
@@ -4859,10 +6357,25 @@ public class BingoPrototype : MonoBehaviour
                 ? $"Sent request for {card.CardName}."
                 : "Daily help request limit reached.";
             BuildIngredientAskForHelpModal(entry, card, covenTab, sentMessage);
+        };
+        view.BackRequested += RemoveIngredientHelpModal;
+        view.Apply(new IngredientHelpModalDisplayModel
+        {
+            TitleText = "ASK FOR HELP",
+            UsageText = $"Daily Help Requests  {used} / {limit} Used",
+            SummaryCardNameText = card.CardName,
+            SummarySpecimenText = BuildIngredientSpecimenText(card.CardName),
+            SummaryCountText = $"You Have\n{inventory.GetGrimoireCardCopies(card.Id)} / 1",
+            CovenButtonText = "Coven",
+            CovenButtonInteractable = true,
+            FriendsButtonText = friendsAvailable ? "Friends" : "Friends Locked",
+            FriendsButtonInteractable = friendsAvailable,
+            RecipientsTitleText = covenTab ? "Coven helpers" : "Friend helpers",
+            HelpNoteText = helpNote,
+            SendButtonText = canSend ? "Send Request" : "Limit Reached",
+            SendButtonInteractable = canSend,
+            BackButtonText = "Back to Ingredient"
         });
-
-        Button back = CreateAnchoredButton(panel.transform, "Back to Ingredient", 18, 240, 46, new Color(0.18f, 0.16f, 0.22f), -390f, -242f);
-        back.onClick.AddListener(RemoveIngredientHelpModal);
     }
 
     private void CreateHelpRecipientGrid(Transform parent, bool covenTab, bool available)
@@ -4893,19 +6406,27 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject panel = CreateAnchoredPanel(contentRoot, "UseWildConfirmation", new Color(0.07f, 0.035f, 0.12f, 0.985f), 620, 300, 0f, -20f);
         Color gold = new Color(1f, 0.9f, 0.32f);
-        CreateAnchoredText(panel.transform, $"Use 1 Wild for {card.CardName}?", 25, FontStyle.Bold, gold, 540, 42, 0f, 104f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 25, FontStyle.Bold, gold, 540, 42, 0f, 104f);
 
         GameObject wildCard = CreateAnchoredPanel(panel.transform, "WildCardPreview", new Color(0.35f, 0.12f, 0.62f), 150, 150, -160f, 4f);
-        CreateAnchoredText(wildCard.transform, "WILD\nCARD", 28, FontStyle.Bold, Color.white, 120, 90, 0f, 0f);
-        CreateAnchoredText(panel.transform, ">", 42, FontStyle.Bold, Color.white, 80, 60, 0f, 4f);
+        Text wildCardText = CreateAnchoredText(wildCard.transform, string.Empty, 28, FontStyle.Bold, Color.white, 120, 90, 0f, 0f);
+        Text arrowText = CreateAnchoredText(panel.transform, string.Empty, 42, FontStyle.Bold, Color.white, 80, 60, 0f, 4f);
         GameObject targetCard = CreateAnchoredPanel(panel.transform, "TargetIngredientPreview", GetAlbumTierColor(card.Tier), 150, 150, 160f, 4f);
-        CreateAnchoredText(targetCard.transform, BuildIngredientSpecimenText(card.CardName), 23, FontStyle.Bold, Color.white, 120, 76, 0f, 10f);
-        CreateAnchoredText(targetCard.transform, card.CardName, 11, FontStyle.Bold, Color.white, 130, 34, 0f, -54f);
+        Text targetSpecimenText = CreateAnchoredText(targetCard.transform, string.Empty, 23, FontStyle.Bold, Color.white, 120, 76, 0f, 10f);
+        Text targetCardNameText = CreateAnchoredText(targetCard.transform, string.Empty, 11, FontStyle.Bold, Color.white, 130, 34, 0f, -54f);
 
-        Button no = CreateAnchoredButton(panel.transform, "No", 20, 150, 44, new Color(0.34f, 0.32f, 0.38f), -88f, -118f);
-        no.onClick.AddListener(() => Destroy(panel));
+        Button no = CreateAnchoredButton(panel.transform, string.Empty, 20, 150, 44, new Color(0.34f, 0.32f, 0.38f), -88f, -118f);
         Button yes = CreateAnchoredButton(panel.transform, "Yes", 20, 150, 44, new Color(0.12f, 0.55f, 0.08f), 88f, -118f);
-        yes.onClick.AddListener(() =>
+        WildConfirmationModalView view = panel.GetComponent<WildConfirmationModalView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<WildConfirmationModalView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, wildCardText, arrowText, targetSpecimenText, targetCardNameText, no, yes);
+        view.NoRequested += () => Destroy(panel);
+        view.YesRequested += () =>
         {
             if (inventory.TryUseJokerWildForGrimoireCard(card.Id))
             {
@@ -4919,6 +6440,16 @@ public class BingoPrototype : MonoBehaviour
                 BuildGrimoireIngredientOverlay(entry);
                 BuildGrimoireIngredientDetailModal(entry, card);
             }
+        };
+        view.Apply(new WildConfirmationModalDisplayModel
+        {
+            TitleText = $"Use 1 Wild for {card.CardName}?",
+            WildCardText = "WILD\nCARD",
+            ArrowText = ">",
+            TargetSpecimenText = BuildIngredientSpecimenText(card.CardName),
+            TargetCardNameText = card.CardName,
+            NoButtonText = "No",
+            YesButtonText = "Yes"
         });
     }
 
@@ -5001,10 +6532,14 @@ public class BingoPrototype : MonoBehaviour
 
     private void CreateLibraryInventoryRow(Transform parent, string title, string note, int count, float x, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"LibraryRow_{title}", new Color(0.96f, 0.86f, 0.62f), 310, 46, x, y);
-        CreateAnchoredText(row.transform, title, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 176, 22, -48f, 8f);
-        CreateAnchoredText(row.transform, note, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 194, 18, -36f, -13f);
-        CreateAnchoredText(row.transform, "x" + count, 22, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 62, 34, 114f, 0f);
+        GameObject row = CreateModalInfoCard(parent, $"LibraryRow_{title}", 310, 46, x, y);
+        Text titleText = CreateAnchoredText(row.transform, title, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 176, 22, -48f, 8f);
+        Text noteText = CreateAnchoredText(row.transform, note, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 194, 18, -36f, -13f);
+        Text countText = CreateAnchoredText(row.transform, "x" + count, 22, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 62, 34, 114f, 0f);
+        UITitleNoteCountRowView rowView = row.AddComponent<UITitleNoteCountRowView>();
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(titleText, noteText, countText);
+        rowView.Apply(title, note, "x" + count);
     }
 
     private void CreateLibraryStarRow(Transform parent, int stars, float x, float y)
@@ -5377,36 +6912,83 @@ public class BingoPrototype : MonoBehaviour
     private void CreateCovenFeatureLine(Transform parent, string title, string note, float x, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"CovenFeature_{title}", new Color(0.96f, 0.86f, 0.62f), 286, 42, x, y);
-        CreateAnchoredText(row.transform, title, 15, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 250, 20, 0f, 8f);
-        CreateAnchoredText(row.transform, note, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 250, 16, 0f, -12f);
+        Text titleText = CreateAnchoredText(row.transform, title, 15, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 250, 20, 0f, 8f);
+        Text noteText = CreateAnchoredText(row.transform, note, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 250, 16, 0f, -12f);
+        UITitleNoteRowView rowView = row.GetComponent<UITitleNoteRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<UITitleNoteRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(titleText, noteText);
+        rowView.Apply(title, note);
     }
 
     private void CreateCovenLeadershipField(Transform parent, string title, string note, float x, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"CovenLeadership_{title}", new Color(0.96f, 0.86f, 0.62f), 280, 50, x, y);
-        CreateAnchoredText(row.transform, title, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 250, 20, 0f, 10f);
-        CreateAnchoredText(row.transform, note, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 250, 18, 0f, -13f);
+        Text titleText = CreateAnchoredText(row.transform, title, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 250, 20, 0f, 10f);
+        Text noteText = CreateAnchoredText(row.transform, note, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 250, 18, 0f, -13f);
+        UITitleNoteRowView rowView = row.GetComponent<UITitleNoteRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<UITitleNoteRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(titleText, noteText);
+        rowView.Apply(title, note);
     }
 
     private void CreateCovenJoinRequestRow(Transform parent, CovenJoinRequestInfo request, float x, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"CovenJoinRequest_{request.Name}", new Color(0.96f, 0.86f, 0.62f), 310, 54, x, y);
-        CreateAnchoredText(row.transform, request.Name, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 120, 20, -82f, 10f);
-        CreateAnchoredText(row.transform, request.Summary, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 154, 18, -64f, -12f);
+        Text nameText = CreateAnchoredText(row.transform, request.Name, 16, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 120, 20, -82f, 10f);
+        Text summaryText = CreateAnchoredText(row.transform, request.Summary, 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 154, 18, -64f, -12f);
         Button accept = CreateAnchoredButton(row.transform, "Accept", 11, 62, 26, new Color(0.12f, 0.55f, 0.08f), 70f, 10f);
-        accept.interactable = coven.CanAcceptJoinRequests();
-        accept.onClick.AddListener(() => AcceptCovenJoinRequest(request.Name));
         Button deny = CreateAnchoredButton(row.transform, "Deny", 11, 62, 26, new Color(0.42f, 0.12f, 0.18f), 70f, -18f);
-        deny.onClick.AddListener(() => DenyCovenJoinRequest(request.Name));
+        CovenJoinRequestRowView view = row.GetComponent<CovenJoinRequestRowView>();
+        if (view == null)
+        {
+            view = row.AddComponent<CovenJoinRequestRowView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(nameText, summaryText, accept, deny);
+        view.Apply(new CovenJoinRequestRowDisplayModel
+        {
+            NameText = request.Name,
+            SummaryText = request.Summary,
+            AcceptButtonText = "Accept",
+            CanAccept = coven.CanAcceptJoinRequests(),
+            DenyButtonText = "Deny",
+            CanDeny = true
+        });
+        view.AcceptRequested += () => AcceptCovenJoinRequest(request.Name);
+        view.DenyRequested += () => DenyCovenJoinRequest(request.Name);
     }
 
     private void CreateCovenMemberRow(Transform parent, CovenMemberInfo member, float x, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"CovenMember_{member.Name}", new Color(0.96f, 0.86f, 0.62f), 250, 46, x, y);
         Button button = row.AddComponent<Button>();
-        button.onClick.AddListener(() => BuildCovenMemberDetailUi(member));
-        CreateAnchoredText(row.transform, member.Name, 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 210, 22, 0f, 9f);
-        CreateAnchoredText(row.transform, member.GetSummaryText(), 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 216, 18, 0f, -13f);
+        Text nameText = CreateAnchoredText(row.transform, member.Name, 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 210, 22, 0f, 9f);
+        Text summaryText = CreateAnchoredText(row.transform, member.GetSummaryText(), 10, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 216, 18, 0f, -13f);
+        CovenMemberRowView view = row.GetComponent<CovenMemberRowView>();
+        if (view == null)
+        {
+            view = row.AddComponent<CovenMemberRowView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(nameText, summaryText, button);
+        view.Apply(new CovenMemberRowDisplayModel
+        {
+            NameText = member.Name,
+            SummaryText = member.GetSummaryText()
+        });
+        view.OpenRequested += () => BuildCovenMemberDetailUi(member);
     }
 
     private void BuildCovenMemberDetailUi(CovenMemberInfo member)
@@ -5429,9 +7011,23 @@ public class BingoPrototype : MonoBehaviour
         CreateAnchoredText(panel.transform, "WISH LIST", 15, FontStyle.Bold, gold, 280, 24, 190f, 142f);
 
         GameObject profile = CreateAnchoredPanel(panel.transform, "CovenMemberProfileTab", new Color(0.12f, 0.075f, 0.16f), 300, 300, -190f, -20f);
-        CreateAnchoredText(profile.transform, $"{currentMember.LastOnline}\n{currentMember.Stats}", 21, FontStyle.Bold, Color.white, 250, 76, 0f, 78f);
-        CreateAnchoredText(profile.transform, "Wish lists are visible to covenmates only.\nFulfilled gifts are sent to this member's inbox for collection.", 15, FontStyle.Bold, muted, 250, 104, 0f, -34f);
-        CreateAnchoredText(profile.transform, $"Inbox gifts queued: {coven.InboxGifts.Count}", 15, FontStyle.Bold, gold, 250, 26, 0f, -124f);
+        Text profileSummaryText = CreateAnchoredText(profile.transform, $"{currentMember.LastOnline}\n{currentMember.Stats}", 21, FontStyle.Bold, Color.white, 250, 76, 0f, 78f);
+        Text profileNotesText = CreateAnchoredText(profile.transform, "Wish lists are visible to covenmates only.\nFulfilled gifts are sent to this member's inbox for collection.", 15, FontStyle.Bold, muted, 250, 104, 0f, -34f);
+        Text profileQueueText = CreateAnchoredText(profile.transform, $"Inbox gifts queued: {coven.InboxGifts.Count}", 15, FontStyle.Bold, gold, 250, 26, 0f, -124f);
+        CovenMemberProfileView profileView = profile.GetComponent<CovenMemberProfileView>();
+        if (profileView == null)
+        {
+            profileView = profile.AddComponent<CovenMemberProfileView>();
+        }
+
+        profileView.ResetRuntimeBindings();
+        profileView.Initialize(profileSummaryText, profileNotesText, profileQueueText);
+        profileView.Apply(new CovenMemberProfileDisplayModel
+        {
+            SummaryText = $"{currentMember.LastOnline}\n{currentMember.Stats}",
+            NotesText = "Wish lists are visible to covenmates only.\nFulfilled gifts are sent to this member's inbox for collection.",
+            QueueText = $"Inbox gifts queued: {coven.InboxGifts.Count}"
+        });
 
         GameObject wish = CreateAnchoredPanel(panel.transform, "CovenMemberWishTab", new Color(0.96f, 0.86f, 0.62f), 330, 300, 190f, -20f);
         CreateAnchoredText(wish.transform, "Refreshes in 48h prototype window", 13, FontStyle.Bold, ink, 290, 22, 0f, 126f);
@@ -5440,10 +7036,23 @@ public class BingoPrototype : MonoBehaviour
             int regularCards = inventory.GetInventoryRewardCount("Regular Card");
             string cardStatus = currentMember.CardWish.IsFulfilled ? "Fulfilled - inbox pending" : $"{currentMember.CardWish.ItemName}\nYou own regular cards: {regularCards}";
             GameObject cardRow = CreateAnchoredPanel(wish.transform, "CovenCardWish", new Color(0.18f, 0.13f, 0.2f), 290, 58, 0f, 84f);
-            CreateAnchoredText(cardRow.transform, cardStatus, 12, FontStyle.Bold, Color.white, 188, 46, -40f, 0f);
+            Text cardStatusText = CreateAnchoredText(cardRow.transform, cardStatus, 12, FontStyle.Bold, Color.white, 188, 46, -40f, 0f);
             Button cardGift = CreateAnchoredButton(cardRow.transform, currentMember.CardWish.IsFulfilled ? "Sent" : "Gift Card", 11, 78, 30, regularCards > 0 && !currentMember.CardWish.IsFulfilled ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 98f, 0f);
-            cardGift.interactable = regularCards > 0 && !currentMember.CardWish.IsFulfilled;
-            cardGift.onClick.AddListener(() => GiftCovenMemberCardWish(currentMember.Name));
+            CovenWishCardRowView cardRowView = cardRow.GetComponent<CovenWishCardRowView>();
+            if (cardRowView == null)
+            {
+                cardRowView = cardRow.AddComponent<CovenWishCardRowView>();
+            }
+
+            cardRowView.ResetRuntimeBindings();
+            cardRowView.Initialize(cardStatusText, cardGift);
+            cardRowView.Apply(new CovenWishCardRowDisplayModel
+            {
+                StatusText = cardStatus,
+                ActionButtonText = currentMember.CardWish.IsFulfilled ? "Sent" : "Gift Card",
+                ActionInteractable = regularCards > 0 && !currentMember.CardWish.IsFulfilled
+            });
+            cardRowView.ActionRequested += () => GiftCovenMemberCardWish(currentMember.Name);
         }
 
         IReadOnlyList<CovenWishListRequest> ingredientWishes = currentMember.IngredientWishes;
@@ -5464,10 +7073,23 @@ public class BingoPrototype : MonoBehaviour
         string label = request.IsFulfilled
             ? $"{request.ItemName}\nFulfilled - inbox pending"
             : $"{request.ItemName} {request.RemainingQuantity}/{request.RequestedQuantity}\nYou own {owned}";
-        CreateAnchoredText(row.transform, label, 10, FontStyle.Bold, Color.white, 190, 34, -42f, 0f);
+        Text labelText = CreateAnchoredText(row.transform, label, 10, FontStyle.Bold, Color.white, 190, 34, -42f, 0f);
         Button gift = CreateAnchoredButton(row.transform, request.IsFulfilled ? "Sent" : "Gift 1", 10, 72, 26, canGift ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 98f, 0f);
-        gift.interactable = canGift;
-        gift.onClick.AddListener(() => GiftCovenMemberIngredientWish(memberName, request.ItemName));
+        CovenWishIngredientRowView rowView = row.GetComponent<CovenWishIngredientRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<CovenWishIngredientRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(labelText, gift);
+        rowView.Apply(new CovenWishIngredientRowDisplayModel
+        {
+            StatusText = label,
+            ActionButtonText = request.IsFulfilled ? "Sent" : "Gift 1",
+            ActionInteractable = canGift
+        });
+        rowView.ActionRequested += () => GiftCovenMemberIngredientWish(memberName, request.ItemName);
     }
 
     private void GiftCovenMemberCardWish(string memberName)
@@ -5645,8 +7267,18 @@ public class BingoPrototype : MonoBehaviour
         CreateCabinetStat(panel.transform, "Pandora", inventory.GetInventoryRewardCount("Pandora Sigil").ToString(), 330f, 194f);
 
         CreateCabinetSection(panel.transform, "Timed Boost", -398f, 82f, 320, 190, new Color(0.13f, 0.06f, 0.22f));
-        CreateAnchoredText(panel.transform, "Clairvoyance", 24, FontStyle.Bold, gold, 280, 30, -398f, 116f);
-        CreateAnchoredText(panel.transform, $"{inventory.ClairvoyanceMinutes}m stock\nActive: {(inventory.HasActiveClairvoyance() ? inventory.GetActiveClairvoyanceTimeText() : "OFF")}", 20, FontStyle.Bold, Color.white, 280, 58, -398f, 68f);
+        GameObject timedBoostCard = CreateAnchoredPanel(panel.transform, "CabinetTimedBoostCard", new Color(0f, 0f, 0f, 0f), 280, 96, -398f, 92f);
+        Text timedBoostTitleText = CreateAnchoredText(timedBoostCard.transform, "Clairvoyance", 24, FontStyle.Bold, gold, 280, 30, 0f, 24f);
+        Text timedBoostNoteText = CreateAnchoredText(timedBoostCard.transform, $"{inventory.ClairvoyanceMinutes}m stock\nActive: {(inventory.HasActiveClairvoyance() ? inventory.GetActiveClairvoyanceTimeText() : "OFF")}", 20, FontStyle.Bold, Color.white, 280, 58, 0f, -24f);
+        UITitleNoteRowView timedBoostView = timedBoostCard.GetComponent<UITitleNoteRowView>();
+        if (timedBoostView == null)
+        {
+            timedBoostView = timedBoostCard.AddComponent<UITitleNoteRowView>();
+        }
+
+        timedBoostView.ResetRuntimeBindings();
+        timedBoostView.Initialize(timedBoostTitleText, timedBoostNoteText);
+        timedBoostView.Apply("Clairvoyance", $"{inventory.ClairvoyanceMinutes}m stock\nActive: {(inventory.HasActiveClairvoyance() ? inventory.GetActiveClairvoyanceTimeText() : "OFF")}");
         Button clairvoyance = CreateAnchoredButton(panel.transform, inventory.CanActivateClairvoyance() ? "Activate 15m" : "No Stock", 17, 220, 38, inventory.CanActivateClairvoyance() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), -398f, 4f);
         clairvoyance.interactable = inventory.CanActivateClairvoyance();
         clairvoyance.onClick.AddListener(ActivatePrototypeClairvoyanceFromInventory);
@@ -5661,7 +7293,18 @@ public class BingoPrototype : MonoBehaviour
 
         CreateCabinetSection(panel.transform, "Curiosities", -398f, -196f, 320, 164, new Color(0.17f, 0.08f, 0.07f));
         CreateCabinetInventoryRow(panel.transform, "Pandora Sigil", "Chest that opens into power-ups", inventory.GetInventoryRewardCount("Pandora Sigil"), -398f, -178f);
-        CreateAnchoredText(panel.transform, "Pandora is stored here and opens during gameplay when loaded from the power-up bank.", 15, FontStyle.Bold, muted, 280, 48, -398f, -236f);
+        GameObject curiositiesNote = CreateAnchoredPanel(panel.transform, "CuriositiesNote", new Color(0f, 0f, 0f, 0f), 280, 48, -398f, -236f);
+        Text curiositiesTitleText = CreateAnchoredText(curiositiesNote.transform, "Pandora", 15, FontStyle.Bold, gold, 280, 18, 0f, 10f);
+        Text curiositiesBodyText = CreateAnchoredText(curiositiesNote.transform, "Stored here and opens during gameplay when loaded from the power-up bank.", 12, FontStyle.Bold, muted, 280, 30, 0f, -12f);
+        UITitleNoteRowView curiositiesView = curiositiesNote.GetComponent<UITitleNoteRowView>();
+        if (curiositiesView == null)
+        {
+            curiositiesView = curiositiesNote.AddComponent<UITitleNoteRowView>();
+        }
+
+        curiositiesView.ResetRuntimeBindings();
+        curiositiesView.Initialize(curiositiesTitleText, curiositiesBodyText);
+        curiositiesView.Apply("Pandora", "Stored here and opens during gameplay when loaded from the power-up bank.");
 
         CreateCabinetSection(panel.transform, "Other Destinations", 162f, -196f, 670, 164, new Color(0.13f, 0.08f, 0.15f));
         CreateCabinetDestinationRow(panel.transform, "Cards", "Open Library Grimoire", totalCards, 12f, -178f);
@@ -5670,36 +7313,74 @@ public class BingoPrototype : MonoBehaviour
 
         powerUpInventoryText = CreateAnchoredText(panel.transform, "", 1, FontStyle.Normal, Color.clear, 1, 1, 0f, 0f);
 
-        Button close = CreateAnchoredButton(panel.transform, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), 0f, -292f);
-        close.onClick.AddListener(BuildPlayerDenUi);
+        CreateDenReturnFooter(panel.transform, 0f, -292f, BuildPlayerDenUi);
     }
 
     private void CreateCabinetStat(Transform parent, string label, string value, float x, float y)
     {
-        CreateAnchoredText(parent, value, 24, FontStyle.Bold, Color.white, 210, 30, x, y + 10f);
-        CreateAnchoredText(parent, label, 13, FontStyle.Bold, new Color(0.84f, 0.88f, 1f), 210, 18, x, y - 18f);
+        GameObject row = CreateAnchoredPanel(parent, $"CabinetStat_{label}", new Color(0f, 0f, 0f, 0f), 210, 54, x, y);
+        Text valueText = CreateAnchoredText(row.transform, value, 24, FontStyle.Bold, Color.white, 210, 30, 0f, 10f);
+        Text labelText = CreateAnchoredText(row.transform, label, 13, FontStyle.Bold, new Color(0.84f, 0.88f, 1f), 210, 18, 0f, -18f);
+        LibraryStatView view = row.GetComponent<LibraryStatView>();
+        if (view == null)
+        {
+            view = row.AddComponent<LibraryStatView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(valueText, labelText);
+        view.Apply(new LibraryStatDisplayModel
+        {
+            LabelText = label,
+            ValueText = value
+        });
     }
 
     private void CreateCabinetSection(Transform parent, string title, float x, float y, float width, float height, Color color)
     {
         GameObject section = CreateAnchoredPanel(parent, $"Cabinet_{title}", color, width, height, x, y);
-        CreateAnchoredText(section.transform, title.ToUpperInvariant(), 15, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), width - 24, 24, 0f, height * 0.5f - 20f);
+        Text titleText = CreateAnchoredText(section.transform, title.ToUpperInvariant(), 15, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), width - 24, 24, 0f, height * 0.5f - 20f);
+        LibrarySectionView view = section.GetComponent<LibrarySectionView>();
+        if (view == null)
+        {
+            view = section.AddComponent<LibrarySectionView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText);
+        view.Apply(new LibrarySectionDisplayModel
+        {
+            TitleText = title.ToUpperInvariant()
+        });
     }
 
     private void CreateCabinetInventoryRow(Transform parent, string title, string note, int count, float x, float y)
     {
-        GameObject row = CreateAnchoredPanel(parent, $"CabinetRow_{title}", new Color(0.96f, 0.86f, 0.62f), 340, 46, x, y);
-        CreateAnchoredText(row.transform, title, 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 180, 22, -58f, 8f);
-        CreateAnchoredText(row.transform, note, 11, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 210, 18, -42f, -13f);
-        CreateAnchoredText(row.transform, "x" + count, 22, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 70, 34, 126f, 0f);
+        GameObject row = CreateModalInfoCard(parent, $"CabinetRow_{title}", 340, 46, x, y);
+        Text titleText = CreateAnchoredText(row.transform, title, 17, FontStyle.Bold, new Color(0.18f, 0.08f, 0.32f), 180, 22, -58f, 8f);
+        Text noteText = CreateAnchoredText(row.transform, note, 11, FontStyle.Bold, new Color(0.28f, 0.18f, 0.32f), 210, 18, -42f, -13f);
+        Text countText = CreateAnchoredText(row.transform, "x" + count, 22, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 70, 34, 126f, 0f);
+        UITitleNoteCountRowView rowView = row.AddComponent<UITitleNoteCountRowView>();
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(titleText, noteText, countText);
+        rowView.Apply(title, note, "x" + count);
     }
 
     private void CreateCabinetDestinationRow(Transform parent, string title, string note, int count, float x, float y)
     {
         GameObject row = CreateAnchoredPanel(parent, $"CabinetRoute_{title}", new Color(0.18f, 0.13f, 0.2f), 340, 46, x, y);
-        CreateAnchoredText(row.transform, title, 17, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 180, 22, -58f, 8f);
-        CreateAnchoredText(row.transform, note, 11, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 210, 18, -42f, -13f);
-        CreateAnchoredText(row.transform, "x" + count, 22, FontStyle.Bold, Color.white, 70, 34, 126f, 0f);
+        Text titleText = CreateAnchoredText(row.transform, title, 17, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 180, 22, -58f, 8f);
+        Text noteText = CreateAnchoredText(row.transform, note, 11, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 210, 18, -42f, -13f);
+        Text countText = CreateAnchoredText(row.transform, "x" + count, 22, FontStyle.Bold, Color.white, 70, 34, 126f, 0f);
+        UITitleNoteCountRowView rowView = row.GetComponent<UITitleNoteCountRowView>();
+        if (rowView == null)
+        {
+            rowView = row.AddComponent<UITitleNoteCountRowView>();
+        }
+
+        rowView.ResetRuntimeBindings();
+        rowView.Initialize(titleText, noteText, countText);
+        rowView.Apply(title, note, "x" + count);
     }
 
     private void RemovePowerUpInventoryModal()
@@ -6346,17 +8027,31 @@ public class BingoPrototype : MonoBehaviour
     {
         GameObject panel = CreateAnchoredPanel(contentRoot, "RestorePanel", new Color(0.96f, 0.86f, 0.62f), 980, 168, -245f, 118f);
         Color textColor = new Color(0.15f, 0.09f, 0.22f);
-        CreateAnchoredText(panel.transform, RealmContentCatalog.ActivePrototypeRoom.PotionName, 22, FontStyle.Bold, textColor, 280, 30, -338f, 54f);
-        CreateAnchoredText(panel.transform, "Collect ingredients while you play bingo.", 18, FontStyle.Bold, textColor, 300, 30, -338f, 22f);
-        CreateAnchoredText(panel.transform, inventory.GetRestoreStatusText(), 21, FontStyle.Bold, inventory.CanRestoreActiveRoom() ? new Color(0.06f, 0.45f, 0.08f) : textColor, 280, 30, -338f, -12f);
+        Text potionNameText = CreateAnchoredText(panel.transform, RealmContentCatalog.ActivePrototypeRoom.PotionName, 22, FontStyle.Bold, textColor, 280, 30, -338f, 54f);
+        Text hintText = CreateAnchoredText(panel.transform, "Collect ingredients while you play bingo.", 18, FontStyle.Bold, textColor, 300, 30, -338f, 22f);
+        Text statusText = CreateAnchoredText(panel.transform, inventory.GetRestoreStatusText(), 21, FontStyle.Bold, inventory.CanRestoreActiveRoom() ? new Color(0.06f, 0.45f, 0.08f) : textColor, 280, 30, -338f, -12f);
 
         Button restore = CreateAnchoredButton(panel.transform, inventory.ActiveRoomRestored ? "Restored" : "Restore", 20, 220, 44, inventory.CanRestoreActiveRoom() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.35f, 0.12f, 0.62f), -338f, -56f);
-        restore.interactable = inventory.CanRestoreActiveRoom();
-        restore.onClick.AddListener(RestoreActiveRoom);
+        Text restoreButtonText = restore.GetComponentInChildren<Text>();
 
-        CreateAnchoredText(panel.transform, "Ingredients", 19, FontStyle.Bold, textColor, 360, 26, 22f, 58f);
-        CreateAnchoredText(panel.transform, inventory.GetFullIngredientProgressText(), 16, FontStyle.Bold, textColor, 420, 112, 22f, -14f);
-        CreateAnchoredText(panel.transform, $"Restore Reward\n{inventory.GetRestoreRewardText()}", 18, FontStyle.Bold, textColor, 180, 118, 388f, 0f);
+        Text ingredientsHeaderText = CreateAnchoredText(panel.transform, "Ingredients", 19, FontStyle.Bold, textColor, 360, 26, 22f, 58f);
+        Text ingredientsBodyText = CreateAnchoredText(panel.transform, inventory.GetFullIngredientProgressText(), 16, FontStyle.Bold, textColor, 420, 112, 22f, -14f);
+        Text restoreRewardText = CreateAnchoredText(panel.transform, $"Restore Reward\n{inventory.GetRestoreRewardText()}", 18, FontStyle.Bold, textColor, 180, 118, 388f, 0f);
+
+        RoomEntryRestorePanelView restorePanelView = panel.AddComponent<RoomEntryRestorePanelView>();
+        restorePanelView.ResetRuntimeBindings();
+        restorePanelView.Initialize(
+            potionNameText,
+            hintText,
+            statusText,
+            ingredientsHeaderText,
+            ingredientsBodyText,
+            restoreRewardText,
+            restore,
+            restoreButtonText);
+        restorePanelView.RestoreRequested += RestoreActiveRoom;
+        roomEntryPanelView?.BindRestorePanel(restorePanelView);
+        roomEntryPanelView?.ApplyRestorePanel(BuildRoomEntryRestorePanelDisplayModel());
     }
 
     private void CreateLobbyInfoTile(string title, string detail, float width, float height, float x, float y, Color color)
@@ -6377,15 +8072,37 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject tile = CreateAnchoredPanel(contentRoot, $"{cardCount} Card Option", fill, 330, 244, x, y);
         Color textColor = new Color(0.14f, 0.08f, 0.24f);
-        CreateAnchoredText(tile.transform, $"{cardCount} {(cardCount == 1 ? "Card" : "Cards")}", 34, FontStyle.Bold, textColor, 300, 42, 0f, 86f);
-        CreateAnchoredText(tile.transform, GetCardOptionFlavor(cardCount), 18, FontStyle.Bold, textColor, 290, 28, 0f, 48f);
-        CreateAnchoredText(tile.transform, GetCardOptionIngredientText(cardCount), 18, FontStyle.Bold, textColor, 290, 30, 0f, 12f);
-        CreateAnchoredText(tile.transform, GetCardOptionChanceText(cardCount), 16, FontStyle.Bold, textColor, 290, 48, 0f, -28f);
+        Text titleText = CreateAnchoredText(tile.transform, $"{cardCount} {(cardCount == 1 ? "Card" : "Cards")}", 34, FontStyle.Bold, textColor, 300, 42, 0f, 86f);
+        Text flavorText = CreateAnchoredText(tile.transform, GetCardOptionFlavor(cardCount), 18, FontStyle.Bold, textColor, 290, 28, 0f, 48f);
+        Text ingredientText = CreateAnchoredText(tile.transform, GetCardOptionIngredientText(cardCount), 18, FontStyle.Bold, textColor, 290, 30, 0f, 12f);
+        Text chanceText = CreateAnchoredText(tile.transform, GetCardOptionChanceText(cardCount), 16, FontStyle.Bold, textColor, 290, 48, 0f, -28f);
 
         string buttonLabel = canAfford ? $"Play {entryCost} Mana" : $"Need {entryCost} Mana";
         Button play = CreateAnchoredButton(tile.transform, buttonLabel, 20, 260, 48, canAfford ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.36f, 0.36f, 0.36f), 0f, -88f);
-        play.interactable = canAfford;
-        play.onClick.AddListener(() => BeginRoundFromLobby(cardCount));
+        Text playText = play.GetComponentInChildren<Text>();
+
+        RoomEntryCardOptionView optionView = tile.AddComponent<RoomEntryCardOptionView>();
+        optionView.ResetRuntimeBindings();
+        optionView.Initialize(
+            tile.GetComponent<Image>(),
+            titleText,
+            flavorText,
+            ingredientText,
+            chanceText,
+            play,
+            playText);
+        optionView.Apply(
+            new RoomEntryCardOptionDisplayModel(
+                cardCount,
+                $"{cardCount} {(cardCount == 1 ? "Card" : "Cards")}",
+                GetCardOptionFlavor(cardCount),
+                GetCardOptionIngredientText(cardCount),
+                GetCardOptionChanceText(cardCount),
+                buttonLabel,
+                canAfford),
+            fill);
+        optionView.PlayRequested += BeginRoundFromLobby;
+        roomEntryPanelView?.RegisterCardOption(optionView);
     }
 
     private string GetCardOptionFlavor(int cardCount)
@@ -6459,10 +8176,10 @@ public class BingoPrototype : MonoBehaviour
         layout.childForceExpandHeight = false;
 
         CreateTextInParent(rail.transform, "CALLED BALL", 16, FontStyle.Bold, Color.white, 116, 26);
-        calledNumberText = CreateTextInParent(rail.transform, calledHistory.Count > 0 ? $"{GetBingoLetter(calledHistory[0])}-{calledHistory[0]}" : "Starting", 29, FontStyle.Bold, new Color(1f, 0.84f, 0.18f), 116, 48);
+        calledNumberText = CreateTextInParent(rail.transform, roundFlow.History.Count > 0 ? $"{GetBingoLetter(roundFlow.History[0])}-{roundFlow.History[0]}" : "Starting", 29, FontStyle.Bold, new Color(1f, 0.84f, 0.18f), 116, 48);
         timerText = CreateTextInParent(rail.transform, "Next call: --", 15, FontStyle.Bold, new Color(0.74f, 0.92f, 1f), 116, 26);
         CreateTextInParent(rail.transform, "RECENT", 15, FontStyle.Bold, Color.white, 116, 24);
-        calledHistoryText = CreateTextInParent(rail.transform, calledHistory.Count > 0 ? GetCalledHistoryText() : "none", 13, FontStyle.Normal, new Color(0.84f, 0.88f, 1f), 116, 86);
+        calledHistoryText = CreateTextInParent(rail.transform, roundFlow.History.Count > 0 ? GetCalledHistoryText() : "none", 13, FontStyle.Normal, new Color(0.84f, 0.88f, 1f), 116, 86);
         CreateTextInParent(rail.transform, "CARD VIEW\nAll Visible", 15, FontStyle.Bold, Color.white, 116, 58);
     }
 
@@ -7409,7 +9126,7 @@ public class BingoPrototype : MonoBehaviour
     {
         if (IsBlackoutRoom())
         {
-            return $"Blackouts {GetTotalBingos()}/{selectedCardCount}\nCalls {calledHistory.Count}/{GetActiveMaxBallCalls()}";
+            return $"Blackouts {GetTotalBingos()}/{selectedCardCount}\nCalls {roundFlow.History.Count}/{GetActiveMaxBallCalls()}";
         }
 
         return $"Mine {GetTotalBingos()}  |  Sim {rewards.SimulatedBingosClaimed}\nRoom pool {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}";
@@ -7519,7 +9236,7 @@ public class BingoPrototype : MonoBehaviour
         pendingRewardPreview = null;
         lastJackpotEarnedCardIndex = -1;
         StopFinalBallCountdown();
-        roundState.StartRound();
+        roundFlow.BeginRound();
         rewardPreviewShown = false;
         allCalledVisible = false;
         powerUpMarkedCellLabels.Clear();
@@ -7530,13 +9247,13 @@ public class BingoPrototype : MonoBehaviour
         wildSigilModeActive = false;
         placedSigilBonusBingos = 0;
         powerUpAssistedMarks = 0;
-        calledAtTimes.Clear();
         powerUps.ClairvoyanceActive = inventory.HasActiveClairvoyance();
         powerUps.ResetRound();
         rewards.ResetRound();
         BuildCallPool();
         GenerateCards(selectedCardCount);
         cellRewards.GenerateForCards(playerCards, selectedCardCount, manaBetPerCard, GetActiveProgression());
+        BeginPrototypeAuthoritativeRoundMirror();
         SelectNextBankPowerUp("Bank ready to charge.");
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.RoundStarted,
@@ -7570,13 +9287,14 @@ public class BingoPrototype : MonoBehaviour
 
     private void RefreshLobbyBetText()
     {
-        if (roomText == null)
+        RoomProgressionProfile progression = GetActiveProgression();
+        string summary = $"{manaBetPerCard} Mana / Card\nRange {progression.MinManaBet}-{progression.MaxManaBet}";
+        if (roomText != null)
         {
-            return;
+            roomText.text = summary;
         }
 
-        RoomProgressionProfile progression = GetActiveProgression();
-        roomText.text = $"{manaBetPerCard} Mana / Card\nRange {progression.MinManaBet}-{progression.MaxManaBet}";
+        roomEntryPanelView?.SetBetSummary(summary);
     }
 
     private void ShowCard(int cardIndex)
@@ -7606,7 +9324,7 @@ public class BingoPrototype : MonoBehaviour
         {
             wildSigilModeActive = false;
             ApplyPowerUpMarks("Wild Sigil", new List<Vector3Int> { new Vector3Int(cardIndex, row, column) });
-            if (roundState.IsActive && !rewardPreviewShown)
+            if (roundFlow.IsActive && !rewardPreviewShown)
             {
                 SelectNextBankPowerUp("Next power-up charging");
             }
@@ -7615,7 +9333,7 @@ public class BingoPrototype : MonoBehaviour
         }
 
         string key = $"{cardIndex}:{row}:{column}";
-        if (!calledNumbers.Contains(value))
+        if (!roundFlow.IsNumberCalled(value))
         {
             statusText.text = $"{GetBingoLetter(value)}-{value} has not been called yet.";
             if (visibleCardCells.TryGetValue(key, out Button wrongButton))
@@ -7665,6 +9383,7 @@ public class BingoPrototype : MonoBehaviour
         int newBingoCount = playerCards.GetBingoCount(cardIndex);
         if (newBingoCount > previousBingoCount)
         {
+            MirrorPrototypeBingoClaim(cardIndex, newBingoCount);
             int bingoDelta = newBingoCount - previousBingoCount;
             int claimedCount = IsBlackoutRoom() ? 1 : bingoDelta;
             int bingoBonus = claimedCount * GetScaledXp(roomRules.BingoClaimXp);
@@ -7702,18 +9421,19 @@ public class BingoPrototype : MonoBehaviour
                 string earnedLabel = IsBlackoutRoom() ? "BLACKOUT WHEELSPIN EARNED" : "JACKPOT WHEELSPIN EARNED";
                 string reachedLabel = IsBlackoutRoom() ? "completed blackout" : "reached 5/5";
                 lastJackpotEarnedCardIndex = cardIndex;
-                roundState.MarkJackpotState();
+                roundFlow.MarkJackpotState();
+                MirrorPrototypeJackpotStateClaim(cardIndex);
                 int jackpotStateXp = GetScaledXp(roomRules.JackpotStateXp);
                 AddXp(jackpotStateXp, "Jackpot State");
-                if (IsBlackoutRoom() && AllCardsReachedJackpot())
+                BingoRoundEndDecision jackpotDecision = BingoRoundEndRules.ResolvePostProgressDecision(
+                    IsBlackoutRoom(),
+                    AllCardsReachedJackpot(),
+                    IsPrototypeBingoPoolExhausted(),
+                    $"Room bingo pool exhausted. Jackpot reached on Card {cardIndex + 1}.",
+                    false,
+                    "");
+                if (TryStartResolvedRoundEndCountdown(jackpotDecision))
                 {
-                    StartBlackoutCompletionCountdown();
-                    return;
-                }
-
-                if (!IsBlackoutRoom() && IsPrototypeBingoPoolExhausted())
-                {
-                    StartRoomPoolCountdown($"Room bingo pool exhausted. Jackpot reached on Card {cardIndex + 1}.");
                     return;
                 }
 
@@ -7726,30 +9446,35 @@ public class BingoPrototype : MonoBehaviour
                 return;
             }
 
-            if (!IsBlackoutRoom() && IsPrototypeBingoPoolExhausted())
+            BingoRoundEndDecision bingoProgressDecision = BingoRoundEndRules.ResolvePostProgressDecision(
+                IsBlackoutRoom(),
+                false,
+                IsPrototypeBingoPoolExhausted(),
+                $"Room bingo pool exhausted at {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}.",
+                IsStandardCoverageLimitReached(),
+                $"Standard room coverage limit reached after Card {cardIndex + 1} bingo.");
+            if (TryStartResolvedRoundEndCountdown(bingoProgressDecision))
             {
-                StartRoomPoolCountdown($"Room bingo pool exhausted at {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}.");
                 return;
             }
 
             statusText.text = IsBlackoutRoom()
                 ? $"Card {cardIndex + 1} blackout complete. +{daubXp + bingoBonus} XP.{collectedRewardText}{placedPowerUpText}"
                 : $"Card {cardIndex + 1} auto-claimed {newBingoCount}/{BingoRoomRules.JackpotBingosPerCard}. +{daubXp + bingoBonus} XP.{collectedRewardText}{placedPowerUpText}";
-            TryStartStandardCoverageCountdown($"Standard room coverage limit reached after Card {cardIndex + 1} bingo.");
             return;
         }
 
         statusText.text = IsBlackoutRoom()
             ? $"{GetBingoLetter(value)}-{value} daubed on Card {cardIndex + 1}. Blackout {playerCards.CountMarkedPlayable(cardIndex)}/{BingoRoomRules.BlackoutPlayableSquares}. +{daubXp} XP.{collectedRewardText}{placedPowerUpText}"
             : $"{GetBingoLetter(value)}-{value} daubed on Card {cardIndex + 1}. +{daubXp} XP.{collectedRewardText}{placedPowerUpText}";
-
-        if (!IsBlackoutRoom() && IsPrototypeBingoPoolExhausted())
-        {
-            StartRoomPoolCountdown($"Room bingo pool exhausted at {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}.");
-            return;
-        }
-
-        TryStartStandardCoverageCountdown($"Standard room coverage limit reached after {GetBingoLetter(value)}-{value}.");
+        BingoRoundEndDecision daubDecision = BingoRoundEndRules.ResolvePostProgressDecision(
+            IsBlackoutRoom(),
+            false,
+            IsPrototypeBingoPoolExhausted(),
+            $"Room bingo pool exhausted at {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}.",
+            IsStandardCoverageLimitReached(),
+            $"Standard room coverage limit reached after {GetBingoLetter(value)}-{value}.");
+        TryStartResolvedRoundEndCountdown(daubDecision);
     }
 
     private string TriggerPlacedPowerUpSigil(string key, int cardIndex)
@@ -7820,7 +9545,7 @@ public class BingoPrototype : MonoBehaviour
 
     private int GetDaubXp(int value, string visibleKey)
     {
-        if (!calledAtTimes.TryGetValue(value, out float calledAt))
+        if (!roundFlow.TryGetCalledAtTime(value, out float calledAt))
         {
             return GetScaledXp(roomRules.NormalDaubXp);
         }
@@ -7850,17 +9575,17 @@ public class BingoPrototype : MonoBehaviour
 
     private void TickAutoCaller()
     {
-        if (finalBallCountdownActive)
+        if (roundEndCoordinator.CountdownActive)
         {
             return;
         }
 
         if (timerText != null)
         {
-            timerText.text = roundState.IsActive ? $"{Mathf.Max(0f, roundState.NextCallTimer):0.0}s" : "Stopped";
+            timerText.text = roundFlow.IsActive ? $"{Mathf.Max(0f, roundFlow.NextCallTimer):0.0}s" : "Stopped";
         }
 
-        if (!roundState.TickAutoCallTimer(Time.deltaTime))
+        if (!roundFlow.TickAutoCallTimer(Time.deltaTime))
         {
             return;
         }
@@ -7870,21 +9595,14 @@ public class BingoPrototype : MonoBehaviour
 
     private void CallNumber()
     {
-        if (!caller.TryCallNext(out int calledNumber))
+        if (!roundFlow.TryCallNext(Time.time, out int calledNumber))
         {
             StartFinalBallCountdown("No more numbers to call.");
             return;
         }
 
-        calledHistory.Clear();
-        calledHistory.AddRange(caller.History);
-        calledNumbers.Clear();
-        foreach (int number in caller.CalledNumbers)
-        {
-            calledNumbers.Add(number);
-        }
+        MirrorPrototypeObservedCall(calledNumber);
 
-        calledAtTimes[calledNumber] = Time.time;
         if (powerUps.ClairvoyanceActive)
         {
             StartCoroutine(TriggerClairvoyanceAlert(calledNumber));
@@ -7898,7 +9616,7 @@ public class BingoPrototype : MonoBehaviour
 
         if (ballsLeftText != null)
         {
-            ballsLeftText.text = Mathf.Max(0, GetActiveMaxBallCalls() - calledHistory.Count).ToString();
+            ballsLeftText.text = Mathf.Max(0, GetActiveMaxBallCalls() - roundFlow.History.Count).ToString();
         }
 
         RefreshCalledBallDisplays();
@@ -7915,18 +9633,19 @@ public class BingoPrototype : MonoBehaviour
                 : "No match across your visible cards. Stay ready.";
         }
 
-        if (!IsBlackoutRoom() && IsPrototypeBingoPoolExhausted())
+        BingoRoundEndDecision callDecision = BingoRoundEndRules.ResolvePostProgressDecision(
+            IsBlackoutRoom(),
+            false,
+            IsPrototypeBingoPoolExhausted(),
+            $"Room bingo pool exhausted. You claimed {GetTotalBingos()}, simulated players claimed {rewards.SimulatedBingosClaimed}.",
+            IsStandardCoverageLimitReached(),
+            "Standard room coverage limit reached.");
+        if (TryStartResolvedRoundEndCountdown(callDecision))
         {
-            StartRoomPoolCountdown($"Room bingo pool exhausted. You claimed {GetTotalBingos()}, simulated players claimed {rewards.SimulatedBingosClaimed}.");
             return;
         }
 
-        if (TryStartStandardCoverageCountdown("Standard room coverage limit reached."))
-        {
-            return;
-        }
-
-        if (calledHistory.Count >= GetActiveMaxBallCalls())
+        if (roundFlow.IsMaxCallLimitReached(GetActiveMaxBallCalls()))
         {
             StartFinalBallCountdown("Max balls reached.");
         }
@@ -7934,14 +9653,15 @@ public class BingoPrototype : MonoBehaviour
 
     private void CompleteRound(string reason)
     {
-        finalBallCountdownActive = false;
         finalBallCountdownRoutine = null;
+        roundEndCoordinator.CompleteCountdown();
         if (gameplayPowerUpBurstText != null)
         {
             gameplayPowerUpBurstText.gameObject.SetActive(false);
         }
 
-        roundState.StopRound();
+        roundFlow.StopRound();
+        PublishPrototypeRoundEnd(reason);
 
         if (rewardPreviewShown)
         {
@@ -7975,7 +9695,7 @@ public class BingoPrototype : MonoBehaviour
 
     private void StartFinalBallCountdown(string reason)
     {
-        StartRoundEndCountdown(reason, "Final ball called. Daub anything you missed.");
+        StartRoundEndCountdown(BingoRoundEndRules.CreateFinalBallDecision(reason));
     }
 
     private void StartBlackoutCompletionCountdown()
@@ -7987,7 +9707,7 @@ public class BingoPrototype : MonoBehaviour
         }
 
         ShowPowerUpBurst("BLACKOUT COMPLETE");
-        StartRoundEndCountdown("Every card reached blackout.", "All active cards reached blackout.");
+        StartRoundEndCountdown(BingoRoundEndRules.CreateBlackoutCompleteDecision());
     }
 
     private void StartRoomPoolCountdown(string reason)
@@ -7998,66 +9718,99 @@ public class BingoPrototype : MonoBehaviour
             bingoBannerText.text = GetBingoBannerText();
         }
 
-        StartRoundEndCountdown(reason, "Room bingo pool exhausted.");
+        StartRoundEndCountdown(BingoRoundEndRules.CreateRoomPoolExhaustedDecision(reason));
     }
 
-    private void StartRoundEndCountdown(string reason, string countdownMessage)
+    private bool TryStartResolvedRoundEndCountdown(BingoRoundEndDecision decision)
     {
-        if (finalBallCountdownActive || rewardPreviewShown)
+        if (decision == null || !decision.ShouldStartCountdown)
+        {
+            return false;
+        }
+
+        if (decision.Kind == BingoRoundEndReasonKind.BlackoutComplete)
+        {
+            RefreshRoomPoolTexts();
+            if (bingoBannerText != null)
+            {
+                bingoBannerText.text = GetBingoBannerText();
+            }
+
+            ShowPowerUpBurst("BLACKOUT COMPLETE");
+        }
+        else if (decision.Kind == BingoRoundEndReasonKind.RoomPoolExhausted)
+        {
+            RefreshRoomPoolTexts();
+            if (bingoBannerText != null)
+            {
+                bingoBannerText.text = GetBingoBannerText();
+            }
+        }
+
+        StartRoundEndCountdown(decision);
+        return true;
+    }
+
+    private void StartRoundEndCountdown(BingoRoundEndDecision decision)
+    {
+        if (!roundEndCoordinator.TryBeginCountdown(decision, rewardPreviewShown))
         {
             return;
         }
 
-        finalBallCountdownActive = true;
-        finalBallCountdownRoutine = StartCoroutine(RoundEndCountdownRoutine(reason, countdownMessage));
+        activePrototypeRoundEndDecision = decision;
+        finalBallCountdownRoutine = StartCoroutine(RoundEndCountdownRoutine(decision));
     }
 
-    private IEnumerator RoundEndCountdownRoutine(string reason, string countdownMessage)
+    private IEnumerator RoundEndCountdownRoutine(BingoRoundEndDecision decision)
     {
         for (int seconds = 5; seconds >= 1; seconds--)
         {
             if (rewardPreviewShown)
             {
-                finalBallCountdownActive = false;
                 finalBallCountdownRoutine = null;
+                roundEndCoordinator.CancelCountdown();
                 yield break;
             }
 
+            string latestCallLabel = roundFlow.History.Count > 0
+                ? $"{GetBingoLetter(roundFlow.History[0])}-{roundFlow.History[0]}"
+                : "";
+            BingoRoundCountdownDisplayState countdownDisplay = BingoRoundCountdownPresenter.Build(seconds, latestCallLabel, decision.CountdownMessage);
+
             if (timerText != null)
             {
-                timerText.text = $"END {seconds}";
+                timerText.text = countdownDisplay.TimerLabel;
             }
 
             if (calledNumberText != null)
             {
                 calledNumberText.fontSize = 30;
-                calledNumberText.text = calledHistory.Count > 0
-                    ? $"{GetBingoLetter(calledHistory[0])}-{calledHistory[0]}\nEND {seconds}"
-                    : $"END {seconds}";
+                calledNumberText.text = countdownDisplay.CalledNumberLabel;
             }
 
             if (ballsLeftText != null)
             {
-                ballsLeftText.text = seconds.ToString();
+                ballsLeftText.text = countdownDisplay.BallsLeftLabel;
             }
 
             if (gameplayPowerUpBurstText != null)
             {
-                gameplayPowerUpBurstText.text = $"ROUND ENDS IN {seconds}";
+                gameplayPowerUpBurstText.text = countdownDisplay.BurstLabel;
                 gameplayPowerUpBurstText.color = new Color(0.72f, 0.95f, 1f, 1f);
                 gameplayPowerUpBurstText.gameObject.SetActive(true);
             }
 
             if (statusText != null)
             {
-                statusText.text = $"{countdownMessage} Round ends in {seconds}.";
+                statusText.text = countdownDisplay.StatusLabel;
             }
 
             yield return new WaitForSeconds(1f);
         }
 
-        finalBallCountdownActive = false;
         finalBallCountdownRoutine = null;
+        roundEndCoordinator.CompleteCountdown();
         if (gameplayPowerUpBurstText != null)
         {
             gameplayPowerUpBurstText.gameObject.SetActive(false);
@@ -8065,7 +9818,7 @@ public class BingoPrototype : MonoBehaviour
 
         if (!rewardPreviewShown)
         {
-            CompleteRound(reason);
+            CompleteRound(decision.Reason);
         }
     }
 
@@ -8077,7 +9830,12 @@ public class BingoPrototype : MonoBehaviour
         }
 
         finalBallCountdownRoutine = null;
-        finalBallCountdownActive = false;
+        roundEndCoordinator.CancelCountdown();
+    }
+
+    private void StopRoundAndClearCalledHistory()
+    {
+        roundFlow.ResetSession();
     }
 
     private int GetActiveMaxBallCalls()
@@ -8102,36 +9860,159 @@ public class BingoPrototype : MonoBehaviour
         return Mathf.Clamp(averageAssistedMarks * 2, 0, 18);
     }
 
-    private bool IsStandardCoverageLimitReached()
+    private void SyncPrototypeMultiplayerLobbyState()
     {
-        if (IsBlackoutRoom() || playerCards.Count == 0)
+        if (prototypeMultiplayerRuntime?.GameplayBridge == null)
         {
-            return false;
+            return;
         }
 
+        prototypeMultiplayerRuntime.GameplayBridge.SyncLobby(
+            GetPrototypeMultiplayerHostDisplayName(),
+            RealmContentCatalog.ActivePrototypeRealmIndex,
+            RealmContentCatalog.ActivePrototypeRoomIndex,
+            selectedCardCount,
+            manaBetPerCard);
+    }
+
+    private void BeginPrototypeAuthoritativeRoundMirror()
+    {
+        if (prototypeMultiplayerRuntime?.GameplayBridge == null)
+        {
+            return;
+        }
+
+        prototypeRoundEndPublished = false;
+        activePrototypeRoundEndDecision = null;
+        prototypeMultiplayerRuntime.GameplayBridge.BeginAuthoritativeRound(
+            GetPrototypeMultiplayerHostDisplayName(),
+            RealmContentCatalog.ActivePrototypeRealmIndex,
+            RealmContentCatalog.ActivePrototypeRoomIndex,
+            selectedCardCount,
+            manaBetPerCard,
+            System.Environment.TickCount,
+            GetActiveMaxBallCalls(),
+            roomRules.AutoCallInterval);
+    }
+
+    private void MirrorPrototypeObservedCall(int calledNumber)
+    {
+        prototypeMultiplayerRuntime?.GameplayBridge?.TryRecordObservedCall(roundFlow.IsActive, calledNumber);
+    }
+
+    private void MirrorPrototypeBingoClaim(int cardIndex, int newBingoCount)
+    {
+        prototypeMultiplayerRuntime?.GameplayBridge?.TrySubmitBingoClaim(
+            roundFlow.IsActive,
+            cardIndex,
+            GetPrototypeClaimCallIndex(),
+            newBingoCount,
+            BuildMarkedCellKeys(cardIndex),
+            BuildClaimedNumbers(cardIndex));
+    }
+
+    private void MirrorPrototypeJackpotStateClaim(int cardIndex)
+    {
+        prototypeMultiplayerRuntime?.GameplayBridge?.TrySubmitJackpotStateClaim(
+            roundFlow.IsActive,
+            cardIndex,
+            GetPrototypeClaimCallIndex(),
+            BuildClaimedNumbers(cardIndex));
+    }
+
+    private void PublishPrototypeRoundEnd(string reason)
+    {
+        if (prototypeMultiplayerRuntime?.GameplayBridge == null)
+        {
+            return;
+        }
+
+        BingoRoundEndDecision decision = activePrototypeRoundEndDecision
+            ?? new BingoRoundEndDecision(BingoRoundEndReasonKind.None, reason, "");
+        prototypeRoundEndPublished = prototypeMultiplayerRuntime.GameplayBridge.TryPublishRoundEnd(
+            prototypeRoundEndPublished,
+            decision,
+            lastJackpotEarnedCardIndex >= 0);
+    }
+
+    private string GetPrototypeMultiplayerHostDisplayName()
+    {
+        return string.IsNullOrWhiteSpace(profileSettingsState.DisplayName) ? "Host" : profileSettingsState.DisplayName;
+    }
+
+    private int GetPrototypeClaimCallIndex()
+    {
+        return Mathf.Max(0, roundFlow.History.Count - 1);
+    }
+
+    private List<string> BuildMarkedCellKeys(int cardIndex)
+    {
+        List<string> keys = new List<string>();
+        if (cardIndex < 0 || cardIndex >= playerCards.Count)
+        {
+            return keys;
+        }
+
+        for (int row = 0; row < BoardSize; row++)
+        {
+            for (int column = 0; column < BoardSize; column++)
+            {
+                if (playerCards.IsMarked(cardIndex, row, column))
+                {
+                    keys.Add($"{cardIndex}:{PlayerCardSet.GetCellKey(row, column)}");
+                }
+            }
+        }
+
+        return keys;
+    }
+
+    private List<int> BuildClaimedNumbers(int cardIndex)
+    {
+        List<int> claimedNumbers = new List<int>();
+        if (cardIndex < 0 || cardIndex >= playerCards.Count)
+        {
+            return claimedNumbers;
+        }
+
+        for (int row = 0; row < BoardSize; row++)
+        {
+            for (int column = 0; column < BoardSize; column++)
+            {
+                if (playerCards.IsMarked(cardIndex, row, column))
+                {
+                    int number = playerCards.GetNumber(cardIndex, row, column);
+                    if (number > 0)
+                    {
+                        claimedNumbers.Add(number);
+                    }
+                }
+            }
+        }
+
+        return claimedNumbers;
+    }
+
+    private bool IsStandardCoverageLimitReached()
+    {
         int totalMarked = 0;
         for (int index = 0; index < playerCards.Count; index++)
         {
             totalMarked += playerCards.CountMarkedPlayable(index);
         }
 
-        float averageMarked = (float)totalMarked / playerCards.Count;
-        return averageMarked >= GetStandardCoverageLimit();
-    }
-
-    private int GetStandardCoverageLimit()
-    {
-        if (selectedCardCount <= 1) return 17;
-        if (selectedCardCount <= 2) return 16;
-        if (selectedCardCount <= 4) return 15;
-        return 14;
+        return BingoRoundEndRules.IsStandardCoverageLimitReached(
+            IsBlackoutRoom(),
+            playerCards.Count,
+            totalMarked,
+            selectedCardCount);
     }
 
     private bool TryStartStandardCoverageCountdown(string reason)
     {
         if (!IsBlackoutRoom() && IsStandardCoverageLimitReached())
         {
-            StartFinalBallCountdown(reason);
+            StartRoundEndCountdown(BingoRoundEndRules.CreateStandardCoverageDecision(reason));
             return true;
         }
 
@@ -8148,33 +10029,73 @@ public class BingoPrototype : MonoBehaviour
         Transform root = statusText.transform.parent;
         GameObject panel = CreateAnchoredPanel(root, "RewardPreview", new Color(0.96f, 0.86f, 0.62f, 0.98f), 980, 500, 0f, -162f);
         Color ink = new Color(0.15f, 0.08f, 0.24f);
-        CreateAnchoredText(panel.transform, "ROUND COMPLETE", 42, FontStyle.Bold, ink, 900, 58, 0f, 210f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 42, FontStyle.Bold, ink, 900, 58, 0f, 210f);
         string roundResultText = IsBlackoutRoom()
             ? $"{preview.JackpotCards} {(preview.JackpotCards == 1 ? "BLACKOUT" : "BLACKOUTS")}"
             : $"{preview.PlayerBingos} {(preview.PlayerBingos == 1 ? "BINGO" : "BINGOS")}";
-        CreateAnchoredText(panel.transform, roundResultText, 30, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 360, 46, 0f, 160f);
+        Text roundResultLabel = CreateAnchoredText(panel.transform, string.Empty, 30, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 360, 46, 0f, 160f);
 
         CreateRoundSummaryStat(panel.transform, "MANA EARNED", preview.ManaReward.ToString("N0"), "*", -312f, 100f);
         CreateRoundSummaryStat(panel.transform, "XP EARNED", preview.PlayerXp.ToString("N0"), "XP", 0f, 100f);
         CreateRoundSummaryStat(panel.transform, preview.EndLevel > preview.StartLevel ? "LEVEL UP" : $"LEVEL {preview.EndLevel}", BuildRoundRankSummary(preview), "", 312f, 100f);
 
-        CreateAnchoredText(panel.transform, "COLLECTED REWARDS", 22, FontStyle.Bold, ink, 820, 30, 0f, 36f);
+        Text collectedRewardsTitle = CreateAnchoredText(panel.transform, string.Empty, 22, FontStyle.Bold, ink, 820, 30, 0f, 36f);
+        RoundCollectedRewardsSectionView collectedRewardsSectionView = panel.GetComponent<RoundCollectedRewardsSectionView>();
+        if (collectedRewardsSectionView == null)
+        {
+            collectedRewardsSectionView = panel.AddComponent<RoundCollectedRewardsSectionView>();
+        }
+
+        collectedRewardsSectionView.ResetRuntimeBindings();
+        collectedRewardsSectionView.Initialize(collectedRewardsTitle);
+        collectedRewardsSectionView.Apply(new RoundCollectedRewardsSectionDisplayModel
+        {
+            TitleText = "COLLECTED REWARDS"
+        });
         BuildRoundCollectedRewards(panel.transform, preview);
 
-        CreateAnchoredText(panel.transform, "POTION PROGRESS", 22, FontStyle.Bold, ink, 820, 30, 0f, -106f);
         BuildRoundIngredientProgress(panel.transform, preview);
 
         Button redeem = CreateAnchoredButton(panel.transform, "Collect", 22, 260, 50, new Color(0.12f, 0.55f, 0.08f), 0f, -220f);
-        redeem.onClick.AddListener(RedeemRewardsAndReturnHome);
+        RewardPreviewPanelView view = panel.GetComponent<RewardPreviewPanelView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<RewardPreviewPanelView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, roundResultLabel, collectedRewardsTitle, null, redeem);
+        view.ContinueRequested += RedeemRewardsAndReturnHome;
+        view.Apply(new RewardPreviewPanelDisplayModel
+        {
+            TitleText = "ROUND COMPLETE",
+            RoundResultText = roundResultText,
+            CollectedRewardsTitleText = string.Empty,
+            PotionProgressTitleText = string.Empty,
+            ContinueButtonText = "Collect"
+        });
     }
 
     private void CreateRoundSummaryStat(Transform parent, string label, string value, string icon, float x, float y)
     {
         GameObject tile = CreateAnchoredPanel(parent, label, new Color(0.99f, 0.91f, 0.72f), 280, 94, x, y);
         Color ink = new Color(0.15f, 0.08f, 0.24f);
-        CreateAnchoredText(tile.transform, label, 17, FontStyle.Bold, ink, 240, 24, 0f, 28f);
+        Text labelText = CreateAnchoredText(tile.transform, label, 17, FontStyle.Bold, ink, 240, 24, 0f, 28f);
         string body = string.IsNullOrEmpty(icon) ? value : $"{icon}  {value}";
-        CreateAnchoredText(tile.transform, body, value.Length > 12 ? 21 : 34, FontStyle.Bold, ink, 250, 46, 0f, -12f);
+        Text valueText = CreateAnchoredText(tile.transform, body, value.Length > 12 ? 21 : 34, FontStyle.Bold, ink, 250, 46, 0f, -12f);
+        RoundSummaryStatView view = tile.GetComponent<RoundSummaryStatView>();
+        if (view == null)
+        {
+            view = tile.AddComponent<RoundSummaryStatView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(labelText, valueText);
+        view.Apply(new RoundSummaryStatDisplayModel
+        {
+            LabelText = label,
+            ValueText = body
+        });
     }
 
     private string BuildRoundRankSummary(RewardPreview preview)
@@ -8199,10 +10120,30 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject panel = CreateAnchoredPanel(root, "CardReveal", new Color(0.035f, 0.018f, 0.07f, 0.985f), 1320, 680, 0f, -84f);
         Color gold = new Color(1f, 0.9f, 0.32f);
-        CreateAnchoredText(panel.transform, "ADDED TO GRIMOIRE", 44, FontStyle.Bold, gold, 980, 58, 0f, 286f);
-        CreateAnchoredText(panel.transform, "Open the Library to find NEW cards marked in their potion set.", 19, FontStyle.Bold, new Color(0.86f, 0.84f, 0.94f), 920, 30, 0f, 238f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 44, FontStyle.Bold, gold, 980, 58, 0f, 286f);
+        Text subtitleText = CreateAnchoredText(panel.transform, string.Empty, 19, FontStyle.Bold, new Color(0.86f, 0.84f, 0.94f), 920, 30, 0f, 238f);
+        Text overflowText = CreateAnchoredText(panel.transform, string.Empty, 20, FontStyle.Bold, Color.white, 360, 34, 0f, -182f);
+        overflowText.gameObject.SetActive(false);
+        Button continueButton = CreateAnchoredButton(panel.transform, "Continue", 24, 280, 56, new Color(0.12f, 0.55f, 0.08f), 0f, -266f);
+        CardRevealPanelView panelView = panel.GetComponent<CardRevealPanelView>();
+        if (panelView == null)
+        {
+            panelView = panel.AddComponent<CardRevealPanelView>();
+        }
+
+        panelView.ResetRuntimeBindings();
+        panelView.Initialize(titleText, subtitleText, overflowText, continueButton);
+        panelView.ContinueRequested += ContinueAfterCardReveal;
 
         int visibleCount = Mathf.Min(cards.Count, 5);
+        panelView.Apply(new CardRevealPanelDisplayModel
+        {
+            TitleText = "ADDED TO GRIMOIRE",
+            SubtitleText = "Open the Library to find NEW cards marked in their potion set.",
+            OverflowText = cards.Count > visibleCount ? $"+{cards.Count - visibleCount} more card wins" : string.Empty,
+            ContinueButtonText = "Continue"
+        });
+
         float startX = -(visibleCount - 1) * 126f;
         for (int index = 0; index < visibleCount; index++)
         {
@@ -8210,32 +10151,39 @@ public class BingoPrototype : MonoBehaviour
             float x = startX + index * 252f;
             CreateCardRevealTile(panel.transform, card, x, 38f);
         }
-
-        if (cards.Count > visibleCount)
-        {
-            CreateAnchoredText(panel.transform, $"+{cards.Count - visibleCount} more card wins", 20, FontStyle.Bold, Color.white, 360, 34, 0f, -182f);
-        }
-
-        Button continueButton = CreateAnchoredButton(panel.transform, "Continue", 24, 280, 56, new Color(0.12f, 0.55f, 0.08f), 0f, -266f);
-        continueButton.onClick.AddListener(ContinueAfterCardReveal);
     }
 
     private void CreateCardRevealTile(Transform parent, AwardedAlbumCardRecord card, float x, float y)
     {
         Color cardColor = GetRevealCardColor(card.RarityLabel);
         GameObject tile = CreateAnchoredPanel(parent, $"CardReveal_{card.CardName}", cardColor, 210, 300, x, y);
-        CreateAnchoredText(tile.transform, BuildStarText(card.Stars), 30, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 180, 40, 0f, 104f);
-        CreateAnchoredText(tile.transform, card.CardName, 24, FontStyle.Bold, Color.white, 176, 86, 0f, 32f);
-        CreateAnchoredText(tile.transform, card.RarityLabel, 18, FontStyle.Bold, new Color(0.92f, 0.88f, 1f), 160, 28, 0f, -58f);
-        CreateAnchoredText(tile.transform, card.PotionName, 13, FontStyle.Bold, new Color(0.92f, 0.88f, 1f), 174, 46, 0f, -102f);
+        Text starsText = CreateAnchoredText(tile.transform, string.Empty, 30, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 180, 40, 0f, 104f);
+        Text cardNameText = CreateAnchoredText(tile.transform, string.Empty, 24, FontStyle.Bold, Color.white, 176, 86, 0f, 32f);
+        Text rarityText = CreateAnchoredText(tile.transform, string.Empty, 18, FontStyle.Bold, new Color(0.92f, 0.88f, 1f), 160, 28, 0f, -58f);
+        Text potionNameText = CreateAnchoredText(tile.transform, string.Empty, 13, FontStyle.Bold, new Color(0.92f, 0.88f, 1f), 174, 46, 0f, -102f);
+        Text statusText = CreateAnchoredText(tile.transform, string.Empty, 16, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 160, 26, 0f, 132f);
+        statusText.gameObject.SetActive(false);
+
+        CardRevealTileView view = tile.GetComponent<CardRevealTileView>();
+        if (view == null)
+        {
+            view = tile.AddComponent<CardRevealTileView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(starsText, cardNameText, rarityText, potionNameText, statusText);
+        view.Apply(new CardRevealTileDisplayModel
+        {
+            StarsText = BuildStarText(card.Stars),
+            CardName = card.CardName,
+            RarityText = card.RarityLabel,
+            PotionName = card.PotionName,
+            StatusText = card.IsNew ? string.Empty : (card.Copies > 1 ? $"Duplicate x{card.Copies}" : string.Empty)
+        });
 
         if (card.IsNew)
         {
             CreateNewBadge(tile.transform, 58f, 132f, 82, 30, 14);
-        }
-        else if (card.Copies > 1)
-        {
-            CreateAnchoredText(tile.transform, $"Duplicate x{card.Copies}", 16, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 160, 26, 0f, 132f);
         }
     }
 
@@ -8283,8 +10231,21 @@ public class BingoPrototype : MonoBehaviour
         {
             float x = startX + index * (maxTiles > 5 ? 150f : 180f);
             GameObject tile = CreateAnchoredPanel(parent, $"RewardTile_{index}", new Color(0.99f, 0.91f, 0.72f), maxTiles > 5 ? 136 : 156, 88, x, -30f);
-            CreateAnchoredText(tile.transform, GetRewardTileIcon(rewardsList[index]), 22, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 120, 30, 0f, 18f);
-            CreateAnchoredText(tile.transform, rewardsList[index], 13, FontStyle.Bold, new Color(0.15f, 0.08f, 0.24f), maxTiles > 5 ? 118 : 134, 44, 0f, -20f);
+            Text iconText = CreateAnchoredText(tile.transform, GetRewardTileIcon(rewardsList[index]), 22, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 120, 30, 0f, 18f);
+            Text bodyText = CreateAnchoredText(tile.transform, rewardsList[index], 13, FontStyle.Bold, new Color(0.15f, 0.08f, 0.24f), maxTiles > 5 ? 118 : 134, 44, 0f, -20f);
+            RoundCollectedRewardTileView view = tile.GetComponent<RoundCollectedRewardTileView>();
+            if (view == null)
+            {
+                view = tile.AddComponent<RoundCollectedRewardTileView>();
+            }
+
+            view.ResetRuntimeBindings();
+            view.Initialize(iconText, bodyText);
+            view.Apply(new RoundCollectedRewardTileDisplayModel
+            {
+                IconText = GetRewardTileIcon(rewardsList[index]),
+                BodyText = rewardsList[index]
+            });
         }
     }
 
@@ -8301,8 +10262,23 @@ public class BingoPrototype : MonoBehaviour
     private void BuildRoundIngredientProgress(Transform parent, RewardPreview preview)
     {
         IReadOnlyList<IngredientRequirement> requirements = RealmContentCatalog.ActivePrototypeRoom.Ingredients;
-        CreateAnchoredText(parent, RealmContentCatalog.ActivePrototypeRoom.PotionName, 18, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 360, 26, -260f, -140f);
-        CreateAnchoredText(parent, preview.IngredientDrops.Count == 0 ? "No ingredients added this round" : $"{preview.IngredientDrops.Count} ingredient types added this round", 16, FontStyle.Bold, new Color(0.16f, 0.38f, 0.08f), 420, 24, -230f, -166f);
+        Text titleText = CreateAnchoredText(parent, string.Empty, 22, FontStyle.Bold, new Color(0.15f, 0.08f, 0.24f), 820, 30, 0f, -106f);
+        Text potionNameText = CreateAnchoredText(parent, string.Empty, 18, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 360, 26, -260f, -140f);
+        Text summaryText = CreateAnchoredText(parent, string.Empty, 16, FontStyle.Bold, new Color(0.16f, 0.38f, 0.08f), 420, 24, -230f, -166f);
+        RoundIngredientProgressSectionView sectionView = parent.GetComponent<RoundIngredientProgressSectionView>();
+        if (sectionView == null)
+        {
+            sectionView = parent.gameObject.AddComponent<RoundIngredientProgressSectionView>();
+        }
+
+        sectionView.ResetRuntimeBindings();
+        sectionView.Initialize(titleText, potionNameText, summaryText);
+        sectionView.Apply(new RoundIngredientProgressSectionDisplayModel
+        {
+            TitleText = "POTION PROGRESS",
+            PotionNameText = RealmContentCatalog.ActivePrototypeRoom.PotionName,
+            SummaryText = preview.IngredientDrops.Count == 0 ? "No ingredients added this round" : $"{preview.IngredientDrops.Count} ingredient types added this round"
+        });
 
         for (int index = 0; index < requirements.Count; index++)
         {
@@ -8310,8 +10286,21 @@ public class BingoPrototype : MonoBehaviour
             int earned = GetIngredientDropQuantity(preview, requirement.Name);
             float x = -6f + index * 132f;
             GameObject tile = CreateAnchoredPanel(parent, $"IngredientTile_{index}", earned > 0 ? new Color(1f, 0.9f, 0.58f) : new Color(0.91f, 0.82f, 0.62f), 112, 78, x, -154f);
-            CreateAnchoredText(tile.transform, earned > 0 ? $"+{earned}" : "-", 21, FontStyle.Bold, earned > 0 ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.45f, 0.4f, 0.36f), 80, 28, 0f, 16f);
-            CreateAnchoredText(tile.transform, GetShortRoundIngredientName(requirement.Name), 12, FontStyle.Bold, new Color(0.15f, 0.08f, 0.24f), 96, 36, 0f, -18f);
+            Text quantityText = CreateAnchoredText(tile.transform, earned > 0 ? $"+{earned}" : "-", 21, FontStyle.Bold, earned > 0 ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.45f, 0.4f, 0.36f), 80, 28, 0f, 16f);
+            Text nameText = CreateAnchoredText(tile.transform, GetShortRoundIngredientName(requirement.Name), 12, FontStyle.Bold, new Color(0.15f, 0.08f, 0.24f), 96, 36, 0f, -18f);
+            RoundIngredientProgressTileView view = tile.GetComponent<RoundIngredientProgressTileView>();
+            if (view == null)
+            {
+                view = tile.AddComponent<RoundIngredientProgressTileView>();
+            }
+
+            view.ResetRuntimeBindings();
+            view.Initialize(quantityText, nameText);
+            view.Apply(new RoundIngredientProgressTileDisplayModel
+            {
+                QuantityText = earned > 0 ? $"+{earned}" : "-",
+                NameText = GetShortRoundIngredientName(requirement.Name)
+            });
         }
     }
 
@@ -8423,65 +10412,85 @@ public class BingoPrototype : MonoBehaviour
     private void BuildJackpotSpinUi()
     {
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        roundState.StopRound();
+        roundFlow.StopRound();
 
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.08f, 0.02f, 0.14f, 0.98f), 0, 0);
         layout.enabled = false;
 
         CreateAnchoredPanel(contentRoot, "JackpotHeader", new Color(0.09f, 0.04f, 0.15f), 1440, 84, 0f, 370f);
-        CreateAnchoredText(contentRoot, "Jackpot Wheelspin Earned!", 46, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 900, 62, 110f, 382f);
-        CreateAnchoredText(contentRoot, "Your bingo win unlocked a chance at the Grand Jackpot.", 20, FontStyle.Bold, Color.white, 900, 30, 110f, 338f);
+        Text titleText = CreateAnchoredText(contentRoot, string.Empty, 46, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 900, 62, 110f, 382f);
+        Text subtitleText = CreateAnchoredText(contentRoot, string.Empty, 20, FontStyle.Bold, Color.white, 900, 30, 110f, 338f);
         CreateLobbyResourceTile(contentRoot, "Mana", inventory.GetManaText(), "*", 220, -570f, 370f);
 
         CreateAnchoredText(contentRoot, "v", 46, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 80, 56, -390f, 298f);
         GameObject wheel = CreateAnchoredPanel(contentRoot, "JackpotWheel", new Color(0.2f, 0.05f, 0.32f), 560, 560, -390f, 38f);
         BuildJackpotWheelSegments(wheel.transform);
-        bool hasStackToCollect = jackpotWheelCollectedMana > 0 && jackpotWheelCollectedResults.Count > 0;
-        bool canSpinWheel = inventory.PendingJackpotSpins > 0 && !jackpotWheelAnimating;
-        bool canBigCollect = hasStackToCollect && inventory.PendingJackpotSpins <= 0 && !jackpotWheelAnimating;
+        bool hasStackToCollect = jackpotWheelFlow.HasStackToCollect;
+        bool canSpinWheel = jackpotWheelFlow.CanSpin(inventory.PendingJackpotSpins);
+        bool canBigCollect = jackpotWheelFlow.CanCollect(inventory.PendingJackpotSpins);
         bool canUseCenterButton = canSpinWheel || canBigCollect;
-        string centerButtonLabel = jackpotWheelAnimating ? "SPINNING" : canSpinWheel ? "SPIN" : "COLLECT";
+        string centerButtonLabel = jackpotWheelFlow.IsAnimating ? "SPINNING" : canSpinWheel ? "SPIN" : "COLLECT";
         Color centerButtonColor = canBigCollect
             ? new Color(0.86f, 0.55f, 0.06f)
             : canSpinWheel ? new Color(0.08f, 0.48f, 0.12f) : new Color(0.35f, 0.35f, 0.35f);
-        Button centerSpin = CreateAnchoredButton(wheel.transform, centerButtonLabel, jackpotWheelAnimating ? 22 : 34, 178, 178, centerButtonColor, 0f, 0f);
+        Button centerSpin = CreateAnchoredButton(wheel.transform, centerButtonLabel, jackpotWheelFlow.IsAnimating ? 22 : 34, 178, 178, centerButtonColor, 0f, 0f);
         centerSpin.interactable = canUseCenterButton;
-        centerSpin.onClick.AddListener(() =>
-        {
-            if (inventory.PendingJackpotSpins <= 0 && jackpotWheelCollectedMana > 0)
-            {
-                BigCollectJackpotWheelStack();
-                return;
-            }
-
-            SpinJackpotWheel();
-        });
 
         BuildJackpotPotPanel();
-        CreateAnchoredText(contentRoot, RealmContentCatalog.ActivePrototypeRoom.Name, 28, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 620, 42, 350f, 274f);
-        string spinStatus = jackpotWheelAnimating ? "Wheel spinning..." : canBigCollect ? "Ready to collect" : $"Spins Left: {inventory.PendingJackpotSpins}";
-        CreateAnchoredText(contentRoot, spinStatus, 24, FontStyle.Bold, canBigCollect ? new Color(1f, 0.9f, 0.32f) : new Color(0.8f, 1f, 0.55f), 420, 38, -390f, -238f);
+        Text roomNameText = CreateAnchoredText(contentRoot, string.Empty, 28, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 620, 42, 350f, 274f);
+        string spinStatus = jackpotWheelFlow.IsAnimating ? "Wheel spinning..." : canBigCollect ? "Ready to collect" : $"Spins Left: {inventory.PendingJackpotSpins}";
+        Text spinStatusText = CreateAnchoredText(contentRoot, string.Empty, 24, FontStyle.Bold, canBigCollect ? new Color(1f, 0.9f, 0.32f) : new Color(0.8f, 1f, 0.55f), 420, 38, -390f, -238f);
         BuildJackpotCollectedStackPanel();
         BuildJackpotCollectionConfirmationPanel();
 
         string result = string.IsNullOrEmpty(jackpotSpinResultText)
             ? "Spin each wheelspin, stack the rewards, then collect once."
             : jackpotSpinResultText;
-        CreateAnchoredText(contentRoot, result, 26, FontStyle.Bold, Color.white, 720, 58, 350f, -184f);
+        Text resultText = CreateAnchoredText(contentRoot, string.Empty, 26, FontStyle.Bold, Color.white, 720, 58, 350f, -184f);
         BuildJackpotResultPanel();
 
         string collectLabel = canBigCollect ? "Collect" : canSpinWheel && hasStackToCollect ? "Keep Spinning" : "Return Home";
         Button collect = CreateAnchoredButton(contentRoot, collectLabel, 22, 220, 56, canBigCollect ? new Color(0.86f, 0.55f, 0.06f) : new Color(0.35f, 0.12f, 0.62f), 350f, -332f);
-        collect.interactable = !jackpotWheelAnimating && (!hasStackToCollect || canBigCollect);
-        collect.onClick.AddListener(() =>
+        collect.interactable = !jackpotWheelFlow.IsAnimating && (!hasStackToCollect || canBigCollect);
+        JackpotSpinScreenView screenView = contentRoot.gameObject.GetComponent<JackpotSpinScreenView>();
+        if (screenView == null)
         {
-            if (inventory.PendingJackpotSpins <= 0 && jackpotWheelCollectedMana > 0)
+            screenView = contentRoot.gameObject.AddComponent<JackpotSpinScreenView>();
+        }
+
+        screenView.ResetRuntimeBindings();
+        screenView.Initialize(titleText, subtitleText, roomNameText, spinStatusText, resultText, centerSpin, collect);
+        screenView.CenterRequested += () =>
+        {
+            if (inventory.PendingJackpotSpins <= 0 && jackpotWheelFlow.HasStackToCollect)
+            {
+                BigCollectJackpotWheelStack();
+                return;
+            }
+
+            SpinJackpotWheel();
+        };
+        screenView.CollectRequested += () =>
+        {
+            if (inventory.PendingJackpotSpins <= 0 && jackpotWheelFlow.HasStackToCollect)
             {
                 BigCollectJackpotWheelStack();
                 return;
             }
 
             ReturnFromJackpotWheel();
+        };
+        screenView.Apply(new JackpotSpinScreenDisplayModel
+        {
+            TitleText = "Jackpot Wheelspin Earned!",
+            SubtitleText = "Your bingo win unlocked a chance at the Grand Jackpot.",
+            RoomNameText = RealmContentCatalog.ActivePrototypeRoom.Name,
+            SpinStatusText = spinStatus,
+            ResultText = result,
+            CenterButtonText = centerButtonLabel,
+            CollectButtonText = collectLabel,
+            CanUseCenterButton = canUseCenterButton,
+            CanUseCollectButton = !jackpotWheelFlow.IsAnimating && (!hasStackToCollect || canBigCollect)
         });
 
         ApplyStageScale(true);
@@ -8489,7 +10498,7 @@ public class BingoPrototype : MonoBehaviour
 
     private void SpinJackpotWheel()
     {
-        if (jackpotWheelAnimating)
+        if (jackpotWheelFlow.IsAnimating)
         {
             return;
         }
@@ -8501,7 +10510,7 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        lastJackpotSpinResult = null;
+        jackpotWheelFlow.ClearLatestSpinResult();
 
         if (!inventory.TryConsumeJackpotSpin())
         {
@@ -8510,12 +10519,16 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        jackpotWheelCollectionConfirmed = false;
-        jackpotWheelTargetSegment = GetJackpotWheelSegmentForRoll(Random.Range(0, 100));
-        pendingJackpotSpinResult = ResolveJackpotSpinReward(jackpotWheelTargetSegment);
-        jackpotWheelAnimating = true;
-        jackpotWheelAnimationSequence++;
-        int animationSequence = jackpotWheelAnimationSequence;
+        int targetSegment = JackpotWheelRules.GetSegmentForRoll(Random.Range(0, 100));
+        JackpotWheelSpinResult pendingResult = ResolveJackpotSpinReward(targetSegment);
+        if (!jackpotWheelFlow.TryBeginSpin(inventory.PendingJackpotSpins + 1, targetSegment, pendingResult))
+        {
+            jackpotSpinResultText = "No jackpot spins are available.";
+            BuildJackpotSpinUi();
+            return;
+        }
+
+        int animationSequence = jackpotWheelFlow.AnimationSequence;
         jackpotSpinResultText = "Wheel spinning...";
         BuildJackpotSpinUi();
         StartCoroutine(AnimateJackpotWheelSpin(animationSequence));
@@ -8525,189 +10538,80 @@ public class BingoPrototype : MonoBehaviour
     {
         float duration = 1.7f;
         float elapsed = 0f;
-        float startRotation = jackpotWheelRotation;
-        float targetRotation = startRotation + 1080f + GetJackpotWheelDeltaToTarget(startRotation, jackpotWheelTargetSegment);
+        float startRotation = jackpotWheelFlow.Rotation;
+        float targetRotation = startRotation + 1080f + JackpotWheelRules.GetDeltaToTarget(startRotation, jackpotWheelFlow.TargetSegment);
 
         while (elapsed < duration)
         {
             elapsed += 0.035f;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
-            jackpotWheelRotation = Mathf.Lerp(startRotation, targetRotation, eased);
+            jackpotWheelFlow.Rotation = Mathf.Lerp(startRotation, targetRotation, eased);
             UpdateJackpotWheelSegmentTransforms();
             yield return new WaitForSeconds(0.035f);
         }
 
-        if (animationSequence != jackpotWheelAnimationSequence)
+        if (animationSequence != jackpotWheelFlow.AnimationSequence)
         {
             yield break;
         }
 
-        jackpotWheelRotation = targetRotation;
-        jackpotWheelAnimating = false;
-        lastJackpotSpinResult = pendingJackpotSpinResult;
-        pendingJackpotSpinResult = null;
-
-        if (lastJackpotSpinResult != null)
+        jackpotWheelFlow.Rotation = targetRotation;
+        jackpotWheelFlow.CompleteSpin();
+        JackpotWheelSpinResult lastResult = jackpotWheelFlow.LastSpinResult;
+        if (lastResult != null)
         {
-            jackpotWheelCollectedResults.Add(lastJackpotSpinResult);
-            jackpotWheelCollectedMana += lastJackpotSpinResult.ManaAward;
             jackpotSpinResultText = inventory.PendingJackpotSpins > 0
-                ? $"{lastJackpotSpinResult.Label} stacked +{lastJackpotSpinResult.ManaAward:N0}. Spin {inventory.PendingJackpotSpins} more, then collect."
-                : $"All wheelspins stacked. Collect +{jackpotWheelCollectedMana:N0}.";
+                ? $"{lastResult.Label} stacked +{lastResult.ManaAward:N0}. Spin {inventory.PendingJackpotSpins} more, then collect."
+                : $"All wheelspins stacked. Collect +{jackpotWheelFlow.CollectedMana:N0}.";
         }
 
         BuildJackpotSpinUi();
     }
 
-    private float GetJackpotWheelRestingRotation(int targetSegment)
+    private JackpotWheelSpinResult ResolveJackpotSpinReward(int segmentIndex)
     {
-        float angleStep = 360f / GetJackpotWheelSegmentCount();
-        return Mathf.Repeat(-(targetSegment * angleStep), 360f);
-    }
-
-    private float GetJackpotWheelDeltaToTarget(float startRotation, int targetSegment)
-    {
-        float targetMod = GetJackpotWheelRestingRotation(targetSegment);
-        float currentMod = Mathf.Repeat(startRotation, 360f);
-        return Mathf.Repeat(targetMod - currentMod, 360f);
-    }
-
-    private int GetJackpotWheelSegmentForRoll(int roll)
-    {
-        if (roll < 18)
-        {
-            return 0;
-        }
-
-        if (roll < 32)
-        {
-            return 1;
-        }
-
-        if (roll < 46)
-        {
-            return 2;
-        }
-
-        if (roll < 58)
-        {
-            return 3;
-        }
-
-        if (roll < 69)
-        {
-            return 4;
-        }
-
-        if (roll < 79)
-        {
-            return 5;
-        }
-
-        if (roll < 87)
-        {
-            return 6;
-        }
-
-        if (roll < 94)
-        {
-            return 7;
-        }
-
-        if (roll < 97)
-        {
-            return 8;
-        }
-
-        if (roll < 99)
-        {
-            return 9;
-        }
-
-        return 10;
-    }
-
-    private JackpotSpinResult ResolveJackpotSpinReward(int segmentIndex)
-    {
-        if (segmentIndex < 8)
-        {
-            int standardValue = GetJackpotWheelStandardValue(segmentIndex);
-            return new JackpotSpinResult("STANDARD", standardValue, false);
-        }
-
-        if (segmentIndex == 8)
-        {
-            int jackpotValue = inventory.GetJackpotValue();
-            return new JackpotSpinResult("JACKPOT", jackpotValue, true);
-        }
-
-        if (segmentIndex == 9)
-        {
-            int epicValue = inventory.GetEpicValue();
-            return new JackpotSpinResult("EPIC", epicValue, true);
-        }
-
-        int legendaryValue = inventory.GetLegendaryValue();
-        return new JackpotSpinResult("LEGENDARY", legendaryValue, true);
+        return JackpotWheelRules.ResolveSpinResult(
+            segmentIndex,
+            inventory.GetWheelStandardValue,
+            inventory.GetJackpotValue(),
+            inventory.GetEpicValue(),
+            inventory.GetLegendaryValue());
     }
 
     private void BigCollectJackpotWheelStack()
     {
-        if (jackpotWheelCollectedMana <= 0 || jackpotWheelCollectedResults.Count == 0)
+        JackpotWheelCollectResult collectResult = jackpotWheelFlow.Collect();
+        if (collectResult == null)
         {
             ReturnFromJackpotWheel();
             return;
         }
 
-        int collectedMana = jackpotWheelCollectedMana;
-        bool shouldResetPot = false;
-        for (int index = 0; index < jackpotWheelCollectedResults.Count; index++)
+        if (collectResult.ResetPot)
         {
-            shouldResetPot = shouldResetPot || jackpotWheelCollectedResults[index].ResetPot;
-        }
-
-        if (shouldResetPot)
-        {
-            inventory.GrantJackpotSpecialMana(collectedMana);
+            inventory.GrantJackpotSpecialMana(collectResult.CollectedMana);
         }
         else
         {
-            inventory.GrantJackpotMana(collectedMana);
+            inventory.GrantJackpotMana(collectResult.CollectedMana);
         }
 
         TrackPrototypeAnalytics(
             PrototypeAnalyticsEvents.JackpotCollected,
             PrototypeAnalyticsPayloadFactory.CreateJackpotCollectedJson(
-                collectedMana,
-                jackpotWheelCollectedResults.Count,
-                shouldResetPot,
+                collectResult.CollectedMana,
+                collectResult.SpinResultCount,
+                collectResult.ResetPot,
                 inventory.PendingJackpotSpins));
-        jackpotWheelLastCollectedMana = collectedMana;
-        jackpotWheelLastCollectResetPot = shouldResetPot;
-        jackpotWheelCollectionConfirmed = true;
-        jackpotSpinResultText = $"Collected +{collectedMana:N0} to profile mana.";
-        jackpotWheelCollectedMana = 0;
-        jackpotWheelCollectedResults.Clear();
-        lastJackpotSpinResult = null;
-        pendingJackpotSpinResult = null;
-        jackpotWheelAnimating = false;
-        jackpotWheelAnimationSequence++;
+        jackpotSpinResultText = $"Collected +{collectResult.CollectedMana:N0} to profile mana.";
         BuildJackpotSpinUi();
     }
 
     private void ReturnFromJackpotWheel()
     {
-        jackpotWheelAnimationSequence++;
         jackpotSpinResultText = "";
-        jackpotWheelCollectedMana = 0;
-        jackpotWheelLastCollectedMana = 0;
-        jackpotWheelLastCollectResetPot = false;
-        jackpotWheelCollectionConfirmed = false;
-        jackpotWheelCollectedResults.Clear();
-        lastJackpotSpinResult = null;
-        pendingJackpotSpinResult = null;
-        jackpotWheelAnimating = false;
+        jackpotWheelFlow.ResetForReturnHome();
         BuildLobbyUi();
     }
 
@@ -8724,11 +10628,11 @@ public class BingoPrototype : MonoBehaviour
             new Color(0.96f, 0.8f, 0.08f)
         };
 
-        int segmentCount = GetJackpotWheelSegmentCount();
+        int segmentCount = JackpotWheelRules.GetSegmentCount();
         float angleStep = 360f / segmentCount;
         for (int index = 0; index < segmentCount; index++)
         {
-            float angle = jackpotWheelRotation + index * angleStep;
+            float angle = jackpotWheelFlow.Rotation + index * angleStep;
             float radians = angle * Mathf.Deg2Rad;
             float x = Mathf.Sin(radians) * 190f;
             float y = Mathf.Cos(radians) * 190f;
@@ -8747,13 +10651,13 @@ public class BingoPrototype : MonoBehaviour
 
     private void UpdateJackpotWheelSegmentTransforms()
     {
-        int segmentCount = Mathf.Min(GetJackpotWheelSegmentCount(), jackpotWheelSegmentRects.Count);
+        int segmentCount = Mathf.Min(JackpotWheelRules.GetSegmentCount(), jackpotWheelSegmentRects.Count);
         if (segmentCount == 0)
         {
             return;
         }
 
-        float angleStep = 360f / GetJackpotWheelSegmentCount();
+        float angleStep = 360f / JackpotWheelRules.GetSegmentCount();
         for (int index = 0; index < segmentCount; index++)
         {
             RectTransform segment = jackpotWheelSegmentRects[index];
@@ -8762,7 +10666,7 @@ public class BingoPrototype : MonoBehaviour
                 continue;
             }
 
-            float angle = jackpotWheelRotation + index * angleStep;
+            float angle = jackpotWheelFlow.Rotation + index * angleStep;
             float radians = angle * Mathf.Deg2Rad;
             segment.anchoredPosition = new Vector2(Mathf.Sin(radians) * 190f, Mathf.Cos(radians) * 190f);
             segment.localRotation = Quaternion.Euler(0f, 0f, -angle);
@@ -8772,9 +10676,23 @@ public class BingoPrototype : MonoBehaviour
     private void BuildJackpotPotPanel()
     {
         GameObject panel = CreateAnchoredPanel(contentRoot, "JackpotPotPanel", new Color(0.15f, 0.06f, 0.22f), 520, 390, 350f, 38f);
-        CreateAnchoredText(panel.transform, "CURRENT POT", 25, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 460, 40, 0f, 142f);
-        CreateAnchoredText(panel.transform, inventory.GetCurrentJackpotPotText(), 70, FontStyle.Bold, Color.white, 340, 82, -26f, 82f);
-        CreateAnchoredText(panel.transform, "*", 52, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 70, 70, 168f, 82f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 25, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 460, 40, 0f, 142f);
+        Text potValueText = CreateAnchoredText(panel.transform, string.Empty, 70, FontStyle.Bold, Color.white, 340, 82, -26f, 82f);
+        Text accentText = CreateAnchoredText(panel.transform, string.Empty, 52, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 70, 70, 168f, 82f);
+        JackpotPotPanelView view = panel.GetComponent<JackpotPotPanelView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<JackpotPotPanelView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, potValueText, accentText);
+        view.Apply(new JackpotPotPanelDisplayModel
+        {
+            TitleText = "CURRENT POT",
+            PotValueText = inventory.GetCurrentJackpotPotText(),
+            AccentText = "*"
+        });
         CreateJackpotTierRow(panel.transform, "JACKPOT", inventory.GetJackpotValue(), -2f, new Color(0.58f, 0.18f, 0.85f));
         CreateJackpotTierRow(panel.transform, "EPIC", inventory.GetEpicValue(), -84f, new Color(0.72f, 0.12f, 0.78f));
         CreateJackpotTierRow(panel.transform, "LEGENDARY", inventory.GetLegendaryValue(), -166f, new Color(0.92f, 0.62f, 0.06f));
@@ -8782,63 +10700,123 @@ public class BingoPrototype : MonoBehaviour
 
     private void BuildJackpotResultPanel()
     {
-        if (lastJackpotSpinResult == null)
+        JackpotWheelSpinResult lastResult = jackpotWheelFlow.LastSpinResult;
+        if (lastResult == null)
         {
             return;
         }
 
-        Color accent = GetJackpotResultAccent(lastJackpotSpinResult);
+        Color accent = GetJackpotResultAccent(lastResult);
         GameObject panel = CreateAnchoredPanel(contentRoot, "JackpotResultPanel", new Color(0.1f, 0.04f, 0.16f), 520, 132, 350f, -252f);
-        CreateAnchoredText(panel.transform, GetJackpotResultEyebrow(lastJackpotSpinResult), 15, FontStyle.Bold, new Color(0.82f, 0.9f, 1f), 460, 24, 0f, 48f);
-        CreateAnchoredText(panel.transform, lastJackpotSpinResult.Label, 30, FontStyle.Bold, accent, 240, 40, -116f, 14f);
-        CreateAnchoredText(panel.transform, $"+{lastJackpotSpinResult.ManaAward:N0}", 38, FontStyle.Bold, Color.white, 170, 46, 96f, 14f);
-        CreateAnchoredText(panel.transform, "*", 30, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 42, 42, 190f, 14f);
-        CreateAnchoredText(panel.transform, GetJackpotResultDescription(lastJackpotSpinResult), 17, FontStyle.Bold, new Color(0.82f, 0.9f, 1f), 460, 30, 0f, -40f);
+        Text eyebrowText = CreateAnchoredText(panel.transform, string.Empty, 15, FontStyle.Bold, new Color(0.82f, 0.9f, 1f), 460, 24, 0f, 48f);
+        Text labelText = CreateAnchoredText(panel.transform, string.Empty, 30, FontStyle.Bold, accent, 240, 40, -116f, 14f);
+        Text amountText = CreateAnchoredText(panel.transform, string.Empty, 38, FontStyle.Bold, Color.white, 170, 46, 96f, 14f);
+        Text accentText = CreateAnchoredText(panel.transform, string.Empty, 30, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 42, 42, 190f, 14f);
+        Text descriptionText = CreateAnchoredText(panel.transform, string.Empty, 17, FontStyle.Bold, new Color(0.82f, 0.9f, 1f), 460, 30, 0f, -40f);
+        JackpotResultPanelView view = panel.GetComponent<JackpotResultPanelView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<JackpotResultPanelView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(eyebrowText, labelText, amountText, accentText, descriptionText);
+        view.Apply(new JackpotResultPanelDisplayModel
+        {
+            EyebrowText = GetJackpotResultEyebrow(lastResult),
+            LabelText = lastResult.Label,
+            AmountText = $"+{lastResult.ManaAward:N0}",
+            AccentText = "*",
+            DescriptionText = GetJackpotResultDescription(lastResult)
+        });
     }
 
     private void BuildJackpotCollectionConfirmationPanel()
     {
-        if (!jackpotWheelCollectionConfirmed || jackpotWheelLastCollectedMana <= 0)
+        if (!jackpotWheelFlow.CollectionConfirmed || jackpotWheelFlow.LastCollectedMana <= 0)
         {
             return;
         }
 
         GameObject panel = CreateAnchoredPanel(contentRoot, "JackpotCollectConfirmation", new Color(0.08f, 0.24f, 0.1f), 520, 122, 350f, -252f);
-        CreateAnchoredText(panel.transform, "COLLECTED", 18, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 460, 28, 0f, 38f);
-        CreateAnchoredText(panel.transform, $"+{jackpotWheelLastCollectedMana:N0}", 42, FontStyle.Bold, Color.white, 180, 52, -68f, 2f);
-        CreateAnchoredText(panel.transform, "*", 32, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 42, 42, 44f, 2f);
-        CreateAnchoredText(panel.transform, jackpotWheelLastCollectResetPot ? "Special tier collected. Pot reset to room minimum." : "Standard rewards collected. Pot carries forward.", 17, FontStyle.Bold, new Color(0.84f, 0.92f, 1f), 470, 30, 0f, -42f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 18, FontStyle.Bold, new Color(0.8f, 1f, 0.55f), 460, 28, 0f, 38f);
+        Text amountText = CreateAnchoredText(panel.transform, string.Empty, 42, FontStyle.Bold, Color.white, 180, 52, -68f, 2f);
+        Text accentText = CreateAnchoredText(panel.transform, string.Empty, 32, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 42, 42, 44f, 2f);
+        Text descriptionText = CreateAnchoredText(panel.transform, string.Empty, 17, FontStyle.Bold, new Color(0.84f, 0.92f, 1f), 470, 30, 0f, -42f);
+        JackpotCollectionConfirmationPanelView view = panel.GetComponent<JackpotCollectionConfirmationPanelView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<JackpotCollectionConfirmationPanelView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, amountText, accentText, descriptionText);
+        view.Apply(new JackpotCollectionConfirmationPanelDisplayModel
+        {
+            TitleText = "COLLECTED",
+            AmountText = $"+{jackpotWheelFlow.LastCollectedMana:N0}",
+            AccentText = "*",
+            DescriptionText = jackpotWheelFlow.LastCollectResetPot
+                ? "Special tier collected. Pot reset to room minimum."
+                : "Standard rewards collected. Pot carries forward."
+        });
     }
 
     private void BuildJackpotCollectedStackPanel()
     {
-        bool readyToCollect = jackpotWheelCollectedMana > 0 && inventory.PendingJackpotSpins <= 0;
+        bool readyToCollect = jackpotWheelFlow.CanCollect(inventory.PendingJackpotSpins);
         GameObject panel = CreateAnchoredPanel(contentRoot, "JackpotCollectedStack", readyToCollect ? new Color(0.2f, 0.1f, 0.03f) : new Color(0.12f, 0.04f, 0.18f), 500, 136, -390f, -360f);
-        CreateAnchoredText(panel.transform, readyToCollect ? "REWARD STACK READY" : "WHEEL REWARD STACK", 18, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 460, 26, 0f, 50f);
-        CreateAnchoredText(panel.transform, $"+{jackpotWheelCollectedMana:N0}", 38, FontStyle.Bold, Color.white, 180, 48, -142f, 12f);
-        CreateAnchoredText(panel.transform, "*", 30, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 40, 40, -36f, 12f);
+        Text titleText = CreateAnchoredText(panel.transform, string.Empty, 18, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 460, 26, 0f, 50f);
+        Text amountText = CreateAnchoredText(panel.transform, string.Empty, 38, FontStyle.Bold, Color.white, 180, 48, -142f, 12f);
+        Text accentText = CreateAnchoredText(panel.transform, string.Empty, 30, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 40, 40, -36f, 12f);
+        Text stackText = CreateAnchoredText(panel.transform, string.Empty, 15, FontStyle.Bold, new Color(0.86f, 0.9f, 1f), 240, 86, 116f, -8f);
+        JackpotCollectedStackPanelView view = panel.GetComponent<JackpotCollectedStackPanelView>();
+        if (view == null)
+        {
+            view = panel.AddComponent<JackpotCollectedStackPanelView>();
+        }
 
-        string stackText = GetJackpotCollectedStackText();
-        CreateAnchoredText(panel.transform, stackText, 15, FontStyle.Bold, new Color(0.86f, 0.9f, 1f), 240, 86, 116f, -8f);
+        view.ResetRuntimeBindings();
+        view.Initialize(titleText, amountText, accentText, stackText);
+        view.Apply(new JackpotCollectedStackPanelDisplayModel
+        {
+            TitleText = readyToCollect ? "REWARD STACK READY" : "WHEEL REWARD STACK",
+            AmountText = $"+{jackpotWheelFlow.CollectedMana:N0}",
+            AccentText = "*",
+            StackText = GetJackpotCollectedStackText()
+        });
+    }
+
+    private void HandleGrimoireIndexPreviousRequested()
+    {
+        selectedGrimoireIndexPage--;
+        BuildGrimoireIndexUi();
+    }
+
+    private void HandleGrimoireIndexNextRequested()
+    {
+        selectedGrimoireIndexPage++;
+        BuildGrimoireIndexUi();
     }
 
     private string GetJackpotCollectedStackText()
     {
-        if (jackpotWheelCollectedResults.Count == 0)
+        IReadOnlyList<JackpotWheelSpinResult> collectedResults = jackpotWheelFlow.CollectedResults;
+        if (collectedResults.Count == 0)
         {
             return "Spin to build the reward stack.";
         }
 
-        int firstVisible = Mathf.Max(0, jackpotWheelCollectedResults.Count - 5);
+        int firstVisible = Mathf.Max(0, collectedResults.Count - 5);
         string text = "";
         if (firstVisible > 0)
         {
             text = $"+{firstVisible} earlier";
         }
 
-        for (int index = firstVisible; index < jackpotWheelCollectedResults.Count; index++)
+        for (int index = firstVisible; index < collectedResults.Count; index++)
         {
-            JackpotSpinResult result = jackpotWheelCollectedResults[index];
+            JackpotWheelSpinResult result = collectedResults[index];
             if (text.Length > 0)
             {
                 text += "\n";
@@ -8850,7 +10828,7 @@ public class BingoPrototype : MonoBehaviour
         return text;
     }
 
-    private string GetJackpotResultEyebrow(JackpotSpinResult result)
+    private string GetJackpotResultEyebrow(JackpotWheelSpinResult result)
     {
         if (result == null)
         {
@@ -8875,7 +10853,7 @@ public class BingoPrototype : MonoBehaviour
         return "LATEST SPIN";
     }
 
-    private string GetJackpotResultDescription(JackpotSpinResult result)
+    private string GetJackpotResultDescription(JackpotWheelSpinResult result)
     {
         if (result == null)
         {
@@ -8900,7 +10878,7 @@ public class BingoPrototype : MonoBehaviour
         return "Standard tier: pot carries forward";
     }
 
-    private Color GetJackpotResultAccent(JackpotSpinResult result)
+    private Color GetJackpotResultAccent(JackpotWheelSpinResult result)
     {
         if (result == null)
         {
@@ -8933,35 +10911,9 @@ public class BingoPrototype : MonoBehaviour
         CreateAnchoredText(row.transform, "*", 30, FontStyle.Bold, new Color(1f, 0.82f, 0.18f), 42, 42, 180f, 0f);
     }
 
-    private int GetJackpotWheelSegmentCount()
-    {
-        return 11;
-    }
-
     private string GetJackpotWheelSegmentLabel(int segmentIndex)
     {
-        if (segmentIndex < 8)
-        {
-            return GetJackpotWheelStandardValue(segmentIndex).ToString("N0");
-        }
-
-        if (segmentIndex == 8)
-        {
-            return "JACKPOT";
-        }
-
-        if (segmentIndex == 9)
-        {
-            return "EPIC";
-        }
-
-        return "LEGENDARY";
-    }
-
-    private int GetJackpotWheelStandardValue(int segmentIndex)
-    {
-        float[] multipliers = { 0.2f, 0.3f, 0.4f, 0.6f, 0.8f, 1f, 1.25f, 1.5f };
-        return inventory.GetWheelStandardValue(multipliers[Mathf.Clamp(segmentIndex, 0, multipliers.Length - 1)]);
+        return JackpotWheelRules.GetSegmentLabel(segmentIndex, inventory.GetWheelStandardValue);
     }
 
     private Color GetJackpotSpecialColor(int segmentIndex)
@@ -8988,7 +10940,7 @@ public class BingoPrototype : MonoBehaviour
     {
         pendingRewardPreview = null;
         rewardPreviewShown = false;
-        roundState.StopRound();
+        roundFlow.StopRound();
         rewards.ResetRound();
         rewards.ResetSavedXp();
         RealmContentCatalog.SetActivePrototypeRoom(0, 0);
@@ -9018,7 +10970,7 @@ public class BingoPrototype : MonoBehaviour
     {
         pendingRewardPreview = null;
         rewardPreviewShown = false;
-        roundState.StopRound();
+        roundFlow.StopRound();
         rewards.ResetRound();
         RealmContentCatalog.SetActivePrototypeRoom(0, 0);
         inventory.ResetRoomProgressKeepingInventory();
@@ -9156,7 +11108,7 @@ public class BingoPrototype : MonoBehaviour
 
     private bool IsPowerUpBankReady()
     {
-        return roundState.IsActive
+        return roundFlow.IsActive
             && !string.IsNullOrEmpty(bankPowerUpName)
             && bankPowerUpCharge >= GetPowerUpBankThreshold();
     }
@@ -9210,7 +11162,7 @@ public class BingoPrototype : MonoBehaviour
 
     private void TrackPowerUpReleaseFromDaub()
     {
-        if (!roundState.IsActive || string.IsNullOrEmpty(bankPowerUpName) || IsPowerUpBankReady())
+        if (!roundFlow.IsActive || string.IsNullOrEmpty(bankPowerUpName) || IsPowerUpBankReady())
         {
             return;
         }
@@ -9305,7 +11257,7 @@ public class BingoPrototype : MonoBehaviour
             statusText.text += $" Spent {PlayerInventoryState.GameplayPowerUpCrystalCost} crystals.";
         }
 
-        if (selectNext && roundState.IsActive && !rewardPreviewShown)
+        if (selectNext && roundFlow.IsActive && !rewardPreviewShown)
         {
             SelectNextBankPowerUp("Next power-up charging");
         }
@@ -9403,7 +11355,7 @@ public class BingoPrototype : MonoBehaviour
                     Vector2Int candidate = new Vector2Int(row, column);
                     candidates.Add(candidate);
                     int value = playerCards.GetNumber(cardIndex, row, column);
-                    if (calledNumbers.Contains(value))
+                    if (roundFlow.IsNumberCalled(value))
                     {
                         calledCandidates.Add(candidate);
                     }
@@ -9664,7 +11616,7 @@ public class BingoPrototype : MonoBehaviour
             if (newBingoCount >= BingoRoomRules.JackpotBingosPerCard)
             {
                 lastJackpotEarnedCardIndex = target.x;
-                roundState.MarkJackpotState();
+                roundFlow.MarkJackpotState();
             }
         }
 
@@ -9736,22 +11688,14 @@ public class BingoPrototype : MonoBehaviour
 
     private void CompleteRoundIfPowerUpEndedGame(string powerUpName)
     {
-        if (IsBlackoutRoom() && AllCardsReachedJackpot())
-        {
-            StartBlackoutCompletionCountdown();
-            return;
-        }
-
-        if (!IsBlackoutRoom() && IsPrototypeBingoPoolExhausted())
-        {
-            StartRoomPoolCountdown($"Room bingo pool exhausted by {powerUpName} at {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}.");
-            return;
-        }
-
-        if (!IsBlackoutRoom() && IsStandardCoverageLimitReached())
-        {
-            StartFinalBallCountdown($"Standard room coverage limit reached after {powerUpName}.");
-        }
+        BingoRoundEndDecision powerUpDecision = BingoRoundEndRules.ResolvePostProgressDecision(
+            IsBlackoutRoom(),
+            AllCardsReachedJackpot(),
+            IsPrototypeBingoPoolExhausted(),
+            $"Room bingo pool exhausted by {powerUpName} at {rewards.RoomBingosClaimed}/{roomRules.RoomBingoPool}.",
+            IsStandardCoverageLimitReached(),
+            $"Standard room coverage limit reached after {powerUpName}.");
+        TryStartResolvedRoundEndCountdown(powerUpDecision);
     }
 
     private void SetGameplayPowerUpEventText(string message)
@@ -9880,12 +11824,12 @@ public class BingoPrototype : MonoBehaviour
 
     private void MaybeSimulatedPlayersClaimBingo()
     {
-        if (!rewards.ShouldSimulatedPlayerClaim(calledHistory.Count))
+        if (!rewards.ShouldSimulatedPlayerClaim(roundFlow.History.Count))
         {
             return;
         }
 
-        int simulatedClaimCount = calledHistory.Count >= 32 ? 2 : 1;
+        int simulatedClaimCount = roundFlow.History.Count >= 32 ? 2 : 1;
         ConsumeRoomBingos(simulatedClaimCount, true);
         rewards.ScheduleNextSimulatedClaim();
     }
@@ -9915,7 +11859,7 @@ public class BingoPrototype : MonoBehaviour
     {
         yield return new WaitForSeconds(roomRules.GetClairvoyanceAlertDelay(selectedCardCount));
 
-        if (!roundState.IsActive || !powerUps.ClairvoyanceActive || !calledNumbers.Contains(calledNumber))
+        if (!roundFlow.IsActive || !powerUps.ClairvoyanceActive || !roundFlow.IsNumberCalled(calledNumber))
         {
             yield break;
         }
@@ -10160,7 +12104,7 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        if (!calledNumbers.Contains(value))
+        if (!roundFlow.IsNumberCalled(value))
         {
             statusText.text = $"{GetBingoLetter(value)}-{value} has not been called yet.";
             StartCoroutine(FlashCell(cells[row, column].transform, new Color(0.95f, 0.22f, 0.26f), new Color(0.95f, 0.97f, 1f)));
@@ -10172,10 +12116,10 @@ public class BingoPrototype : MonoBehaviour
         UpdateCell(row, column);
         StartCoroutine(PulseCell(cells[row, column].transform));
 
-        if (!roundState.HasJackpotState && HasWinningLine())
+        if (!roundFlow.HasJackpotState && HasWinningLine())
         {
-            roundState.MarkJackpotState();
-            roundState.StopRound();
+            roundFlow.MarkJackpotState();
+            roundFlow.StopRound();
             statusText.text = $"BINGO on Card {currentCardIndex + 1}! Reward preview: {selectedCardCount * manaBetPerCard} Mana entry cleared.";
             return;
         }
@@ -10288,12 +12232,12 @@ public class BingoPrototype : MonoBehaviour
 
     private string GetCalledHistoryText()
     {
-        int count = Mathf.Min(calledHistory.Count, 8);
+        int count = Mathf.Min(roundFlow.History.Count, 8);
         List<string> recentCalls = new List<string>();
 
         for (int index = 0; index < count; index++)
         {
-            int number = calledHistory[index];
+            int number = roundFlow.History[index];
             recentCalls.Add($"{GetBingoLetter(number)}-{number}");
         }
 
@@ -10302,7 +12246,7 @@ public class BingoPrototype : MonoBehaviour
 
     private string GetCalledHistoryPanelText()
     {
-        if (calledHistory.Count == 0)
+        if (roundFlow.History.Count == 0)
         {
             return allCalledVisible ? "No calls yet." : "Hidden";
         }
@@ -10324,9 +12268,9 @@ public class BingoPrototype : MonoBehaviour
     private string GetAllCalledHistoryText()
     {
         List<string> calls = new List<string>();
-        for (int index = 0; index < calledHistory.Count; index++)
+        for (int index = 0; index < roundFlow.History.Count; index++)
         {
-            int number = calledHistory[index];
+            int number = roundFlow.History[index];
             string call = $"{GetBingoLetter(number)}-{number}";
             calls.Add(IsMissedDaubNumber(number) ? $"<color=#ffcc33><b>{call}</b></color>" : call);
         }
@@ -10355,7 +12299,7 @@ public class BingoPrototype : MonoBehaviour
         if (calledNumberText != null)
         {
             calledNumberText.fontSize = 46;
-            calledNumberText.text = calledHistory.Count > 0 ? $"{GetBingoLetter(calledHistory[0])}-{calledHistory[0]}" : "Starting";
+            calledNumberText.text = roundFlow.History.Count > 0 ? $"{GetBingoLetter(roundFlow.History[0])}-{roundFlow.History[0]}" : "Starting";
         }
 
         if (calledHistoryText != null)
@@ -10373,20 +12317,20 @@ public class BingoPrototype : MonoBehaviour
     private string GetCallQueueLabel(int index)
     {
         int historyIndex = index + 1;
-        if (calledHistory.Count <= historyIndex)
+        if (roundFlow.History.Count <= historyIndex)
         {
             return "-";
         }
 
-        int number = calledHistory[historyIndex];
+        int number = roundFlow.History[historyIndex];
         return $"{GetBingoLetter(number)}-{number}";
     }
 
     private bool HasMissedDaubs()
     {
-        for (int index = 0; index < calledHistory.Count; index++)
+        for (int index = 0; index < roundFlow.History.Count; index++)
         {
-            if (IsMissedDaubNumber(calledHistory[index]))
+            if (IsMissedDaubNumber(roundFlow.History[index]))
             {
                 return true;
             }
@@ -10422,9 +12366,9 @@ public class BingoPrototype : MonoBehaviour
     private string GetMissedDaubSummaryText()
     {
         List<string> missed = new List<string>();
-        for (int index = 0; index < calledHistory.Count; index++)
+        for (int index = 0; index < roundFlow.History.Count; index++)
         {
-            int number = calledHistory[index];
+            int number = roundFlow.History[index];
             if (!IsMissedDaubNumber(number))
             {
                 continue;
@@ -10484,9 +12428,9 @@ public class BingoPrototype : MonoBehaviour
     private int CountMissedDaubNumbers()
     {
         int count = 0;
-        for (int index = 0; index < calledHistory.Count; index++)
+        for (int index = 0; index < roundFlow.History.Count; index++)
         {
-            if (IsMissedDaubNumber(calledHistory[index]))
+            if (IsMissedDaubNumber(roundFlow.History[index]))
             {
                 count++;
             }
@@ -10497,7 +12441,7 @@ public class BingoPrototype : MonoBehaviour
 
     private void AdjustBet(int delta)
     {
-        if (roundState.IsActive || calledHistory.Count > 0)
+        if (roundFlow.IsActive || roundFlow.History.Count > 0)
         {
             statusText.text = "Bet is locked once the round has started.";
             return;
@@ -10537,7 +12481,7 @@ public class BingoPrototype : MonoBehaviour
         Color flashColor = new Color(0.42f, 0.95f, 1f);
         string visibleKey = $"{cardIndex}:{row}:{column}";
 
-        while (roundState.IsActive
+        while (roundFlow.IsActive
             && powerUps.ClairvoyanceActive
             && cardIndex >= 0
             && cardIndex < playerCards.Count
