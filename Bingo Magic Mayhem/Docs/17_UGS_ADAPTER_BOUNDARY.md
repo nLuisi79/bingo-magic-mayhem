@@ -37,8 +37,12 @@ Multiplayer now mirrors that boundary pattern with a separate non-live adapter s
 
 - backend selection flows through `IPrototypeMultiplayerRuntimeProvider`;
 - `PrototypeMultiplayerBackendMode.Ugs` now constructs an explicit `PrototypeMultiplayerUgsRuntimeAdapter`;
+- room/session transport selection now also flows through `IPrototypeMultiplayerRoomSessionSyncAdapterFactory`;
+- `PrototypeMultiplayerBackendMode.Ugs` resolves a `PrototypeMultiplayerUgsRoomSessionSyncAdapter` for the fallback controller;
 - that adapter implements `IMultiplayerRoomSessionService` and `IMultiplayerMatchAuthorityService`;
+- the sync adapter implements `IMultiplayerRoomSessionSyncAdapter`;
 - it currently delegates to the local multiplayer runtime as a safe fallback;
+- the sync adapter currently delegates to the local in-memory transport seam as a safe fallback;
 - `BingoPrototype` still stays unaware of any concrete UGS or local assembly details.
 
 This is an adapter-boundary pass only. No Lobby, Relay, Cloud Code, Netcode, or other live multiplayer SDK calls are enabled.

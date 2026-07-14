@@ -4,6 +4,19 @@ using NUnit.Framework;
 public sealed class MultiplayerRoomSessionSyncAdapterTests
 {
     [Test]
+    public void SyncAdapterFactory_UgsMode_ReturnsExplicitAdapterBoundaryWithLocalFallback()
+    {
+        IPrototypeMultiplayerRoomSessionSyncAdapterFactory factory = new PrototypeMultiplayerRoomSessionSyncAdapterFactory();
+
+        IMultiplayerRoomSessionSyncAdapter adapter = factory.CreateAdapter(PrototypeMultiplayerBackendMode.Ugs);
+        adapter.PublishRoomSync(new MultiplayerRoomSyncPayload { RoomId = "room_ugs" });
+
+        Assert.That(adapter, Is.InstanceOf<PrototypeMultiplayerUgsRoomSessionSyncAdapter>());
+        Assert.That(adapter.LatestRoomSync.RoomId, Is.EqualTo("room_ugs"));
+        Assert.That(adapter.RoomSyncLog.Count, Is.EqualTo(1));
+    }
+
+    [Test]
     public void LocalInMemoryAdapter_PublishesAndStoresLatestPayloads()
     {
         LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();

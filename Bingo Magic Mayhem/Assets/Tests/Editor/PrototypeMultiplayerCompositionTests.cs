@@ -33,4 +33,16 @@ public sealed class PrototypeMultiplayerCompositionTests
         Assert.That(runtime.Controller.SessionFacade.CurrentMatch, Is.Not.Null);
         Assert.That(runtime.Controller.SessionFacade.CurrentRoom.HostPlayerId, Is.EqualTo("host_1"));
     }
+
+    [Test]
+    public void CreateUgsStubRuntime_WiresExplicitSyncAdapterBoundaryIntoFallbackController()
+    {
+        PrototypeMultiplayerRuntime runtime = PrototypeMultiplayerComposition.CreateUgsStubRuntime("host_1");
+
+        runtime.GameplayBridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+
+        Assert.That(runtime.BackendMode, Is.EqualTo(PrototypeMultiplayerBackendMode.Ugs));
+        Assert.That(runtime.Controller.SyncAdapter, Is.InstanceOf<PrototypeMultiplayerUgsRoomSessionSyncAdapter>());
+        Assert.That(runtime.Controller.SyncAdapter.LatestMatchStart, Is.Not.Null);
+    }
 }

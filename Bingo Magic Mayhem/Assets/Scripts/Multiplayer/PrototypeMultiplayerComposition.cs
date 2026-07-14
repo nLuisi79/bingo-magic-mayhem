@@ -59,12 +59,17 @@ namespace BingoMagicMayhem.Multiplayer
     /// </summary>
     public static class PrototypeMultiplayerComposition
     {
-        public static PrototypeMultiplayerControllerDependencies CreateLocalControllerDependencies(
+        public static PrototypeMultiplayerControllerDependencies CreateControllerDependencies(
+            PrototypeMultiplayerBackendMode backendMode,
             LocalMultiplayerSessionFacade sessionFacade = null,
-            IMultiplayerRoomSessionSyncAdapter syncAdapter = null)
+            IMultiplayerRoomSessionSyncAdapter syncAdapter = null,
+            IPrototypeMultiplayerRoomSessionSyncAdapterFactory syncAdapterFactory = null)
         {
             LocalMultiplayerSessionFacade resolvedSessionFacade = sessionFacade ?? new LocalMultiplayerSessionFacade();
-            IMultiplayerRoomSessionSyncAdapter resolvedSyncAdapter = syncAdapter ?? new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+            IPrototypeMultiplayerRoomSessionSyncAdapterFactory resolvedSyncAdapterFactory =
+                syncAdapterFactory ?? new PrototypeMultiplayerRoomSessionSyncAdapterFactory();
+            IMultiplayerRoomSessionSyncAdapter resolvedSyncAdapter =
+                syncAdapter ?? resolvedSyncAdapterFactory.CreateAdapter(backendMode);
             LocalAuthoritativeMatchSimulator matchSimulator = new LocalAuthoritativeMatchSimulator(resolvedSessionFacade);
             PrototypeMultiplayerAuthorityBridge authorityBridge = new PrototypeMultiplayerAuthorityBridge(matchSimulator);
             return new PrototypeMultiplayerControllerDependencies(
@@ -74,24 +79,49 @@ namespace BingoMagicMayhem.Multiplayer
                 resolvedSyncAdapter);
         }
 
-        public static PrototypeMultiplayerRuntime CreateLocalRuntime(string hostPlayerId)
+        public static PrototypeMultiplayerControllerDependencies CreateLocalControllerDependencies(
+            LocalMultiplayerSessionFacade sessionFacade = null,
+            IMultiplayerRoomSessionSyncAdapter syncAdapter = null)
         {
-            PrototypeMultiplayerControllerDependencies dependencies = CreateLocalControllerDependencies();
+            return CreateControllerDependencies(
+                PrototypeMultiplayerBackendMode.Local,
+                sessionFacade,
+                syncAdapter);
+        }
+
+        private static PrototypeMultiplayerRuntime CreateControllerBackedRuntime(
+            PrototypeMultiplayerBackendMode backendMode,
+            string hostPlayerId,
+            PrototypeMultiplayerControllerDependencies dependencies)
+        {
             PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(dependencies);
             IMultiplayerRoomSessionService roomSessionService = controller;
             IMultiplayerMatchAuthorityService matchAuthorityService = controller;
             PrototypeMultiplayerGameplayBridge gameplayBridge = new PrototypeMultiplayerGameplayBridge(roomSessionService, matchAuthorityService, hostPlayerId);
             return new PrototypeMultiplayerRuntime(
-                PrototypeMultiplayerBackendMode.Local,
+                backendMode,
                 roomSessionService,
                 matchAuthorityService,
                 controller,
                 gameplayBridge);
         }
 
+        public static PrototypeMultiplayerRuntime CreateLocalRuntime(string hostPlayerId)
+        {
+            PrototypeMultiplayerControllerDependencies dependencies = CreateLocalControllerDependencies();
+            return CreateControllerBackedRuntime(
+                PrototypeMultiplayerBackendMode.Local,
+                hostPlayerId,
+                dependencies);
+        }
+
         public static PrototypeMultiplayerRuntime CreateUgsStubRuntime(string hostPlayerId)
         {
-            PrototypeMultiplayerRuntime localFallbackRuntime = CreateLocalRuntime(hostPlayerId);
+            PrototypeMultiplayerControllerDependencies dependencies = CreateControllerDependencies(PrototypeMultiplayerBackendMode.Ugs);
+            PrototypeMultiplayerRuntime localFallbackRuntime = CreateControllerBackedRuntime(
+                PrototypeMultiplayerBackendMode.Local,
+                hostPlayerId,
+                dependencies);
             PrototypeMultiplayerUgsRuntimeAdapter adapter = new PrototypeMultiplayerUgsRuntimeAdapter(localFallbackRuntime);
             PrototypeMultiplayerGameplayBridge gameplayBridge = new PrototypeMultiplayerGameplayBridge(adapter, adapter, hostPlayerId);
             return new PrototypeMultiplayerRuntime(
