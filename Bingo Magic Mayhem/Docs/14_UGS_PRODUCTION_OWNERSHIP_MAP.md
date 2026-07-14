@@ -1,6 +1,6 @@
 # UGS Production Ownership Map
 
-Last updated: 2026-07-10
+Last updated: 2026-07-13
 
 Status: production-planning map. This is not a gameplay, economy, reward, rarity, monetization, progression, or Aura/rank lock document.
 
@@ -51,6 +51,72 @@ The journal diagnostics policy now has a conservative future-upload allowlist fo
 Profile settings schema 2 adds a local display name and stable cosmetic catalog ids. Display-name validation is Beta/test-only; production uniqueness/moderation requires approved backend authority. Cosmetic logical keys currently resolve through a local Resources adapter and are designed to move to Addressables without changing saved ids.
 
 The five approved UGS packages are resolved in the manifest, lockfile, and package cache, but no live UGS adapter is enabled. The gated boundary is documented in `17_UGS_ADAPTER_BOUNDARY.md`; Economy, Cloud Code, IAP, Leaderboards, and gameplay/economy sync remain out of scope.
+
+The multiplayer prototype now has an explicit backend-selection seam and two backend-facing contracts:
+
+- `IPrototypeMultiplayerRuntimeProvider`
+- `IMultiplayerRoomSessionService`
+- `IMultiplayerMatchAuthorityService`
+
+The current `Ugs` backend mode intentionally falls back to the local runtime until a real adapter is approved and implemented. This is production-shaping structure only; no live multiplayer SDK calls are active.
+
+## Current Multiplayer Seam Ownership
+
+The current code seam should be treated as the preferred UGS insertion map for future Beta backend work.
+
+| Seam | Current prototype owner | Preferred future UGS owner | Notes |
+|---|---|---|---|
+| `IPrototypeMultiplayerRuntimeProvider` | Local provider/factory | UGS-backed runtime selector | Chooses local vs future UGS runtime without touching gameplay/UI roots. |
+| `IMultiplayerRoomSessionService` | Local room/session controller | Lobby/Relay/Cloud Save hybrid or fallback backend equivalent | Owns room creation, membership/readiness, room snapshots, and match start coordination. |
+| `IMultiplayerMatchAuthorityService` | Local authoritative controller | Cloud Code/server-owned match authority plus networking layer | Owns observed calls, claim submission, claim resolution, idempotency handling, and round-end publishing. |
+| `PrototypeMultiplayerGameplayBridge` | Gameplay-facing facade | Remains gameplay-facing facade | Should stay SDK-agnostic and contract-only. |
+| `PrototypeMultiplayerComposition` | Local runtime assembly | Local/UGS composition helper | Builds concrete local runtime today; future UGS runtime can parallel this without changing callers. |
+
+## Preferred Future UGS Mapping For Multiplayer
+
+This is not yet implementation approval. It is the current recommended ownership split if synchronized/shared multiplayer enters explicit Beta scope.
+
+| Multiplayer responsibility | Preferred owner | Why |
+|---|---|---|
+| Session identity | Unity Authentication | Stable player ids and account linking. |
+| Room membership / join code / presence | UGS Lobby candidate | Best fit if shared rooms or lobby readiness become live scope. |
+| Connection/bootstrap transport | UGS Relay candidate | Keeps peer connection details out of gameplay/UI code if real-time play is approved. |
+| Number-call authority / claim validation | Cloud Code or server-hosted authority candidate | Sensitive match outcomes should not rely on client-only authority in production. |
+| Durable resumable player-facing room cache | Cloud Save plus local snapshot | Supports local-first recovery and cross-device continuity where appropriate. |
+| Match telemetry | Analytics | Match lifecycle and failure/recovery observability. |
+| Reward grants from multiplayer outcomes | Economy plus Cloud Code validation | Keeps sensitive outcomes idempotent and auditable. |
+
+## Concrete Ownership Boundaries For The Current Seams
+
+When a real UGS-backed runtime is added, the recommended split is:
+
+- `IPrototypeMultiplayerRuntimeProvider`
+  - selects `Local` vs `Ugs`
+  - remains the only backend-mode selector consumed by `BingoPrototype`
+- `IMultiplayerRoomSessionService`
+  - owns create/join/leave/readiness/start-match entrypoints
+  - should not own gameplay presentation
+  - may coordinate Lobby/Cloud Save room cache concerns
+- `IMultiplayerMatchAuthorityService`
+  - owns observed call registration
+  - owns bingo/jackpot claim submission
+  - owns idempotency-key enforcement
+  - owns round-end publication
+  - may route through Cloud Code or another validated authority layer
+
+## Current Fallback Rule
+
+Until explicit approval exists for live UGS multiplayer/service wiring:
+
+- `PrototypeMultiplayerBackendMode.Local` uses the active local runtime
+- `PrototypeMultiplayerBackendMode.Ugs` also uses the local runtime
+
+This fallback is intentional and should remain until:
+
+- the exact Beta multiplayer scope is approved;
+- the concrete UGS service mix is chosen;
+- idempotency, reconnect, and authority behavior are documented;
+- and a real UGS adapter passes the existing local contract tests.
 
 ## UGS Service Roles
 

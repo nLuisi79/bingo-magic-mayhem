@@ -49,6 +49,7 @@ This has been working well because it reduces overlap risk while still pulling p
 
 - Player Den top band shell
 - Player Den cauldron/title shell
+- Mana cauldron modal shell
 - Profile settings/login/header helpers
 
 ### Collections shell
@@ -68,10 +69,16 @@ This has been working well because it reduces overlap risk while still pulling p
 
 - Reward preview shell
 - Card reveal shell
+- Daily Bonus modal shell
 - Reward preview sections
 - Jackpot spin screen shell
 - Jackpot pot/result/confirmation/stack shells
 - Round reward summary tiles and sections
+
+### Friends / social shell
+
+- Friends modal summary/footer shell
+- Friends list/request row shells
 
 ## What is still intentionally prototype-owned
 
@@ -106,7 +113,11 @@ These are still good frontend-only candidates before styling becomes the main wo
    - review remaining reward/jackpot builders for shell-only extraction
    - standardize action area and footer interaction patterns
 
-4. Navigation and modal orchestration consistency
+4. Friends / inbox summary-shell cleanup
+   - keep list/message authority in prototype
+   - continue extracting top summary, footer note, and modal chrome helpers
+
+5. Navigation and modal orchestration consistency
    - normalize close/back/request event naming
    - reduce one-off modal callback wiring where a reusable pattern exists
 

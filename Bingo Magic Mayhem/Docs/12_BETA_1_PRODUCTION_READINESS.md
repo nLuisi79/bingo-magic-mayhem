@@ -100,6 +100,7 @@ These add value if time permits, but should not block first beta unless they are
 - Inventory, currencies, album state, ingredient state, daily systems, room progress, Inbox, and social state currently rely heavily on `PlayerPrefs`.
 - First infrastructure foundation is implemented: versioned local JSON snapshots, last-known-good backup recovery, append-only action journal, durable local guest identity, and replaceable service contracts. Existing gameplay state has not been migrated yet.
 - The service layer now initializes once at startup. Profile cosmetic selections and Sound/Notifications have moved to a versioned durable snapshot with compatibility `PlayerPrefs` writes; gameplay progress, currencies, inventory, rewards, and social state remain on their existing prototype persistence paths.
+- The multiplayer prototype now also has a provider/factory seam plus two backend-facing service contracts: runtime selection through `IPrototypeMultiplayerRuntimeProvider`, room/session lifecycle through `IMultiplayerRoomSessionService`, and call/claim/round-end authority through `IMultiplayerMatchAuthorityService`. The current `Ugs` runtime mode is an intentional local fallback only.
 - Ordered per-state schema migrations and a redacted Persistence diagnostics/export panel are implemented. The panel also reports local UGS preflight state, Remote Config infrastructure safety state, disabled profile/settings Cloud Save sync state, conflict/offline policy gates, journal sync-staging policy, journal retention/privacy policy, and diagnostics export/share safety policy: packages resolved, adapter define status, live-call status, Remote Config risky/missing/unknown key counts, Cloud Save upload/download blocked status, automatic merge/remote overwrite blocked status, future-upload candidate counts, active upload eligibility, retained-record counts, archive/compaction/delete planning counts, export-redaction counts, local-file export readiness, external-share blocked status, and remaining cloud enablement blockers. No automatic journal retention, compaction, clearing, deletion, live upload, or external diagnostics share policy is active.
 - Profile display name now persists in snapshot schema 2 with local Beta/test validation. A stable cosmetic catalog and runtime asset intake structure exist; ownership/unlock rules and final moderation remain unresolved.
 - UGS Core, Authentication, Cloud Save, Remote Config, and Analytics package entries are resolved in the manifest, lockfile, and Unity package cache. Runtime adapters remain disabled pending project-link, consent, environment, profile/settings Cloud Save conflict policy, and offline-fallback checks. The profile/settings Cloud Save scaffold declares key `bmm.profile_settings.v2` and policy `profile_cloud_conflict_policy_v0.1` for future use but does not upload, download, merge, or overwrite local snapshots.
@@ -122,6 +123,13 @@ UGS is the preferred Beta backend path unless a concrete blocker appears. Implem
 - Economy for server-owned balances, inventory items, album/card entries, and grant validation.
 - Remote Config for tunable room, reward, odds, event, and offer values.
 - Cloud Code for server-authoritative reward rolls, duplicate/card conversion checks, social grants, and anti-abuse validation.
+
+Current multiplayer-specific backend boundaries now align with that direction:
+
+- use the runtime provider as the only backend-mode selector;
+- keep room/session lifecycle behind `IMultiplayerRoomSessionService`;
+- keep call/claim/round-end authority behind `IMultiplayerMatchAuthorityService`;
+- keep `BingoPrototype` and gameplay presentation unaware of concrete backend assembly.
 
 Decision needed before production hardening:
 

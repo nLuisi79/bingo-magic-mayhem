@@ -51,6 +51,16 @@ namespace BingoMagicMayhem.UI.Den
             }
         }
 
+        public void Apply(PlayerDenActionTileDisplayModel displayModel)
+        {
+            if (displayModel == null)
+            {
+                return;
+            }
+
+            Apply(displayModel.TitleText, displayModel.SubtitleText);
+        }
+
         private void HandleButtonClicked()
         {
             Selected?.Invoke();

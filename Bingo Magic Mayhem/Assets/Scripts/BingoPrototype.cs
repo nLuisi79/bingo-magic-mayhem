@@ -86,6 +86,7 @@ public class BingoPrototype : MonoBehaviour
     private readonly CovenState coven = new CovenState();
     private BingoRewardTracker rewards;
     private readonly BingoRoundEndCoordinator roundEndCoordinator = new BingoRoundEndCoordinator();
+    private readonly IPrototypeMultiplayerRuntimeProvider prototypeMultiplayerRuntimeProvider = new PrototypeMultiplayerRuntimeProvider();
     private PrototypeMultiplayerRuntime prototypeMultiplayerRuntime;
     private RewardPreview pendingRewardPreview;
     private BingoRoundEndDecision activePrototypeRoundEndDecision;
@@ -119,7 +120,6 @@ public class BingoPrototype : MonoBehaviour
     private Text cauldronStatusText;
     private Button cauldronCollectButton;
     private RoomEntryPanelView roomEntryPanelView;
-    private PlayerDenPanelView playerDenPanelView;
     private PlayerProfileModalView playerProfileModalView;
     private PrototypeInboxCategory inboxActiveCategory = PrototypeInboxCategory.Gifts;
     private string lastInboxClaimSummary = "";
@@ -260,7 +260,9 @@ public class BingoPrototype : MonoBehaviour
 
         if (prototypeMultiplayerRuntime == null)
         {
-            prototypeMultiplayerRuntime = PrototypeMultiplayerComposition.CreateLocalRuntime(PrototypeLocalHostPlayerId);
+            prototypeMultiplayerRuntime = prototypeMultiplayerRuntimeProvider.CreateRuntime(
+                PrototypeMultiplayerBackendMode.Local,
+                PrototypeLocalHostPlayerId);
         }
     }
 
@@ -1252,8 +1254,21 @@ public class BingoPrototype : MonoBehaviour
         });
 
         GameObject titlePanel = CreateAnchoredPanel(contentRoot, "DenTitle", new Color(0.15f, 0.08f, 0.22f), 720, 82, 0f, 286f);
-        Text denTitleText = CreateAnchoredText(titlePanel.transform, "PLAYER'S DEN", 40, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 660, 48, 0f, 12f);
-        Text denSubtitleText = CreateAnchoredText(titlePanel.transform, "Inventory, claims, and account hub | Rank now derives from Aura Strength", 16, FontStyle.Bold, muted, 680, 26, 0f, -24f);
+        Text denTitleText = CreateAnchoredText(titlePanel.transform, string.Empty, 40, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 660, 48, 0f, 12f);
+        Text denSubtitleText = CreateAnchoredText(titlePanel.transform, string.Empty, 16, FontStyle.Bold, muted, 680, 26, 0f, -24f);
+        PlayerDenTitleView denTitleView = titlePanel.GetComponent<PlayerDenTitleView>();
+        if (denTitleView == null)
+        {
+            denTitleView = titlePanel.AddComponent<PlayerDenTitleView>();
+        }
+
+        denTitleView.ResetRuntimeBindings();
+        denTitleView.Initialize(denTitleText, denSubtitleText);
+        denTitleView.Apply(new PlayerDenTitleDisplayModel
+        {
+            TitleText = "PLAYER'S DEN",
+            SubtitleText = "Inventory, claims, and account hub | Rank now derives from Aura Strength"
+        });
 
         GameObject library = CreateDenDoorTile("Library\nGrimoire", "Albums and cards", -530f, 150f, 280, 150, new Color(0.18f, 0.1f, 0.16f));
         BindPlayerDenDoorInteraction(library, BuildLibraryGrimoireUi);
@@ -1270,21 +1285,16 @@ public class BingoPrototype : MonoBehaviour
         denManaCauldronText = cauldron.GetComponentInChildren<Text>();
         Text cauldronSummaryText = CreateAnchoredText(contentRoot, $"Restored rooms: {inventory.GetRestoredRoomCount()} | +{inventory.GetManaCauldronHourlyRefillAmount()}/hour", 18, FontStyle.Bold, muted, 520, 28, 0f, -232f);
 
-        playerDenPanelView = contentRoot.gameObject.GetComponent<PlayerDenPanelView>();
-        if (playerDenPanelView == null)
+        PlayerDenCauldronView cauldronView = cauldron.gameObject.GetComponent<PlayerDenCauldronView>();
+        if (cauldronView == null)
         {
-            playerDenPanelView = contentRoot.gameObject.AddComponent<PlayerDenPanelView>();
+            cauldronView = cauldron.gameObject.AddComponent<PlayerDenCauldronView>();
         }
 
-        playerDenPanelView.ResetRuntimeBindings();
-        playerDenPanelView.Initialize(
-            denTitleText,
-            denSubtitleText,
-            cauldron,
-            denManaCauldronText,
-            cauldronSummaryText);
-        playerDenPanelView.CauldronRequested += OpenManaCauldronRequested;
-        playerDenPanelView.Apply(BuildPlayerDenDisplayModel());
+        cauldronView.ResetRuntimeBindings();
+        cauldronView.Initialize(cauldron, denManaCauldronText, cauldronSummaryText);
+        cauldronView.Requested += OpenManaCauldronRequested;
+        cauldronView.Apply(BuildPlayerDenCauldronDisplayModel());
 
         PlayerDenFeatureTileView trailTile = CreateDenFeatureTile(
             "DenEnchantedTrailTile",
@@ -1305,31 +1315,59 @@ public class BingoPrototype : MonoBehaviour
         GameObject covenTile = CreateDenDoorTile("Coven\nCircle", "Orbs and sharing", -292f, -172f, 176, 148, new Color(0.08f, 0.05f, 0.1f));
         BindPlayerDenDoorInteraction(covenTile, BuildCovenCircleUi);
 
-        PlayerDenActionTileView freebies = CreateDenBottomButton("Freebies", "social link", -620f);
+        PlayerDenActionTileView freebies = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Freebies",
+            SubtitleText = "social link"
+        }, -620f);
         freebies.Selected += BuildSocialFreebiesUi;
-        PlayerDenActionTileView friends = CreateDenBottomButton("Friends", $"{prototypeFriends.Count} friends", -440f);
+        PlayerDenActionTileView friends = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Friends",
+            SubtitleText = $"{prototypeFriends.Count} friends"
+        }, -440f);
         friends.Selected += BuildFriendsUi;
-        PlayerDenActionTileView leaders = CreateDenBottomButton("Leaders", "friends | team | global", -260f);
+        PlayerDenActionTileView leaders = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Leaders",
+            SubtitleText = "friends | team | global"
+        }, -260f);
         leaders.Selected += BuildLeaderboardUi;
-        PlayerDenActionTileView market = CreateDenBottomButton("Mayhem\nMarket", "IAP shell", -80f);
+        PlayerDenActionTileView market = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Mayhem\nMarket",
+            SubtitleText = "IAP shell"
+        }, -80f);
         market.Selected += BuildMayhemMarketUi;
-        PlayerDenActionTileView dailyBonus = CreateDenBottomButton("Daily Bonus", inventory.GetDailyBonusClaimStateText(), 250f);
+        PlayerDenActionTileView dailyBonus = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Daily Bonus",
+            SubtitleText = inventory.GetDailyBonusClaimStateText()
+        }, 250f);
         dailyBonus.Selected += BuildDailyBonusUi;
-        PlayerDenActionTileView dailySpin = CreateDenBottomButton("Daily Spin", inventory.GetDailySpinClaimStateText(), 430f);
+        PlayerDenActionTileView dailySpin = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Daily Spin",
+            SubtitleText = inventory.GetDailySpinClaimStateText()
+        }, 430f);
         dailySpin.Selected += BuildDailySpinUi;
-        PlayerDenActionTileView inbox = CreateDenBottomButton("Inbox", GetDenInboxStatusText(), 610f);
+        PlayerDenActionTileView inbox = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
+        {
+            TitleText = "Inbox",
+            SubtitleText = GetDenInboxStatusText()
+        }, 610f);
         inbox.Selected += BuildInboxUi;
 
         ApplyStageScale(true);
     }
 
-    private PlayerDenDisplayModel BuildPlayerDenDisplayModel()
+    private PlayerDenCauldronDisplayModel BuildPlayerDenCauldronDisplayModel()
     {
-        return new PlayerDenDisplayModel(
-            "PLAYER'S DEN",
-            "Inventory, claims, and account hub | Rank now derives from Aura Strength",
-            GetDenManaCauldronButtonText(),
-            $"Restored rooms: {inventory.GetRestoredRoomCount()} | +{inventory.GetManaCauldronHourlyRefillAmount()}/hour");
+        return new PlayerDenCauldronDisplayModel
+        {
+            ButtonText = GetDenManaCauldronButtonText(),
+            SummaryText = $"Restored rooms: {inventory.GetRestoredRoomCount()} | +{inventory.GetManaCauldronHourlyRefillAmount()}/hour"
+        };
     }
 
     private void BindUiInteraction(Button button, System.Action action)
@@ -1368,7 +1406,7 @@ public class BingoPrototype : MonoBehaviour
             doorView = tile.AddComponent<PlayerDenDoorView>();
         }
 
-        doorView.Initialize(button);
+        button.targetGraphic = tile.GetComponent<Image>();
         doorView.Selected += action;
     }
 
@@ -1812,10 +1850,24 @@ public class BingoPrototype : MonoBehaviour
     private Button CreateDenReturnFooter(Transform parent, float x, float y, UnityEngine.Events.UnityAction action)
     {
         Button close = CreateAnchoredButton(parent, "Back to Den", 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), x, y);
+        UIFooterActionView footerView = close.gameObject.GetComponent<UIFooterActionView>();
+        if (footerView == null)
+        {
+            footerView = close.gameObject.AddComponent<UIFooterActionView>();
+        }
+
+        footerView.ResetRuntimeBindings();
+        footerView.Initialize(close);
         if (action != null)
         {
-            close.onClick.AddListener(action);
+            footerView.Requested += () => action();
         }
+
+        footerView.Apply(new UIFooterActionDisplayModel
+        {
+            ButtonText = "Back to Den",
+            Interactable = close.interactable
+        });
 
         return close;
     }
@@ -1829,16 +1881,32 @@ public class BingoPrototype : MonoBehaviour
         string closeLabel = "Back to Den")
     {
         Button back = CreateAnchoredButton(parent, backLabel, 20, 220, 48, new Color(0.35f, 0.12f, 0.62f), -130f, y);
-        if (backAction != null)
+        Button close = CreateAnchoredButton(parent, closeLabel, 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, y);
+        UIDualFooterNavigationView footerView = parent.gameObject.GetComponent<UIDualFooterNavigationView>();
+        if (footerView == null)
         {
-            back.onClick.AddListener(backAction);
+            footerView = parent.gameObject.AddComponent<UIDualFooterNavigationView>();
         }
 
-        Button close = CreateAnchoredButton(parent, closeLabel, 20, 220, 48, new Color(0.18f, 0.16f, 0.22f), 130f, y);
+        footerView.ResetRuntimeBindings();
+        footerView.Initialize(back, close);
+        if (backAction != null)
+        {
+            footerView.BackRequested += () => backAction();
+        }
+
         if (closeAction != null)
         {
-            close.onClick.AddListener(closeAction);
+            footerView.CloseRequested += () => closeAction();
         }
+
+        footerView.Apply(new UIDualFooterNavigationDisplayModel
+        {
+            BackButtonText = backLabel,
+            BackButtonInteractable = back.interactable,
+            CloseButtonText = closeLabel,
+            CloseButtonInteractable = close.interactable
+        });
     }
 
     private GameObject CreateModalShell(string name, float width, float height, Color color)
@@ -2110,8 +2178,29 @@ public class BingoPrototype : MonoBehaviour
     private GameObject CreateDenDoorTile(string title, string subtitle, float x, float y, float width, float height, Color color)
     {
         GameObject tile = CreateAnchoredPanel(contentRoot, $"DenDoor_{title}", color, width, height, x, y);
-        CreateAnchoredText(tile.transform, title, 28, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), width - 24, height * 0.48f, 0f, height * 0.14f);
-        CreateAnchoredText(tile.transform, subtitle, 15, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), width - 26, 28, 0f, -height * 0.28f);
+        Button button = tile.GetComponent<Button>();
+        if (button == null)
+        {
+            button = tile.AddComponent<Button>();
+        }
+
+        button.targetGraphic = tile.GetComponent<Image>();
+
+        Text titleText = CreateAnchoredText(tile.transform, string.Empty, 28, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), width - 24, height * 0.48f, 0f, height * 0.14f);
+        Text subtitleText = CreateAnchoredText(tile.transform, string.Empty, 15, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), width - 26, 28, 0f, -height * 0.28f);
+        PlayerDenDoorView doorView = tile.GetComponent<PlayerDenDoorView>();
+        if (doorView == null)
+        {
+            doorView = tile.AddComponent<PlayerDenDoorView>();
+        }
+
+        doorView.ResetRuntimeBindings();
+        doorView.Initialize(titleText, subtitleText, button);
+        doorView.Apply(new PlayerDenDoorDisplayModel
+        {
+            TitleText = title,
+            SubtitleText = subtitle
+        });
         return tile;
     }
 
@@ -2467,7 +2556,7 @@ public class BingoPrototype : MonoBehaviour
             36f,
             224f);
         chromeView.CloseRequested += RemoveFriendsModal;
-        CreateAnchoredText(panel.transform, BuildPrototypeFriendManaSummaryText(), 14, FontStyle.Bold, muted, 900, 34, 0f, 194f);
+        Text summaryText = CreateAnchoredText(panel.transform, string.Empty, 14, FontStyle.Bold, muted, 900, 34, 0f, 194f);
 
         GameObject listPanel = CreateModalSectionPanel(panel.transform, "FriendsList", 330, 358, -346f, 18f);
         Text listPanelTitleText = CreateModalSectionHeader(listPanel.transform, "FRIEND LIST", gold, 290, 0f, 142f);
@@ -2541,7 +2630,20 @@ public class BingoPrototype : MonoBehaviour
             CreateSentFriendRequestRow(addPanel.transform, sent[index], -76f - index * 50f);
         }
 
-        CreateAnchoredText(panel.transform, string.IsNullOrEmpty(lastFriendStatusSummary) ? "Friend mana counts are prototype-only until Aura-rank limits are locked." : lastFriendStatusSummary, 15, FontStyle.Bold, muted, 900, 34, 0f, -214f);
+        Text footerStatusText = CreateAnchoredText(panel.transform, string.Empty, 15, FontStyle.Bold, muted, 900, 34, 0f, -214f);
+        FriendsModalView modalView = panel.GetComponent<FriendsModalView>();
+        if (modalView == null)
+        {
+            modalView = panel.AddComponent<FriendsModalView>();
+        }
+
+        modalView.ResetRuntimeBindings();
+        modalView.Initialize(summaryText, footerStatusText);
+        modalView.Apply(new FriendsModalDisplayModel
+        {
+            SummaryText = BuildPrototypeFriendManaSummaryText(),
+            FooterStatusText = string.IsNullOrEmpty(lastFriendStatusSummary) ? "Friend mana counts are prototype-only until Aura-rank limits are locked." : lastFriendStatusSummary
+        });
     }
 
     private void CreateFriendListRow(Transform parent, string friendName, string status, float y)
@@ -3794,17 +3896,20 @@ public class BingoPrototype : MonoBehaviour
         return false;
     }
 
-    private PlayerDenActionTileView CreateDenBottomButton(string title, string subtitle, float x)
+    private PlayerDenActionTileView CreateDenBottomButton(PlayerDenActionTileDisplayModel displayModel, float x)
     {
-        GameObject tile = CreateAnchoredPanel(contentRoot, $"DenBottom_{title}", new Color(0.13f, 0.07f, 0.18f), 154, 86, x, -378f);
+        string tileName = displayModel == null || string.IsNullOrEmpty(displayModel.TitleText) ? "DenBottom_Action" : $"DenBottom_{displayModel.TitleText}";
+        GameObject tile = CreateAnchoredPanel(contentRoot, tileName, new Color(0.13f, 0.07f, 0.18f), 154, 86, x, -378f);
         Button button = tile.GetComponent<Button>();
         if (button == null)
         {
             button = tile.AddComponent<Button>();
         }
 
-        Text titleText = CreateAnchoredText(tile.transform, title, 19, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 132, 28, 0f, 18f);
-        Text subtitleText = CreateAnchoredText(tile.transform, subtitle, 12, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 132, 24, 0f, -18f);
+        button.targetGraphic = tile.GetComponent<Image>();
+
+        Text titleText = CreateAnchoredText(tile.transform, string.Empty, 19, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 132, 28, 0f, 18f);
+        Text subtitleText = CreateAnchoredText(tile.transform, string.Empty, 12, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 132, 24, 0f, -18f);
         PlayerDenActionTileView cardView = tile.GetComponent<PlayerDenActionTileView>();
         if (cardView == null)
         {
@@ -3813,7 +3918,7 @@ public class BingoPrototype : MonoBehaviour
 
         cardView.ResetRuntimeBindings();
         cardView.Initialize(titleText, subtitleText, button);
-        cardView.Apply(title, subtitle);
+        cardView.Apply(displayModel);
         return cardView;
     }
 
@@ -3855,20 +3960,19 @@ public class BingoPrototype : MonoBehaviour
         Color gold = new Color(1f, 0.9f, 0.32f);
         Color muted = new Color(0.84f, 0.82f, 0.94f);
 
-        Text headerTitleText = CreateAnchoredText(panel.transform, "DAILY BONUS", 54, FontStyle.Bold, gold, 800, 66, 0f, 270f);
-        Button info = CreateAnchoredButton(panel.transform, "i", 22, 42, 42, new Color(0.18f, 0.16f, 0.28f), 338f, 272f);
-        info.onClick.AddListener(() => coven.AddPrototypeChatLine("Daily Bonus: claim once per day. The 7-day track is the main loop; the streak rail tracks long-running chest milestones."));
+        Text headerTitleText = CreateAnchoredText(panel.transform, string.Empty, 54, FontStyle.Bold, gold, 800, 66, 0f, 270f);
+        Button info = CreateAnchoredButton(panel.transform, string.Empty, 22, 42, 42, new Color(0.18f, 0.16f, 0.28f), 338f, 272f);
         Text streakText = CreateAnchoredText(panel.transform, $"Daily Streak: {inventory.DailyBonusStreak} days", 26, FontStyle.Bold, Color.white, 420, 42, -350f, 214f);
         int nextChest = inventory.GetNextDailyBonusChestDay();
         Text nextChestText = CreateAnchoredText(panel.transform, $"Next Chest: Day {nextChest}", 26, FontStyle.Bold, Color.white, 420, 42, 350f, 214f);
         Text streakWarningText = null;
+        Button saveStreak = null;
 
         if (inventory.HasMissedDailyBonusStreak())
         {
             streakWarningText = CreateAnchoredText(panel.transform, "You missed a day. Save the streak or claim to restart at Day 1.", 17, FontStyle.Bold, new Color(1f, 0.86f, 0.62f), 760, 28, 0f, 184f);
-            Button saveStreak = CreateAnchoredButton(panel.transform, inventory.GetDailyBonusStreakSaveSummary(), 16, 280, 38, inventory.CanUseDailyBonusStreakSave() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 0f, 184f);
+            saveStreak = CreateAnchoredButton(panel.transform, string.Empty, 16, 280, 38, inventory.CanUseDailyBonusStreakSave() ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 0f, 184f);
             saveStreak.interactable = inventory.CanUseDailyBonusStreakSave();
-            saveStreak.onClick.AddListener(SaveDailyBonusStreakFromDen);
         }
 
         DailyBonusHeaderView headerView = panel.GetComponent<DailyBonusHeaderView>();
@@ -3886,7 +3990,31 @@ public class BingoPrototype : MonoBehaviour
             inventory.HasMissedDailyBonusStreak() ? "You missed a day. Save the streak or claim to restart at Day 1." : string.Empty));
 
         CreateDailyBonusMilestoneRail(panel.transform, nextChest);
-        CreateAnchoredText(panel.transform, "7-DAY DAILY BONUS", 34, FontStyle.Bold, gold, 620, 48, 0f, 62f);
+        Text sectionTitleText = CreateAnchoredText(panel.transform, string.Empty, 34, FontStyle.Bold, gold, 620, 48, 0f, 62f);
+
+        DailyBonusModalView modalView = panel.GetComponent<DailyBonusModalView>();
+        if (modalView == null)
+        {
+            modalView = panel.AddComponent<DailyBonusModalView>();
+        }
+
+        modalView.ResetRuntimeBindings();
+        modalView.Initialize(headerTitleText, sectionTitleText, info, saveStreak);
+        modalView.InfoRequested += ShowDailyBonusInfoRequested;
+        if (saveStreak != null)
+        {
+            modalView.SaveStreakRequested += SaveDailyBonusStreakFromDen;
+        }
+
+        modalView.Apply(new DailyBonusModalDisplayModel
+        {
+            HeaderTitleText = "DAILY BONUS",
+            SectionTitleText = "7-DAY DAILY BONUS",
+            InfoButtonText = "i",
+            SaveStreakButtonText = inventory.GetDailyBonusStreakSaveSummary(),
+            SaveStreakButtonVisible = inventory.HasMissedDailyBonusStreak(),
+            SaveStreakButtonInteractable = inventory.CanUseDailyBonusStreakSave()
+        });
 
         for (int day = 1; day <= 7; day++)
         {
@@ -4018,6 +4146,11 @@ public class BingoPrototype : MonoBehaviour
         coven.AddPrototypeChatLine(saved ? "Daily streak saved. You can claim without resetting it." : "Daily streak save unavailable.");
         RefreshPowerUpDisplays();
         BuildDailyBonusUi();
+    }
+
+    private void ShowDailyBonusInfoRequested()
+    {
+        coven.AddPrototypeChatLine("Daily Bonus: claim once per day. The 7-day track is the main loop; the streak rail tracks long-running chest milestones.");
     }
 
     private void BuildDailySpinUi()
@@ -4935,22 +5068,46 @@ public class BingoPrototype : MonoBehaviour
         CreateLobbyResourceTile(contentRoot, "Crystals", profile.Crystals.ToString("N0"), "<>", 230, 690f, 382f);
 
         GameObject modal = CreateAnchoredPanel(contentRoot, "ManaCauldronModal", new Color(0.12f, 0.04f, 0.18f, 0.98f), 1040, 570, 0f, -12f);
-        CreateAnchoredText(modal.transform, "MANA CAULDRON", 54, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 940, 70, 0f, 226f);
+        Text headerText = CreateAnchoredText(modal.transform, string.Empty, 54, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 940, 70, 0f, 226f);
         CreateAnchoredPanel(modal.transform, "CauldronBowl", new Color(0.22f, 0.08f, 0.28f), 350, 230, -250f, 38f);
         CreateAnchoredText(modal.transform, "*\n*\n*", 54, FontStyle.Bold, gold, 240, 160, -250f, 62f);
-        cauldronAmountText = CreateAnchoredText(modal.transform, $"{profile.ManaCauldronAmount} / {profile.ManaCauldronCapacity}", 72, FontStyle.Bold, Color.white, 370, 90, 248f, 72f);
-        CreateAnchoredText(modal.transform, "Mana Coins", 38, FontStyle.Bold, gold, 360, 54, 248f, 8f);
-        cauldronStatusText = CreateAnchoredText(modal.transform, GetManaCauldronDetailStatusText(), 25, FontStyle.Bold, cream, 360, 96, 248f, -76f);
-        CreateAnchoredText(modal.transform, $"Room restorations increase the hourly refill. Current refill: +{inventory.GetManaCauldronHourlyRefillAmount()} mana/hour.", 18, FontStyle.Bold, cream, 780, 42, 0f, -178f);
+        cauldronAmountText = CreateAnchoredText(modal.transform, string.Empty, 72, FontStyle.Bold, Color.white, 370, 90, 248f, 72f);
+        Text resourceLabelText = CreateAnchoredText(modal.transform, string.Empty, 38, FontStyle.Bold, gold, 360, 54, 248f, 8f);
+        cauldronStatusText = CreateAnchoredText(modal.transform, string.Empty, 25, FontStyle.Bold, cream, 360, 96, 248f, -76f);
+        Text refillNoteText = CreateAnchoredText(modal.transform, string.Empty, 18, FontStyle.Bold, cream, 780, 42, 0f, -178f);
 
-        cauldronCollectButton = CreateAnchoredButton(modal.transform, profile.ManaCauldronAmount > 0 ? $"Collect {profile.ManaCauldronAmount}" : "Empty", 28, 330, 58, profile.ManaCauldronAmount > 0 ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 218f, -154f);
+        cauldronCollectButton = CreateAnchoredButton(modal.transform, string.Empty, 28, 330, 58, profile.ManaCauldronAmount > 0 ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 218f, -154f);
         cauldronCollectButton.interactable = profile.ManaCauldronAmount > 0;
-        cauldronCollectButton.onClick.AddListener(CollectManaCauldronFromDen);
 
         Button back = CreateAnchoredButton(contentRoot, "Back to Den", 20, 220, 50, new Color(0.18f, 0.16f, 0.22f), -620f, -382f);
-        back.onClick.AddListener(BuildPlayerDenUi);
+        ManaCauldronModalView view = modal.GetComponent<ManaCauldronModalView>();
+        if (view == null)
+        {
+            view = modal.AddComponent<ManaCauldronModalView>();
+        }
+
+        view.ResetRuntimeBindings();
+        view.Initialize(headerText, cauldronAmountText, resourceLabelText, cauldronStatusText, refillNoteText, cauldronCollectButton, back);
+        view.CollectRequested += CollectManaCauldronFromDen;
+        view.BackRequested += BuildPlayerDenUi;
+        view.Apply(BuildManaCauldronDisplayModel(profile));
 
         ApplyStageScale(true);
+    }
+
+    private ManaCauldronModalDisplayModel BuildManaCauldronDisplayModel(PlayerProfileState profile)
+    {
+        return new ManaCauldronModalDisplayModel
+        {
+            HeaderText = "MANA CAULDRON",
+            AmountText = $"{profile.ManaCauldronAmount} / {profile.ManaCauldronCapacity}",
+            ResourceLabelText = "Mana Coins",
+            StatusText = GetManaCauldronDetailStatusText(),
+            RefillNoteText = $"Room restorations increase the hourly refill. Current refill: +{inventory.GetManaCauldronHourlyRefillAmount()} mana/hour.",
+            CollectButtonText = profile.ManaCauldronAmount > 0 ? $"Collect {profile.ManaCauldronAmount}" : "Empty",
+            CollectButtonInteractable = profile.ManaCauldronAmount > 0,
+            BackButtonText = "Back to Den"
+        };
     }
 
     private void BuildLibraryGrimoireUi()

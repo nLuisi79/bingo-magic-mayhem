@@ -1,0 +1,42 @@
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace BingoMagicMayhem.UI.Den
+{
+    [DisallowMultipleComponent]
+    public sealed class PlayerDenTitleView : MonoBehaviour
+    {
+        [SerializeField] private Text titleText;
+        [SerializeField] private Text subtitleText;
+
+        public void ResetRuntimeBindings()
+        {
+            titleText = null;
+            subtitleText = null;
+        }
+
+        public void Initialize(Text title, Text subtitle)
+        {
+            titleText = title;
+            subtitleText = subtitle;
+        }
+
+        public void Apply(PlayerDenTitleDisplayModel displayModel)
+        {
+            if (displayModel == null)
+            {
+                return;
+            }
+
+            if (titleText != null)
+            {
+                titleText.text = displayModel.TitleText;
+            }
+
+            if (subtitleText != null)
+            {
+                subtitleText.text = displayModel.SubtitleText;
+            }
+        }
+    }
+}
