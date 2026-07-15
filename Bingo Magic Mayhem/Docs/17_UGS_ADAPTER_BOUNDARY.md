@@ -43,6 +43,8 @@ Multiplayer now mirrors that boundary pattern with a separate non-live adapter s
 - the sync adapter implements `IMultiplayerRoomSessionSyncAdapter`;
 - it currently delegates to the local multiplayer runtime as a safe fallback;
 - the sync adapter currently delegates to the local in-memory transport seam as a safe fallback;
+- the room/session seam now includes connection-aware lobby state, replay-safe return-to-lobby reset, and stale ended-match cleanup when a fresh lobby snapshot arrives;
+- local authority start now rejects unready connected participants, while duplicate round-end publication is treated idempotently;
 - `BingoPrototype` still stays unaware of any concrete UGS or local assembly details.
 
 This is an adapter-boundary pass only. No Lobby, Relay, Cloud Code, Netcode, or other live multiplayer SDK calls are enabled.

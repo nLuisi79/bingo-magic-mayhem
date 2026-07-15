@@ -60,6 +60,13 @@ The multiplayer prototype now has an explicit backend-selection seam and two bac
 
 The current `Ugs` backend mode intentionally falls back to the local runtime until a real adapter is approved and implemented. This is production-shaping structure only; no live multiplayer SDK calls are active.
 
+The current local multiplayer seam now also includes:
+
+- detached session snapshots for UI/presenter-safe reads;
+- connection-aware readiness and lobby summaries;
+- explicit replay-safe return-to-lobby room reset after round end;
+- duplicate-safe round-end publishing and stronger stale-room mirror cleanup.
+
 ## Current Multiplayer Seam Ownership
 
 The current code seam should be treated as the preferred UGS insertion map for future Beta backend work.
@@ -95,6 +102,7 @@ When a real UGS-backed runtime is added, the recommended split is:
   - remains the only backend-mode selector consumed by `BingoPrototype`
 - `IMultiplayerRoomSessionService`
   - owns create/join/leave/readiness/start-match entrypoints
+  - owns connection-state transitions and replay-safe return-to-lobby reset
   - should not own gameplay presentation
   - may coordinate Lobby/Cloud Save room cache concerns
 - `IMultiplayerMatchAuthorityService`

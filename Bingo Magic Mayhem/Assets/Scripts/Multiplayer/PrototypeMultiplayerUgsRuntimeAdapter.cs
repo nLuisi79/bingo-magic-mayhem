@@ -42,6 +42,11 @@ namespace BingoMagicMayhem.Multiplayer
             return localFallbackRuntime.RoomSessionService.AddOrUpdateLocalParticipant(playerId, displayName, isReady);
         }
 
+        public MultiplayerRoomSnapshot SetParticipantConnection(string playerId, bool isConnected)
+        {
+            return localFallbackRuntime.RoomSessionService.SetParticipantConnection(playerId, isConnected);
+        }
+
         public MultiplayerRoomSnapshot EnsureLocalLobby(
             string hostPlayerId,
             string hostDisplayName,
@@ -64,6 +69,11 @@ namespace BingoMagicMayhem.Multiplayer
         public MultiplayerRoomSnapshot SetParticipantReady(string playerId, bool isReady)
         {
             return localFallbackRuntime.RoomSessionService.SetParticipantReady(playerId, isReady);
+        }
+
+        public MultiplayerRoomSnapshot ReturnCurrentRoomToLobby()
+        {
+            return localFallbackRuntime.RoomSessionService.ReturnCurrentRoomToLobby();
         }
 
         public MultiplayerRoomSnapshot EnsureHostReady(

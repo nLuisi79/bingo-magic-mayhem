@@ -10,7 +10,12 @@ namespace BingoMagicMayhem.Multiplayer
     {
         public static MultiplayerRoomSessionDisplayModel Build(IMultiplayerSessionFacade sessionFacade)
         {
-            if (sessionFacade == null || sessionFacade.CurrentRoom == null)
+            return Build(MultiplayerRoomSessionSnapshotFactory.Build(sessionFacade));
+        }
+
+        public static MultiplayerRoomSessionDisplayModel Build(MultiplayerRoomSessionSnapshot snapshot)
+        {
+            if (snapshot == null || snapshot.Room == null || string.IsNullOrEmpty(snapshot.Room.RoomId))
             {
                 return new MultiplayerRoomSessionDisplayModel(
                     "",
@@ -42,21 +47,21 @@ namespace BingoMagicMayhem.Multiplayer
                 new List<MultiplayerRoomParticipantDisplayModel>());
             }
 
-            MultiplayerRoomSnapshot room = sessionFacade.CurrentRoom;
-            MatchAuthorityState match = sessionFacade.CurrentMatch;
+            MultiplayerRoomSnapshot room = snapshot.Room;
+            MatchAuthorityState match = snapshot.Match;
             List<MultiplayerRoomParticipantDisplayModel> participants = BuildParticipants(room);
-            int readyCount = CountReadyParticipants(room);
             int connectedCount = CountConnectedParticipants(room);
+            int readyCount = CountConnectedReadyParticipants(room);
             int pendingReadyCount = CountPendingReadyParticipants(room);
             string hostDisplayName = ResolveHostDisplayName(room);
             bool hasActiveMatch = match != null && match.State == MatchAuthorityLifecycleState.InRound;
             bool canStartMatchLocally = room.State == MultiplayerRoomLifecycleState.Lobby
-                && room.Participants.Count > 1
-                && readyCount == room.Participants.Count;
-            MultiplayerGameplayFlowState gameplayFlowState = BuildGameplayFlowState(room, match, readyCount, pendingReadyCount);
-            MatchCallEvent lastCall = sessionFacade.CallLog.Count > 0 ? sessionFacade.CallLog[sessionFacade.CallLog.Count - 1] : null;
-            MatchClaimResolution lastClaim = sessionFacade.ClaimLog.Count > 0 ? sessionFacade.ClaimLog[sessionFacade.ClaimLog.Count - 1] : null;
-            MatchEndEvent lastEnd = sessionFacade.MatchEndLog.Count > 0 ? sessionFacade.MatchEndLog[sessionFacade.MatchEndLog.Count - 1] : null;
+                && connectedCount > 1
+                && readyCount == connectedCount;
+            MultiplayerGameplayFlowState gameplayFlowState = BuildGameplayFlowState(room, match, connectedCount, readyCount, pendingReadyCount);
+            MatchCallEvent lastCall = snapshot.CallLog.Count > 0 ? snapshot.CallLog[snapshot.CallLog.Count - 1] : null;
+            MatchClaimResolution lastClaim = snapshot.ClaimLog.Count > 0 ? snapshot.ClaimLog[snapshot.ClaimLog.Count - 1] : null;
+            MatchEndEvent lastEnd = snapshot.MatchEndLog.Count > 0 ? snapshot.MatchEndLog[snapshot.MatchEndLog.Count - 1] : null;
             MultiplayerClaimPresentationState claimPresentationState = BuildClaimPresentationState(lastClaim);
             MultiplayerPostRoundSequenceState postRoundSequenceState = BuildPostRoundSequenceState(gameplayFlowState, lastEnd);
 
@@ -68,9 +73,9 @@ namespace BingoMagicMayhem.Multiplayer
                 BuildMatchStateLabel(match?.State ?? MatchAuthorityLifecycleState.None),
                 hostDisplayName,
                 $"Realm {room.SelectedRealmIndex + 1}  |  Room {room.SelectedRoomIndex + 1}  |  Cards {room.SelectedCardCount}  |  Bet {room.ManaBetPerCard}",
-                $"{readyCount}/{room.Participants.Count} ready",
-                $"Calls {sessionFacade.CallLog.Count}  |  Claims {sessionFacade.ClaimLog.Count}  |  Ends {sessionFacade.MatchEndLog.Count}",
-                BuildLastEventSummary(sessionFacade),
+                $"{readyCount}/{connectedCount} ready",
+                $"Calls {snapshot.CallLog.Count}  |  Claims {snapshot.ClaimLog.Count}  |  Ends {snapshot.MatchEndLog.Count}",
+                BuildLastEventSummary(snapshot),
                 BuildAuthorityStatusLabel(gameplayFlowState, pendingReadyCount, match),
                 BuildHostStartHint(gameplayFlowState, pendingReadyCount),
                 BuildCallAuthorityLabel(gameplayFlowState, lastCall),
@@ -118,23 +123,23 @@ namespace BingoMagicMayhem.Multiplayer
             return participants;
         }
 
-        private static string BuildLastEventSummary(IMultiplayerSessionFacade sessionFacade)
+        private static string BuildLastEventSummary(MultiplayerRoomSessionSnapshot snapshot)
         {
-            if (sessionFacade.MatchEndLog.Count > 0)
+            if (snapshot.MatchEndLog.Count > 0)
             {
-                MatchEndEvent end = sessionFacade.MatchEndLog[sessionFacade.MatchEndLog.Count - 1];
+                MatchEndEvent end = snapshot.MatchEndLog[snapshot.MatchEndLog.Count - 1];
                 return $"Ended: {end.EndReason}";
             }
 
-            if (sessionFacade.ClaimLog.Count > 0)
+            if (snapshot.ClaimLog.Count > 0)
             {
-                MatchClaimResolution claim = sessionFacade.ClaimLog[sessionFacade.ClaimLog.Count - 1];
+                MatchClaimResolution claim = snapshot.ClaimLog[snapshot.ClaimLog.Count - 1];
                 return $"Last claim: {claim.PlayerId} {claim.Result}";
             }
 
-            if (sessionFacade.CallLog.Count > 0)
+            if (snapshot.CallLog.Count > 0)
             {
-                MatchCallEvent call = sessionFacade.CallLog[sessionFacade.CallLog.Count - 1];
+                MatchCallEvent call = snapshot.CallLog[snapshot.CallLog.Count - 1];
                 return $"Last call: {call.CalledNumber}";
             }
 
@@ -160,7 +165,7 @@ namespace BingoMagicMayhem.Multiplayer
             return "";
         }
 
-        private static int CountReadyParticipants(MultiplayerRoomSnapshot room)
+        private static int CountConnectedReadyParticipants(MultiplayerRoomSnapshot room)
         {
             int readyCount = 0;
             if (room == null)
@@ -171,7 +176,7 @@ namespace BingoMagicMayhem.Multiplayer
             for (int index = 0; index < room.Participants.Count; index++)
             {
                 MultiplayerParticipantSnapshot participant = room.Participants[index];
-                if (participant != null && participant.IsReady)
+                if (participant != null && participant.IsConnected && participant.IsReady)
                 {
                     readyCount++;
                 }
@@ -223,6 +228,7 @@ namespace BingoMagicMayhem.Multiplayer
         private static MultiplayerGameplayFlowState BuildGameplayFlowState(
             MultiplayerRoomSnapshot room,
             MatchAuthorityState match,
+            int connectedCount,
             int readyCount,
             int pendingReadyCount)
         {
@@ -241,12 +247,12 @@ namespace BingoMagicMayhem.Multiplayer
                 return MultiplayerGameplayFlowState.MatchEnded;
             }
 
-            if (room.Participants.Count <= 1)
+            if (connectedCount <= 1)
             {
                 return MultiplayerGameplayFlowState.WaitingForPlayers;
             }
 
-            if (readyCount == room.Participants.Count && room.Participants.Count > 0)
+            if (readyCount == connectedCount && connectedCount > 1)
             {
                 return MultiplayerGameplayFlowState.ReadyToStart;
             }

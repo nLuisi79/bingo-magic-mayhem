@@ -136,7 +136,9 @@ namespace BingoMagicMayhem.Multiplayer
 
         MultiplayerRoomSnapshot CreateRoom(string hostPlayerId, string hostDisplayName, int realmIndex, int roomIndex, int selectedCardCount, int manaBetPerCard);
         MultiplayerRoomSnapshot AddLocalParticipant(string playerId, string displayName);
+        MultiplayerRoomSnapshot SetParticipantConnection(string playerId, bool isConnected);
         MultiplayerRoomSnapshot SetParticipantReady(string playerId, bool isReady);
+        MultiplayerRoomSnapshot ReturnCurrentRoomToLobby();
         MatchAuthorityState StartAuthoritativeMatch(AuthoritativeMatchStartRequest request);
         MatchCallEvent EmitNextCall();
         MatchCallEvent RegisterObservedCall(int calledNumber, long emittedUtcTicks = 0);
@@ -162,6 +164,7 @@ namespace BingoMagicMayhem.Multiplayer
             int manaBetPerCard);
 
         MultiplayerRoomSnapshot AddOrUpdateLocalParticipant(string playerId, string displayName, bool isReady);
+        MultiplayerRoomSnapshot SetParticipantConnection(string playerId, bool isConnected);
 
         MultiplayerRoomSnapshot EnsureLocalLobby(
             string hostPlayerId,
@@ -173,6 +176,7 @@ namespace BingoMagicMayhem.Multiplayer
             IReadOnlyList<LocalAuthoritativeMatchParticipant> localParticipants = null);
 
         MultiplayerRoomSnapshot SetParticipantReady(string playerId, bool isReady);
+        MultiplayerRoomSnapshot ReturnCurrentRoomToLobby();
 
         MultiplayerRoomSnapshot EnsureHostReady(
             string hostPlayerId,
@@ -285,8 +289,15 @@ namespace BingoMagicMayhem.Multiplayer
                 throw new InvalidOperationException("A room must exist before participants can be added.");
             }
 
-            if (FindParticipant(playerId) != null)
+            MultiplayerParticipantSnapshot existingParticipant = FindParticipant(playerId);
+            if (existingParticipant != null)
             {
+                if (!string.IsNullOrEmpty(displayName))
+                {
+                    existingParticipant.DisplayName = displayName;
+                }
+
+                existingParticipant.IsConnected = true;
                 return CurrentRoom;
             }
 
@@ -298,6 +309,18 @@ namespace BingoMagicMayhem.Multiplayer
                 IsReady = false,
                 IsConnected = true
             });
+            return CurrentRoom;
+        }
+
+        public MultiplayerRoomSnapshot SetParticipantConnection(string playerId, bool isConnected)
+        {
+            MultiplayerParticipantSnapshot participant = FindParticipant(playerId);
+            if (participant == null)
+            {
+                throw new InvalidOperationException($"Unknown participant '{playerId}'.");
+            }
+
+            participant.IsConnected = isConnected;
             return CurrentRoom;
         }
 
@@ -313,11 +336,61 @@ namespace BingoMagicMayhem.Multiplayer
             return CurrentRoom;
         }
 
+        public MultiplayerRoomSnapshot ReturnCurrentRoomToLobby()
+        {
+            if (CurrentRoom == null)
+            {
+                throw new InvalidOperationException("A room must exist before it can return to lobby.");
+            }
+
+            if (CurrentMatch != null && CurrentMatch.State == MatchAuthorityLifecycleState.InRound)
+            {
+                throw new InvalidOperationException("Cannot return room to lobby while an authoritative round is still active.");
+            }
+
+            CurrentRoom.State = MultiplayerRoomLifecycleState.Lobby;
+            CurrentMatch = null;
+            callLog.Clear();
+            claimLog.Clear();
+            matchEndLog.Clear();
+            resolvedClaimKeys.Clear();
+            authoritativeCalledNumbers.Clear();
+            caller.Reset();
+
+            for (int index = 0; index < CurrentRoom.Participants.Count; index++)
+            {
+                MultiplayerParticipantSnapshot participant = CurrentRoom.Participants[index];
+                if (participant == null)
+                {
+                    continue;
+                }
+
+                participant.IsReady = participant.IsHost && participant.IsConnected;
+            }
+
+            return CurrentRoom;
+        }
+
         public MatchAuthorityState StartAuthoritativeMatch(AuthoritativeMatchStartRequest request)
         {
             if (CurrentRoom == null)
             {
                 throw new InvalidOperationException("A room must exist before a match can start.");
+            }
+
+            if (CurrentRoom.State != MultiplayerRoomLifecycleState.Lobby)
+            {
+                throw new InvalidOperationException("Room must be in lobby state before an authoritative round can start.");
+            }
+
+            if (CurrentMatch != null && CurrentMatch.State == MatchAuthorityLifecycleState.InRound)
+            {
+                throw new InvalidOperationException("An authoritative round is already active for this room.");
+            }
+
+            if (HasUnreadyConnectedParticipants())
+            {
+                throw new InvalidOperationException("All connected participants must be ready before an authoritative round can start.");
             }
 
             caller.Reset();
@@ -509,6 +582,11 @@ namespace BingoMagicMayhem.Multiplayer
                 throw new InvalidOperationException("A match must exist before it can end.");
             }
 
+            if (CurrentMatch.State == MatchAuthorityLifecycleState.Ended && matchEndLog.Count > 0)
+            {
+                return matchEndLog[matchEndLog.Count - 1];
+            }
+
             MatchEndEvent endEvent = new MatchEndEvent
             {
                 MatchId = CurrentMatch.MatchId,
@@ -552,6 +630,25 @@ namespace BingoMagicMayhem.Multiplayer
             }
 
             return null;
+        }
+
+        private bool HasUnreadyConnectedParticipants()
+        {
+            if (CurrentRoom == null)
+            {
+                return false;
+            }
+
+            for (int index = 0; index < CurrentRoom.Participants.Count; index++)
+            {
+                MultiplayerParticipantSnapshot participant = CurrentRoom.Participants[index];
+                if (participant != null && participant.IsConnected && !participant.IsReady)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static string BuildRoomCode(int sequence)

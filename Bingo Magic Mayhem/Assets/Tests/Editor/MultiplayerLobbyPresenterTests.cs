@@ -55,4 +55,29 @@ public sealed class MultiplayerLobbyPresenterTests
         Assert.That(model.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.WaitingForPlayers));
         Assert.That(model.CanStart, Is.False);
     }
+
+    [Test]
+    public void Build_WithDisconnectedGuest_DoesNotBlockLobbyFromWaitingForReconnect()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        controller.EnsureLocalLobby(
+            "host_1",
+            "Host",
+            realmIndex: 0,
+            roomIndex: 1,
+            selectedCardCount: 4,
+            manaBetPerCard: 25,
+            localParticipants: new[]
+            {
+                new LocalAuthoritativeMatchParticipant { PlayerId = "guest_1", DisplayName = "Guest", Ready = true }
+            });
+        controller.SetParticipantConnection("guest_1", false);
+
+        MultiplayerLobbyDisplayModel model = controller.BuildLobbyDisplayModel();
+
+        Assert.That(model.ReadinessLabel, Is.EqualTo("1/1 ready"));
+        Assert.That(model.ActionLabel, Is.EqualTo("Waiting for more players"));
+        Assert.That(model.CanStart, Is.False);
+        Assert.That(model.ParticipantSummary, Does.Contain("Guest - Disconnected"));
+    }
 }

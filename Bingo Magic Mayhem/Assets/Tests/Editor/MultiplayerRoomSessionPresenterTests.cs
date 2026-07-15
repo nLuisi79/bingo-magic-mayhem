@@ -7,7 +7,7 @@ public sealed class MultiplayerRoomSessionPresenterTests
     [Test]
     public void Build_WithoutRoom_ReturnsEmptySafeModel()
     {
-        MultiplayerRoomSessionDisplayModel model = MultiplayerRoomSessionPresenter.Build(null);
+        MultiplayerRoomSessionDisplayModel model = MultiplayerRoomSessionPresenter.Build((IMultiplayerSessionFacade)null);
 
         Assert.That(model.RoomStateLabel, Is.EqualTo("No room"));
         Assert.That(model.MatchStateLabel, Is.EqualTo("No match"));
@@ -69,6 +69,24 @@ public sealed class MultiplayerRoomSessionPresenterTests
         Assert.That(model.PendingReadyParticipantCount, Is.EqualTo(1));
         Assert.That(model.AuthorityStatusLabel, Does.Contain("Waiting for 1 player to ready"));
         Assert.That(model.HostStartHint, Is.EqualTo("One connected player still needs to ready up."));
+    }
+
+    [Test]
+    public void Build_LobbyRoom_WithDisconnectedGuest_UsesConnectedReadinessCounts()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 1, 2, 4, 25);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.SetParticipantConnection("guest_1", false);
+
+        MultiplayerRoomSessionDisplayModel model = MultiplayerRoomSessionPresenter.Build(facade);
+
+        Assert.That(model.ReadinessSummary, Is.EqualTo("1/1 ready"));
+        Assert.That(model.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.WaitingForPlayers));
+        Assert.That(model.CanStartMatchLocally, Is.False);
+        Assert.That(model.Participants[1].PresenceLabel, Is.EqualTo("Disconnected"));
     }
 
     [Test]
@@ -227,5 +245,23 @@ public sealed class MultiplayerRoomSessionPresenterTests
         Assert.That(model.PostRoundSequenceState, Is.EqualTo(MultiplayerPostRoundSequenceState.JackpotNotEligible));
         Assert.That(model.JackpotHandoffLabel, Is.EqualTo("Round ended with no wheelspin entitlements queued."));
         Assert.That(model.WheelspinEntitledPlayerCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Build_FromSnapshot_PreservesLobbyPresentationWithoutFacadeBinding()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 1, 2, 4, 25);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+
+        MultiplayerRoomSessionSnapshot snapshot = MultiplayerRoomSessionSnapshotFactory.Build(facade);
+        MultiplayerRoomSessionDisplayModel model = MultiplayerRoomSessionPresenter.Build(snapshot);
+
+        Assert.That(model.RoomStateLabel, Is.EqualTo("Lobby open"));
+        Assert.That(model.ReadinessSummary, Is.EqualTo("2/2 ready"));
+        Assert.That(model.CanStartMatchLocally, Is.True);
+        Assert.That(model.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.ReadyToStart));
     }
 }

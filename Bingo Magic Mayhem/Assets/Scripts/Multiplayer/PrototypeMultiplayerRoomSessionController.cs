@@ -88,6 +88,13 @@ namespace BingoMagicMayhem.Multiplayer
             return room;
         }
 
+        public MultiplayerRoomSnapshot SetParticipantConnection(string playerId, bool isConnected)
+        {
+            MultiplayerRoomSnapshot room = sessionFacade.SetParticipantConnection(playerId, isConnected);
+            syncAdapter.PublishRoomSync(BuildRoomSyncPayload());
+            return room;
+        }
+
         public MultiplayerRoomSnapshot EnsureLocalLobby(
             string hostPlayerId,
             string hostDisplayName,
@@ -127,6 +134,13 @@ namespace BingoMagicMayhem.Multiplayer
             MultiplayerRoomSnapshot room = sessionFacade.SetParticipantReady(playerId, isReady);
             syncAdapter.PublishRoomSync(BuildRoomSyncPayload());
             syncAdapter.PublishReadinessUpdate(BuildReadinessUpdatePayload(playerId));
+            return room;
+        }
+
+        public MultiplayerRoomSnapshot ReturnCurrentRoomToLobby()
+        {
+            MultiplayerRoomSnapshot room = sessionFacade.ReturnCurrentRoomToLobby();
+            syncAdapter.PublishRoomSync(BuildRoomSyncPayload());
             return room;
         }
 
@@ -353,6 +367,11 @@ namespace BingoMagicMayhem.Multiplayer
         public MultiplayerLobbyDisplayModel BuildLobbyDisplayModel()
         {
             return MultiplayerLobbyPresenter.Build(BuildRoomSessionDisplayModel());
+        }
+
+        public MultiplayerRoomSessionSnapshot BuildSessionSnapshot()
+        {
+            return MultiplayerRoomSessionSnapshotFactory.Build(sessionFacade);
         }
 
         public LocalAuthoritativeMatchSummary BuildMatchSummary()

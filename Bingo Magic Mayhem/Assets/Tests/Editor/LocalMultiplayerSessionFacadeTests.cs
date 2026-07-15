@@ -1,3 +1,4 @@
+using System;
 using BingoMagicMayhem.Multiplayer;
 using BingoMagicMayhem.Rounds;
 using NUnit.Framework;
@@ -40,6 +41,8 @@ public sealed class LocalMultiplayerSessionFacadeTests
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
         facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
         facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
         MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
         {
             RealmIndex = 0,
@@ -86,6 +89,8 @@ public sealed class LocalMultiplayerSessionFacadeTests
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
         facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
         facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
         MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
         {
             RealmIndex = 0,
@@ -130,6 +135,7 @@ public sealed class LocalMultiplayerSessionFacadeTests
     {
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
         facade.CreateRoom("host_1", "Host", 0, 0, 1, 5);
+        facade.SetParticipantReady("host_1", true);
         MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
         {
             RealmIndex = 0,
@@ -157,6 +163,7 @@ public sealed class LocalMultiplayerSessionFacadeTests
     {
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
         facade.CreateRoom("host_1", "Host", 0, 0, 1, 5);
+        facade.SetParticipantReady("host_1", true);
         facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
         {
             RealmIndex = 0,
@@ -177,5 +184,105 @@ public sealed class LocalMultiplayerSessionFacadeTests
         Assert.That(first.EmittedUtcTicks, Is.EqualTo(1000));
         Assert.That(duplicate, Is.Null);
         Assert.That(facade.CallLog.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void AddLocalParticipant_ExistingPlayerReconnectsAndUpdatesDisplayName()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 1, 5);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantConnection("guest_1", false);
+
+        MultiplayerRoomSnapshot room = facade.AddLocalParticipant("guest_1", "Guest Rejoined");
+
+        Assert.That(room.Participants.Count, Is.EqualTo(2));
+        Assert.That(room.Participants[1].DisplayName, Is.EqualTo("Guest Rejoined"));
+        Assert.That(room.Participants[1].IsConnected, Is.True);
+    }
+
+    [Test]
+    public void ReturnCurrentRoomToLobby_AfterRoundEnd_ReopensRoomAndClearsAuthorityLogs()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 17,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1f
+        });
+        facade.RegisterObservedCall(22, 1000);
+        facade.PublishMatchEnd(
+            BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1" });
+
+        MultiplayerRoomSnapshot room = facade.ReturnCurrentRoomToLobby();
+
+        Assert.That(room.State, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+        Assert.That(facade.CurrentMatch, Is.Null);
+        Assert.That(facade.CallLog.Count, Is.EqualTo(0));
+        Assert.That(facade.ClaimLog.Count, Is.EqualTo(0));
+        Assert.That(facade.MatchEndLog.Count, Is.EqualTo(0));
+        Assert.That(room.Participants[0].IsReady, Is.True);
+        Assert.That(room.Participants[1].IsReady, Is.False);
+    }
+
+    [Test]
+    public void StartAuthoritativeMatch_WithUnreadyConnectedParticipant_Throws()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+            {
+                RealmIndex = 0,
+                RoomIndex = 0,
+                SelectedCardCount = 2,
+                ManaBetPerCard = 10,
+                RoundSeed = 77,
+                MaxCallCount = 20,
+                AutoCallIntervalSeconds = 1f
+            }));
+
+        Assert.That(exception.Message, Does.Contain("must be ready"));
+    }
+
+    [Test]
+    public void PublishMatchEnd_WhenAlreadyEnded_ReturnsExistingEndEventWithoutDuplication()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 1, 5);
+        facade.SetParticipantReady("host_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 1,
+            ManaBetPerCard = 5,
+            RoundSeed = 9,
+            MaxCallCount = 10,
+            AutoCallIntervalSeconds = 1f
+        });
+
+        MatchEndEvent first = facade.PublishMatchEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
+            new[] { "host_1" });
+        MatchEndEvent second = facade.PublishMatchEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Different duplicate reason."),
+            new[] { "host_1" });
+
+        Assert.That(second, Is.SameAs(first));
+        Assert.That(facade.MatchEndLog.Count, Is.EqualTo(1));
     }
 }

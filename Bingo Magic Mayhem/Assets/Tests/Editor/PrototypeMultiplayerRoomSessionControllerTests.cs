@@ -157,4 +157,46 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         Assert.That(adapter.Mirror.MirroredCalls.Count, Is.EqualTo(1));
         Assert.That(adapter.Mirror.AppliedEventLog.Count, Is.EqualTo(3));
     }
+
+    [Test]
+    public void BuildSessionSnapshot_ReturnsDetachedRoomAndEventState()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+
+        MultiplayerRoomSessionSnapshot firstSnapshot = controller.BuildSessionSnapshot();
+
+        controller.SetParticipantReady("guest_1", false);
+        MultiplayerRoomSessionSnapshot secondSnapshot = controller.BuildSessionSnapshot();
+
+        Assert.That(firstSnapshot.Room.Participants.Count, Is.EqualTo(2));
+        Assert.That(firstSnapshot.Room.Participants[1].IsReady, Is.True);
+        Assert.That(secondSnapshot.Room.Participants[1].IsReady, Is.False);
+        Assert.That(ReferenceEquals(firstSnapshot.Room, secondSnapshot.Room), Is.False);
+        Assert.That(ReferenceEquals(firstSnapshot.Room.Participants[1], secondSnapshot.Room.Participants[1]), Is.False);
+    }
+
+    [Test]
+    public void ReturnCurrentRoomToLobby_ReopensClosedRoomAndPublishesFreshRoomSync()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(
+            new LocalMultiplayerSessionFacade(),
+            adapter);
+
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        controller.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
+        controller.PublishRoundEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1" });
+
+        MultiplayerRoomSnapshot room = controller.ReturnCurrentRoomToLobby();
+
+        Assert.That(room.State, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+        Assert.That(controller.SessionFacade.CurrentMatch, Is.Null);
+        Assert.That(adapter.LatestRoomSync.RoomState, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+        Assert.That(adapter.RoomSyncLog.Count, Is.GreaterThanOrEqualTo(4));
+    }
 }

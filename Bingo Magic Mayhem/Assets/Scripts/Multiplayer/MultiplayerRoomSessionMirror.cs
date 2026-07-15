@@ -101,6 +101,11 @@ namespace BingoMagicMayhem.Multiplayer
             }
 
             MirroredRoom = room;
+
+            if (MirroredRoom.State == MultiplayerRoomLifecycleState.Lobby)
+            {
+                ResetMirroredMatchState();
+            }
         }
 
         public void ApplyReadinessUpdate(MultiplayerReadinessUpdatePayload payload)
@@ -277,15 +282,20 @@ namespace BingoMagicMayhem.Multiplayer
         public void Reset()
         {
             MirroredRoom = null;
+            ResetMirroredMatchState();
+            appliedEventLog.Clear();
+            appliedEventKeys.Clear();
+            nextSequenceId = 0;
+            DuplicateIgnoredCount = 0;
+        }
+
+        private void ResetMirroredMatchState()
+        {
             MirroredMatch = null;
             mirroredCalls.Clear();
             mirroredClaimSubmissions.Clear();
             mirroredClaimResolutions.Clear();
             mirroredMatchEnds.Clear();
-            appliedEventLog.Clear();
-            appliedEventKeys.Clear();
-            nextSequenceId = 0;
-            DuplicateIgnoredCount = 0;
         }
 
         private MultiplayerParticipantSnapshot FindParticipant(string playerId)
@@ -339,7 +349,20 @@ namespace BingoMagicMayhem.Multiplayer
                 return "room_sync:null";
             }
 
-            return $"room_sync:{payload.RoomId}:{payload.RoomState}:{payload.RealmIndex}:{payload.RoomIndex}:{payload.SelectedCardCount}:{payload.ManaBetPerCard}:{payload.Participants.Count}";
+            string participantSignature = "";
+            for (int index = 0; index < payload.Participants.Count; index++)
+            {
+                MultiplayerParticipantSyncPayload participant = payload.Participants[index];
+                if (participant == null)
+                {
+                    participantSignature += "|null";
+                    continue;
+                }
+
+                participantSignature += $"|{participant.PlayerId}:{participant.DisplayName}:{participant.IsHost}:{participant.IsReady}:{participant.IsConnected}";
+            }
+
+            return $"room_sync:{payload.RoomId}:{payload.RoomState}:{payload.RealmIndex}:{payload.RoomIndex}:{payload.SelectedCardCount}:{payload.ManaBetPerCard}:{participantSignature}";
         }
 
         private static string BuildReadinessKey(MultiplayerReadinessUpdatePayload payload)

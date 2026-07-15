@@ -168,4 +168,86 @@ public sealed class MultiplayerRoomSessionSyncAdapterTests
         Assert.That(adapter.Mirror.AppliedEventLog.Count, Is.EqualTo(1));
         Assert.That(adapter.Mirror.DuplicateIgnoredCount, Is.EqualTo(1));
     }
+
+    [Test]
+    public void LocalInMemoryAdapter_RoomSyncWithChangedParticipantConnection_IsNotTreatedAsDuplicate()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+
+        adapter.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_1",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_1", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true },
+                new MultiplayerParticipantSyncPayload { PlayerId = "guest_1", DisplayName = "Guest", IsReady = true, IsConnected = true }
+            }
+        });
+        adapter.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_1",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_1", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true },
+                new MultiplayerParticipantSyncPayload { PlayerId = "guest_1", DisplayName = "Guest", IsReady = true, IsConnected = false }
+            }
+        });
+
+        Assert.That(adapter.Mirror.AppliedEventLog.Count, Is.EqualTo(2));
+        Assert.That(adapter.Mirror.MirroredRoom.Participants[1].IsConnected, Is.False);
+    }
+
+    [Test]
+    public void LocalInMemoryAdapter_LobbyRoomSyncAfterEndedMatch_ClearsMirroredAuthorityState()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+
+        adapter.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_1",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_1", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true }
+            }
+        });
+        adapter.ApplyReceivedMatchStart(new MultiplayerMatchStartPayload
+        {
+            RoomId = "room_1",
+            MatchId = "match_1",
+            HostPlayerId = "host_1"
+        });
+        adapter.ApplyReceivedCallBroadcast(new MultiplayerCallBroadcastPayload
+        {
+            MatchId = "match_1",
+            CallIndex = 0,
+            CalledNumber = 22,
+            EmittedUtcTicks = 1000
+        });
+        adapter.ApplyReceivedMatchEnd(new MultiplayerMatchEndPayload
+        {
+            MatchId = "match_1",
+            EndReasonKind = BingoMagicMayhem.Rounds.BingoRoundEndReasonKind.FinalBall,
+            EndReason = "Ended",
+            FinalCallIndex = 0
+        });
+
+        adapter.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_1",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_1", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true },
+                new MultiplayerParticipantSyncPayload { PlayerId = "guest_1", DisplayName = "Guest", IsReady = false, IsConnected = true }
+            }
+        });
+
+        Assert.That(adapter.Mirror.MirroredRoom.State, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+        Assert.That(adapter.Mirror.MirroredMatch, Is.Null);
+        Assert.That(adapter.Mirror.MirroredCalls.Count, Is.EqualTo(0));
+        Assert.That(adapter.Mirror.MirroredMatchEnds.Count, Is.EqualTo(0));
+    }
 }
