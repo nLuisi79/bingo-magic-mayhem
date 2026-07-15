@@ -63,17 +63,17 @@ namespace BingoMagicMayhem.Multiplayer
                 autoCallIntervalSeconds);
         }
 
-        public void TryRecordObservedCall(bool roundIsActive, int calledNumber)
+        public MatchCallEvent TryRecordObservedCall(bool roundIsActive, int calledNumber)
         {
             if (!roundIsActive)
             {
-                return;
+                return null;
             }
 
-            matchAuthorityService.RecordObservedCall(calledNumber);
+            return matchAuthorityService.RecordObservedCall(calledNumber);
         }
 
-        public void TrySubmitBingoClaim(
+        public MatchClaimResolution TrySubmitBingoClaim(
             bool roundIsActive,
             int cardIndex,
             int claimCallIndex,
@@ -83,10 +83,10 @@ namespace BingoMagicMayhem.Multiplayer
         {
             if (!roundIsActive)
             {
-                return;
+                return null;
             }
 
-            matchAuthorityService.SubmitBingoClaim(
+            return matchAuthorityService.SubmitBingoClaim(
                 hostPlayerId,
                 cardIndex,
                 claimCallIndex,
@@ -95,7 +95,7 @@ namespace BingoMagicMayhem.Multiplayer
                 BuildBingoClaimIdempotencyKey(cardIndex, newBingoCount, claimCallIndex));
         }
 
-        public void TrySubmitJackpotStateClaim(
+        public MatchClaimResolution TrySubmitJackpotStateClaim(
             bool roundIsActive,
             int cardIndex,
             int claimCallIndex,
@@ -103,10 +103,10 @@ namespace BingoMagicMayhem.Multiplayer
         {
             if (!roundIsActive)
             {
-                return;
+                return null;
             }
 
-            matchAuthorityService.SubmitJackpotStateClaim(
+            return matchAuthorityService.SubmitJackpotStateClaim(
                 hostPlayerId,
                 cardIndex,
                 claimCallIndex,

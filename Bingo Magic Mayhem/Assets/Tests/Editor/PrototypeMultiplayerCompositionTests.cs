@@ -23,15 +23,18 @@ public sealed class PrototypeMultiplayerCompositionTests
     {
         PrototypeMultiplayerRuntime runtime = PrototypeMultiplayerComposition.CreateLocalRuntime("host_1");
 
-        runtime.GameplayBridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        PrototypeMultiplayerPresentationState state =
+            runtime.PresentationFacade.BeginAuthoritativeRoundAndBuildState("Host", 0, 0, 2, 10, 99, 30, 1f);
 
-        Assert.That(runtime.RoomSessionService, Is.SameAs(runtime.Controller));
-        Assert.That(runtime.MatchAuthorityService, Is.SameAs(runtime.Controller));
-        Assert.That(runtime.Controller, Is.Not.Null);
-        Assert.That(runtime.GameplayBridge, Is.Not.Null);
-        Assert.That(runtime.Controller.SessionFacade.CurrentRoom, Is.Not.Null);
-        Assert.That(runtime.Controller.SessionFacade.CurrentMatch, Is.Not.Null);
-        Assert.That(runtime.Controller.SessionFacade.CurrentRoom.HostPlayerId, Is.EqualTo("host_1"));
+        Assert.That(runtime.RoomSessionService, Is.InstanceOf<PrototypeMultiplayerRoomSessionController>());
+        Assert.That(runtime.MatchAuthorityService, Is.SameAs(runtime.RoomSessionService));
+        Assert.That(runtime.SyncAdapter, Is.InstanceOf<LocalInMemoryMultiplayerRoomSessionSyncAdapter>());
+        Assert.That(runtime.PresentationFacade, Is.Not.Null);
+        Assert.That(state, Is.Not.Null);
+        Assert.That(state.Session, Is.Not.Null);
+        Assert.That(runtime.RoomSessionService.CurrentRoom, Is.Not.Null);
+        Assert.That(runtime.RoomSessionService.CurrentRoom.HostPlayerId, Is.EqualTo("host_1"));
+        Assert.That(state.Session.MatchId, Is.Not.Empty);
     }
 
     [Test]
@@ -39,10 +42,16 @@ public sealed class PrototypeMultiplayerCompositionTests
     {
         PrototypeMultiplayerRuntime runtime = PrototypeMultiplayerComposition.CreateUgsStubRuntime("host_1");
 
-        runtime.GameplayBridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        PrototypeMultiplayerPresentationState state =
+            runtime.PresentationFacade.BeginAuthoritativeRoundAndBuildState("Host", 0, 0, 2, 10, 99, 30, 1f);
 
         Assert.That(runtime.BackendMode, Is.EqualTo(PrototypeMultiplayerBackendMode.Ugs));
-        Assert.That(runtime.Controller.SyncAdapter, Is.InstanceOf<PrototypeMultiplayerUgsRoomSessionSyncAdapter>());
-        Assert.That(runtime.Controller.SyncAdapter.LatestMatchStart, Is.Not.Null);
+        Assert.That(runtime.RoomSessionService, Is.InstanceOf<PrototypeMultiplayerUgsRuntimeAdapter>());
+        Assert.That(runtime.MatchAuthorityService, Is.SameAs(runtime.RoomSessionService));
+        Assert.That(runtime.SyncAdapter, Is.InstanceOf<PrototypeMultiplayerUgsRoomSessionSyncAdapter>());
+        Assert.That(runtime.SyncAdapter.LatestMatchStart, Is.Not.Null);
+        Assert.That(runtime.PresentationFacade, Is.Not.Null);
+        Assert.That(state, Is.Not.Null);
+        Assert.That(state.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchInProgress));
     }
 }

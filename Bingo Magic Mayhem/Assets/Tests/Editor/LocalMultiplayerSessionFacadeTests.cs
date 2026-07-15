@@ -131,6 +131,75 @@ public sealed class LocalMultiplayerSessionFacadeTests
     }
 
     [Test]
+    public void ResolveClaim_BeforeAnyAuthoritativeCall_RejectsFutureCallReference()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 80,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1.5f
+        });
+
+        MatchClaimResolution claim = facade.ResolveClaim(new MatchClaimAttempt
+        {
+            MatchId = match.MatchId,
+            PlayerId = "guest_1",
+            ClaimType = MatchClaimType.Bingo,
+            ClaimCallIndex = 0,
+            IdempotencyKey = "before_call",
+            ClaimedNumbers = { 22 }
+        });
+
+        Assert.That(claim.Result, Is.EqualTo(MatchClaimResolutionKind.Rejected));
+        Assert.That(claim.Reason, Does.Contain("has not happened yet"));
+        Assert.That(facade.CurrentMatch.CurrentCallIndex, Is.EqualTo(-1));
+    }
+
+    [Test]
+    public void ResolveClaim_WithNegativeCallIndex_RejectsInvalidAuthorityReference()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 81,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1.5f
+        });
+
+        facade.RegisterObservedCall(22, 1000);
+
+        MatchClaimResolution claim = facade.ResolveClaim(new MatchClaimAttempt
+        {
+            MatchId = match.MatchId,
+            PlayerId = "guest_1",
+            ClaimType = MatchClaimType.Bingo,
+            ClaimCallIndex = -1,
+            IdempotencyKey = "negative_call_index",
+            ClaimedNumbers = { 22 }
+        });
+
+        Assert.That(claim.Result, Is.EqualTo(MatchClaimResolutionKind.Rejected));
+        Assert.That(claim.Reason, Does.Contain("valid authoritative call index"));
+    }
+
+    [Test]
     public void PublishMatchEnd_ClosesMatchAndCarriesWheelspinEntitlements()
     {
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
@@ -156,6 +225,36 @@ public sealed class LocalMultiplayerSessionFacadeTests
         Assert.That(endEvent.WheelspinEntitledPlayerIds.Count, Is.EqualTo(1));
         Assert.That(facade.CurrentMatch.State, Is.EqualTo(MatchAuthorityLifecycleState.Ended));
         Assert.That(facade.CurrentRoom.State, Is.EqualTo(MultiplayerRoomLifecycleState.Closed));
+    }
+
+    [Test]
+    public void RegisterObservedCall_AfterRoundEnd_ReturnsNullAndLeavesCallLogUnchanged()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 1, 5);
+        facade.SetParticipantReady("host_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 1,
+            ManaBetPerCard = 5,
+            RoundSeed = 12,
+            MaxCallCount = 10,
+            AutoCallIntervalSeconds = 1f
+        });
+
+        MatchCallEvent first = facade.RegisterObservedCall(12, 1000);
+        facade.PublishMatchEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Round complete."),
+            new[] { "host_1" });
+
+        MatchCallEvent afterEnd = facade.RegisterObservedCall(44, 2000);
+
+        Assert.That(first, Is.Not.Null);
+        Assert.That(afterEnd, Is.Null);
+        Assert.That(facade.CallLog.Count, Is.EqualTo(1));
+        Assert.That(facade.CurrentMatch.State, Is.EqualTo(MatchAuthorityLifecycleState.Ended));
     }
 
     [Test]
@@ -199,6 +298,22 @@ public sealed class LocalMultiplayerSessionFacadeTests
         Assert.That(room.Participants.Count, Is.EqualTo(2));
         Assert.That(room.Participants[1].DisplayName, Is.EqualTo("Guest Rejoined"));
         Assert.That(room.Participants[1].IsConnected, Is.True);
+    }
+
+    [Test]
+    public void AddLocalParticipant_ReconnectingGuest_PreservesReadyState()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 1, 5);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("guest_1", true);
+        facade.SetParticipantConnection("guest_1", false);
+
+        MultiplayerRoomSnapshot room = facade.AddLocalParticipant("guest_1", "Guest Rejoined");
+
+        Assert.That(room.Participants[1].DisplayName, Is.EqualTo("Guest Rejoined"));
+        Assert.That(room.Participants[1].IsConnected, Is.True);
+        Assert.That(room.Participants[1].IsReady, Is.True);
     }
 
     [Test]
@@ -256,6 +371,31 @@ public sealed class LocalMultiplayerSessionFacadeTests
             }));
 
         Assert.That(exception.Message, Does.Contain("must be ready"));
+    }
+
+    [Test]
+    public void StartAuthoritativeMatch_WithDisconnectedUnreadyParticipant_DoesNotThrow()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantConnection("guest_1", false);
+
+        MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 77,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1f
+        });
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match.State, Is.EqualTo(MatchAuthorityLifecycleState.InRound));
+        Assert.That(facade.CurrentRoom.State, Is.EqualTo(MultiplayerRoomLifecycleState.MatchInProgress));
     }
 
     [Test]

@@ -46,13 +46,23 @@ namespace BingoMagicMayhem.Multiplayer
             IReadOnlyList<LocalAuthoritativeMatchParticipant> otherParticipants,
             AuthoritativeMatchStartRequest request)
         {
-            MultiplayerRoomSnapshot room = sessionFacade.CreateRoom(
-                hostPlayerId,
-                hostDisplayName,
-                request?.RealmIndex ?? 0,
-                request?.RoomIndex ?? 0,
-                request?.SelectedCardCount ?? 0,
-                request?.ManaBetPerCard ?? 0);
+            MultiplayerRoomSnapshot room = sessionFacade.CurrentRoom;
+            if (room == null
+                || room.State != MultiplayerRoomLifecycleState.Lobby
+                || !string.Equals(room.HostPlayerId, hostPlayerId, StringComparison.Ordinal)
+                || room.SelectedRealmIndex != (request?.RealmIndex ?? 0)
+                || room.SelectedRoomIndex != (request?.RoomIndex ?? 0)
+                || room.SelectedCardCount != (request?.SelectedCardCount ?? 0)
+                || room.ManaBetPerCard != (request?.ManaBetPerCard ?? 0))
+            {
+                room = sessionFacade.CreateRoom(
+                    hostPlayerId,
+                    hostDisplayName,
+                    request?.RealmIndex ?? 0,
+                    request?.RoomIndex ?? 0,
+                    request?.SelectedCardCount ?? 0,
+                    request?.ManaBetPerCard ?? 0);
+            }
 
             sessionFacade.SetParticipantReady(hostPlayerId, true);
 

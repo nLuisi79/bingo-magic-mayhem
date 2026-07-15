@@ -16,7 +16,7 @@ public sealed class LocalAuthoritativeMatchSimulatorTests
             new[]
             {
                 new LocalAuthoritativeMatchParticipant { PlayerId = "guest_1", DisplayName = "Guest 1", Ready = true },
-                new LocalAuthoritativeMatchParticipant { PlayerId = "guest_2", DisplayName = "Guest 2", Ready = false }
+                new LocalAuthoritativeMatchParticipant { PlayerId = "guest_2", DisplayName = "Guest 2", Ready = true }
             },
             new AuthoritativeMatchStartRequest
             {
@@ -34,7 +34,7 @@ public sealed class LocalAuthoritativeMatchSimulatorTests
         Assert.That(session.CurrentMatch.State, Is.EqualTo(MatchAuthorityLifecycleState.InRound));
         Assert.That(session.CurrentRoom.Participants[0].IsReady, Is.True);
         Assert.That(session.CurrentRoom.Participants[1].IsReady, Is.True);
-        Assert.That(session.CurrentRoom.Participants[2].IsReady, Is.False);
+        Assert.That(session.CurrentRoom.Participants[2].IsReady, Is.True);
     }
 
     [Test]

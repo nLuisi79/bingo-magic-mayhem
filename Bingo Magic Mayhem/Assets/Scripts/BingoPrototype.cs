@@ -88,6 +88,7 @@ public class BingoPrototype : MonoBehaviour
     private readonly BingoRoundEndCoordinator roundEndCoordinator = new BingoRoundEndCoordinator();
     private readonly IPrototypeMultiplayerRuntimeProvider prototypeMultiplayerRuntimeProvider = new PrototypeMultiplayerRuntimeProvider();
     private PrototypeMultiplayerRuntime prototypeMultiplayerRuntime;
+    private PrototypeMultiplayerPresentationState prototypeMultiplayerPresentationState;
     private RewardPreview pendingRewardPreview;
     private BingoRoundEndDecision activePrototypeRoundEndDecision;
     private bool prototypeRoundEndPublished;
@@ -113,6 +114,14 @@ public class BingoPrototype : MonoBehaviour
     private Text lobbyPowerUpText;
     private Text lobbyManaText;
     private Text lobbyCrystalText;
+    private Text lobbyMultiplayerTitleText;
+    private Text lobbyMultiplayerReadinessText;
+    private Text lobbyMultiplayerDetailText;
+    private Text lobbyMultiplayerParticipantsText;
+    private Text gameplayMultiplayerRoomText;
+    private Text gameplayMultiplayerAuthorityText;
+    private Text gameplayMultiplayerClaimText;
+    private Text gameplayMultiplayerPostRoundText;
     private Text powerUpInventoryText;
     private Text lobbyClairvoyanceStatusText;
     private Text denManaCauldronText;
@@ -457,6 +466,8 @@ public class BingoPrototype : MonoBehaviour
         gameplayManaText = CreateFixedCurrency(parent, "Mana", inventory.GetManaText(), -130f, 386f);
         gameplayCrystalText = CreateFixedCurrency(parent, "Crystals", inventory.GetCrystalText(), 110f, 386f);
         xpText = CreateAnchoredText(parent, BuildGameplayRankText(), 15, FontStyle.Bold, new Color(0.75f, 0.95f, 1f), 210, 58, 320f, 386f);
+        gameplayMultiplayerRoomText = CreateAnchoredText(parent, string.Empty, 13, FontStyle.Bold, new Color(0.82f, 0.9f, 1f), 430, 18, -10f, 350f);
+        gameplayMultiplayerAuthorityText = CreateAnchoredText(parent, string.Empty, 12, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 430, 18, -10f, 330f);
 
         GameObject balls = CreateAnchoredPanel(parent, "BallsLeft", new Color(0.15f, 0.08f, 0.22f), 150, 74, 565f, 386f);
         CreateAnchoredText(balls.transform, "BALLS LEFT", 15, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 130, 22, 0f, 18f);
@@ -503,10 +514,13 @@ public class BingoPrototype : MonoBehaviour
         gameplayPowerUpAutoButton.onClick.AddListener(TogglePowerUpAutoDrop);
         bingoBannerText = CreateAnchoredText(rail.transform, GetBingoBannerText().Length > 0 ? GetBingoBannerText() : IsBlackoutRoom() ? "No blackouts yet" : "No bingos yet", 14, FontStyle.Bold, new Color(0.9f, 0.9f, 1f), 190, 48, 0f, -14f);
         roundSummaryText = CreateAnchoredText(rail.transform, GetRoomPoolSummaryText(), 11, FontStyle.Bold, new Color(0.82f, 0.86f, 1f), 190, 48, 0f, -60f);
+        gameplayMultiplayerClaimText = CreateAnchoredText(rail.transform, string.Empty, 11, FontStyle.Bold, new Color(0.86f, 0.9f, 1f), 190, 38, 0f, -102f);
+        gameplayMultiplayerPostRoundText = CreateAnchoredText(rail.transform, string.Empty, 11, FontStyle.Bold, new Color(0.84f, 0.82f, 0.94f), 190, 38, 0f, -138f);
         CreateAnchoredText(rail.transform, "ALL CALLED\nNUMBERS", 17, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 190, 48, 0f, -110f);
         Button toggle = CreateAnchoredButton(rail.transform, allCalledVisible ? "Hide" : "Show", 15, 104, 30, new Color(0.32f, 0.12f, 0.62f), 0f, -150f);
         toggle.onClick.AddListener(ToggleAllCalledVisible);
         calledHistoryText = CreateAnchoredText(rail.transform, GetCalledHistoryPanelText(), GetCalledHistoryPanelFontSize(), FontStyle.Bold, Color.white, 198, 238, 0f, -282f);
+        RefreshGameplayMultiplayerStatus();
     }
 
     private void BuildFixedCenterCards(Transform parent)
@@ -1068,6 +1082,7 @@ public class BingoPrototype : MonoBehaviour
         roomEntryPanelView.BindBetRow(betRowView);
         RefreshLobbyBetText();
         SyncPrototypeMultiplayerLobbyState();
+        RefreshLobbyMultiplayerStatus();
 
         ApplyStageScale(true);
         roomEntryPanelView.ShowIdleState();
@@ -1121,6 +1136,10 @@ public class BingoPrototype : MonoBehaviour
         Text roomNameText = CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRoom.Name, 42, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 860, 50, 0f, 20f);
         Text realmNameText = CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 22, FontStyle.Bold, new Color(1f, 0.78f, 0.35f), 820, 30, 0f, -16f);
         Text potionLabelText = CreateAnchoredText(titlePanel.transform, $"Potion: {RealmContentCatalog.ActivePrototypeRoom.PotionName}", 19, FontStyle.Bold, Color.white, 780, 28, 0f, -44f);
+        lobbyMultiplayerTitleText = CreateAnchoredText(titlePanel.transform, string.Empty, 16, FontStyle.Bold, new Color(0.75f, 0.95f, 1f), 540, 22, -150f, -72f);
+        lobbyMultiplayerReadinessText = CreateAnchoredText(titlePanel.transform, string.Empty, 14, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 260, 20, 276f, -72f);
+        lobbyMultiplayerDetailText = CreateAnchoredText(titlePanel.transform, string.Empty, 12, FontStyle.Bold, new Color(0.86f, 0.9f, 1f), 860, 20, 0f, -92f);
+        lobbyMultiplayerParticipantsText = CreateAnchoredText(titlePanel.transform, string.Empty, 11, FontStyle.Bold, new Color(0.84f, 0.82f, 0.94f), 860, 18, 0f, -112f);
 
         GameObject modeBadge = CreateAnchoredPanel(titlePanel.transform, $"{RealmContentCatalog.ActivePrototypeRoom.ModeLabel}ModeBadge", new Color(0.18f, 0.11f, 0.34f), 126f, 74f, 334f, -12f);
         Text modeBadgeText = CreateAnchoredText(modeBadge.transform, RealmContentCatalog.ActivePrototypeRoom.ModeLabel.ToUpperInvariant(), 13, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 116f, 18f, 0f, 20f);
@@ -9454,6 +9473,95 @@ public class BingoPrototype : MonoBehaviour
         roomEntryPanelView?.SetBetSummary(summary);
     }
 
+    private MultiplayerLobbyDisplayModel BuildPrototypeMultiplayerLobbyDisplayModel()
+    {
+        if (prototypeMultiplayerPresentationState == null)
+        {
+            RefreshPrototypeMultiplayerPresentationState();
+        }
+
+        return prototypeMultiplayerPresentationState?.Lobby;
+    }
+
+    private void RefreshPrototypeMultiplayerPresentationState()
+    {
+        ApplyPrototypeMultiplayerPresentationState(
+            prototypeMultiplayerRuntime?.PresentationFacade?.BuildPresentationState());
+    }
+
+    private void ApplyPrototypeMultiplayerPresentationState(PrototypeMultiplayerPresentationState state)
+    {
+        prototypeMultiplayerPresentationState = state;
+        RefreshGameplayMultiplayerStatus();
+    }
+
+    private void RefreshLobbyMultiplayerStatus()
+    {
+        MultiplayerLobbyStatusDisplayModel model = prototypeMultiplayerPresentationState?.LobbyStatus;
+        if (model == null)
+        {
+            BuildPrototypeMultiplayerLobbyDisplayModel();
+            model = prototypeMultiplayerPresentationState?.LobbyStatus;
+        }
+
+        if (model == null)
+        {
+            return;
+        }
+
+        if (lobbyMultiplayerTitleText != null)
+        {
+            lobbyMultiplayerTitleText.text = model.TitleSummaryLabel;
+        }
+
+        if (lobbyMultiplayerReadinessText != null)
+        {
+            lobbyMultiplayerReadinessText.text = model.ReadinessSummaryLabel;
+            lobbyMultiplayerReadinessText.color = model.CanStart
+                ? new Color(0.55f, 1f, 0.85f)
+                : new Color(1f, 0.9f, 0.32f);
+        }
+
+        if (lobbyMultiplayerDetailText != null)
+        {
+            lobbyMultiplayerDetailText.text = $"{model.ActionLabel} — {model.DetailLabel}";
+        }
+
+        if (lobbyMultiplayerParticipantsText != null)
+        {
+            lobbyMultiplayerParticipantsText.text = model.ParticipantSummaryLabel;
+        }
+    }
+
+    private void RefreshGameplayMultiplayerStatus()
+    {
+        MultiplayerGameplayRoundDisplayModel gameplayModel = prototypeMultiplayerPresentationState?.GameplayRound;
+        if (gameplayModel == null)
+        {
+            return;
+        }
+
+        if (gameplayMultiplayerRoomText != null)
+        {
+            gameplayMultiplayerRoomText.text = gameplayModel.RoomSummaryLabel;
+        }
+
+        if (gameplayMultiplayerAuthorityText != null)
+        {
+            gameplayMultiplayerAuthorityText.text = gameplayModel.AuthoritySummaryLabel;
+        }
+
+        if (gameplayMultiplayerClaimText != null)
+        {
+            gameplayMultiplayerClaimText.text = gameplayModel.ClaimSummaryLabel;
+        }
+
+        if (gameplayMultiplayerPostRoundText != null)
+        {
+            gameplayMultiplayerPostRoundText.text = gameplayModel.PostRoundSummaryLabel;
+        }
+    }
+
     private void ShowCard(int cardIndex)
     {
         SaveCurrentCard();
@@ -10019,77 +10127,127 @@ public class BingoPrototype : MonoBehaviour
 
     private void SyncPrototypeMultiplayerLobbyState()
     {
-        if (prototypeMultiplayerRuntime?.GameplayBridge == null)
+        if (prototypeMultiplayerRuntime?.PresentationFacade == null)
         {
             return;
         }
 
-        prototypeMultiplayerRuntime.GameplayBridge.SyncLobby(
-            GetPrototypeMultiplayerHostDisplayName(),
-            RealmContentCatalog.ActivePrototypeRealmIndex,
-            RealmContentCatalog.ActivePrototypeRoomIndex,
-            selectedCardCount,
-            manaBetPerCard);
+        ApplyPrototypeMultiplayerPresentationState(
+            prototypeMultiplayerRuntime.PresentationFacade.SyncLobbyAndBuildState(
+                GetPrototypeMultiplayerHostDisplayName(),
+                RealmContentCatalog.ActivePrototypeRealmIndex,
+                RealmContentCatalog.ActivePrototypeRoomIndex,
+                selectedCardCount,
+                manaBetPerCard));
     }
 
     private void BeginPrototypeAuthoritativeRoundMirror()
     {
-        if (prototypeMultiplayerRuntime?.GameplayBridge == null)
+        if (prototypeMultiplayerRuntime?.PresentationFacade == null)
         {
             return;
         }
 
         prototypeRoundEndPublished = false;
         activePrototypeRoundEndDecision = null;
-        prototypeMultiplayerRuntime.GameplayBridge.BeginAuthoritativeRound(
-            GetPrototypeMultiplayerHostDisplayName(),
-            RealmContentCatalog.ActivePrototypeRealmIndex,
-            RealmContentCatalog.ActivePrototypeRoomIndex,
-            selectedCardCount,
-            manaBetPerCard,
-            System.Environment.TickCount,
-            GetActiveMaxBallCalls(),
-            roomRules.AutoCallInterval);
+        ApplyPrototypeMultiplayerPresentationState(
+            prototypeMultiplayerRuntime.PresentationFacade.BeginAuthoritativeRoundAndBuildState(
+                GetPrototypeMultiplayerHostDisplayName(),
+                RealmContentCatalog.ActivePrototypeRealmIndex,
+                RealmContentCatalog.ActivePrototypeRoomIndex,
+                selectedCardCount,
+                manaBetPerCard,
+                System.Environment.TickCount,
+                GetActiveMaxBallCalls(),
+                roomRules.AutoCallInterval));
     }
 
     private void MirrorPrototypeObservedCall(int calledNumber)
     {
-        prototypeMultiplayerRuntime?.GameplayBridge?.TryRecordObservedCall(roundFlow.IsActive, calledNumber);
+        ApplyPrototypeMultiplayerPresentationState(
+            prototypeMultiplayerRuntime?.PresentationFacade?.TryRecordObservedCallAndBuildState(roundFlow.IsActive, calledNumber));
     }
 
     private void MirrorPrototypeBingoClaim(int cardIndex, int newBingoCount)
     {
-        prototypeMultiplayerRuntime?.GameplayBridge?.TrySubmitBingoClaim(
+        MatchClaimResolution resolution = prototypeMultiplayerRuntime?.PresentationFacade?.TrySubmitBingoClaim(
             roundFlow.IsActive,
             cardIndex,
             GetPrototypeClaimCallIndex(),
             newBingoCount,
             BuildMarkedCellKeys(cardIndex),
             BuildClaimedNumbers(cardIndex));
+        ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomePresenter.BuildClaimOutcome(resolution));
+        RefreshPrototypeMultiplayerPresentationState();
     }
 
     private void MirrorPrototypeJackpotStateClaim(int cardIndex)
     {
-        prototypeMultiplayerRuntime?.GameplayBridge?.TrySubmitJackpotStateClaim(
+        MatchClaimResolution resolution = prototypeMultiplayerRuntime?.PresentationFacade?.TrySubmitJackpotStateClaim(
             roundFlow.IsActive,
             cardIndex,
             GetPrototypeClaimCallIndex(),
             BuildClaimedNumbers(cardIndex));
+        ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomePresenter.BuildClaimOutcome(resolution));
+        RefreshPrototypeMultiplayerPresentationState();
+    }
+
+    private void ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomeModel outcome)
+    {
+        if (outcome == null)
+        {
+            return;
+        }
+
+        if (statusText != null && !string.IsNullOrEmpty(outcome.Headline))
+        {
+            statusText.text = string.IsNullOrEmpty(outcome.Detail)
+                ? outcome.Headline
+                : $"{outcome.Headline} {outcome.Detail}";
+        }
+
+        if (outcome.ShouldCelebrate)
+        {
+            ShowPowerUpBurst(outcome.Headline.ToUpperInvariant());
+        }
+    }
+
+    private void ApplyPrototypeRoundEndOutcome(MultiplayerAuthorityOutcomeModel outcome)
+    {
+        if (outcome == null)
+        {
+            return;
+        }
+
+        if (statusText != null && !string.IsNullOrEmpty(outcome.Detail))
+        {
+            statusText.text = outcome.Detail;
+        }
+
+        if (outcome.ShouldQueueJackpotHandoff)
+        {
+            ShowPowerUpBurst(outcome.Headline.ToUpperInvariant());
+        }
     }
 
     private void PublishPrototypeRoundEnd(string reason)
     {
-        if (prototypeMultiplayerRuntime?.GameplayBridge == null)
+        if (prototypeMultiplayerRuntime?.PresentationFacade == null)
         {
             return;
         }
 
         BingoRoundEndDecision decision = activePrototypeRoundEndDecision
             ?? new BingoRoundEndDecision(BingoRoundEndReasonKind.None, reason, "");
-        prototypeRoundEndPublished = prototypeMultiplayerRuntime.GameplayBridge.TryPublishRoundEnd(
-            prototypeRoundEndPublished,
-            decision,
-            lastJackpotEarnedCardIndex >= 0);
+        PrototypeMultiplayerRoundEndPublishResult publishResult =
+            prototypeMultiplayerRuntime.PresentationFacade.TryPublishRoundEndAndBuildState(
+                prototypeRoundEndPublished,
+                decision,
+                lastJackpotEarnedCardIndex >= 0);
+        prototypeRoundEndPublished = publishResult.WasPublished;
+        ApplyPrototypeMultiplayerPresentationState(publishResult.PresentationState);
+        ApplyPrototypeRoundEndOutcome(MultiplayerAuthorityOutcomePresenter.BuildRoundEndOutcome(
+            publishResult.PresentationState?.MatchSummary?.LastMatchEnd));
     }
 
     private string GetPrototypeMultiplayerHostDisplayName()

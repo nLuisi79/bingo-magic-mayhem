@@ -37,20 +37,26 @@ namespace BingoMagicMayhem.Multiplayer
             IMultiplayerRoomSessionService roomSessionService,
             IMultiplayerMatchAuthorityService matchAuthorityService,
             PrototypeMultiplayerRoomSessionController controller,
-            PrototypeMultiplayerGameplayBridge gameplayBridge)
+            PrototypeMultiplayerGameplayBridge gameplayBridge,
+            IMultiplayerRoomSessionSyncAdapter syncAdapter,
+            PrototypeMultiplayerPresentationFacade presentationFacade)
         {
             BackendMode = backendMode;
             RoomSessionService = roomSessionService ?? throw new ArgumentNullException(nameof(roomSessionService));
             MatchAuthorityService = matchAuthorityService ?? throw new ArgumentNullException(nameof(matchAuthorityService));
             Controller = controller ?? throw new ArgumentNullException(nameof(controller));
             GameplayBridge = gameplayBridge ?? throw new ArgumentNullException(nameof(gameplayBridge));
+            SyncAdapter = syncAdapter ?? throw new ArgumentNullException(nameof(syncAdapter));
+            PresentationFacade = presentationFacade ?? throw new ArgumentNullException(nameof(presentationFacade));
         }
 
         public PrototypeMultiplayerBackendMode BackendMode { get; }
         public IMultiplayerRoomSessionService RoomSessionService { get; }
         public IMultiplayerMatchAuthorityService MatchAuthorityService { get; }
-        public PrototypeMultiplayerRoomSessionController Controller { get; }
-        public PrototypeMultiplayerGameplayBridge GameplayBridge { get; }
+        internal PrototypeMultiplayerRoomSessionController Controller { get; }
+        internal PrototypeMultiplayerGameplayBridge GameplayBridge { get; }
+        public IMultiplayerRoomSessionSyncAdapter SyncAdapter { get; }
+        public PrototypeMultiplayerPresentationFacade PresentationFacade { get; }
     }
 
     /// <summary>
@@ -98,12 +104,15 @@ namespace BingoMagicMayhem.Multiplayer
             IMultiplayerRoomSessionService roomSessionService = controller;
             IMultiplayerMatchAuthorityService matchAuthorityService = controller;
             PrototypeMultiplayerGameplayBridge gameplayBridge = new PrototypeMultiplayerGameplayBridge(roomSessionService, matchAuthorityService, hostPlayerId);
+            PrototypeMultiplayerPresentationFacade presentationFacade = new PrototypeMultiplayerPresentationFacade(controller, gameplayBridge);
             return new PrototypeMultiplayerRuntime(
                 backendMode,
                 roomSessionService,
                 matchAuthorityService,
                 controller,
-                gameplayBridge);
+                gameplayBridge,
+                controller.SyncAdapter,
+                presentationFacade);
         }
 
         public static PrototypeMultiplayerRuntime CreateLocalRuntime(string hostPlayerId)
@@ -124,12 +133,16 @@ namespace BingoMagicMayhem.Multiplayer
                 dependencies);
             PrototypeMultiplayerUgsRuntimeAdapter adapter = new PrototypeMultiplayerUgsRuntimeAdapter(localFallbackRuntime);
             PrototypeMultiplayerGameplayBridge gameplayBridge = new PrototypeMultiplayerGameplayBridge(adapter, adapter, hostPlayerId);
+            PrototypeMultiplayerPresentationFacade presentationFacade =
+                new PrototypeMultiplayerPresentationFacade(localFallbackRuntime.Controller, gameplayBridge);
             return new PrototypeMultiplayerRuntime(
                 PrototypeMultiplayerBackendMode.Ugs,
                 adapter,
                 adapter,
                 localFallbackRuntime.Controller,
-                gameplayBridge);
+                gameplayBridge,
+                localFallbackRuntime.SyncAdapter,
+                presentationFacade);
         }
     }
 }

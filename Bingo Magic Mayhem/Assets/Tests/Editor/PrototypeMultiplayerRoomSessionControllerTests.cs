@@ -199,4 +199,106 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         Assert.That(adapter.LatestRoomSync.RoomState, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
         Assert.That(adapter.RoomSyncLog.Count, Is.GreaterThanOrEqualTo(4));
     }
+
+    [Test]
+    public void SetParticipantConnection_PublishesUpdatedRoomSyncAndPreservesRemoteMirrorConnectionState()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(
+            new LocalMultiplayerSessionFacade(),
+            adapter);
+
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        controller.SetParticipantConnection("guest_1", false);
+
+        adapter.ApplyReceivedRoomSync(adapter.LatestRoomSync);
+
+        Assert.That(adapter.LatestRoomSync.Participants[1].IsConnected, Is.False);
+        Assert.That(adapter.Mirror.MirroredRoom.Participants[1].IsConnected, Is.False);
+        Assert.That(adapter.RoomSyncLog.Count, Is.GreaterThanOrEqualTo(3));
+    }
+
+    [Test]
+    public void BeginLocalAuthoritativeRound_WithDisconnectedGuest_DoesNotRequireReconnectBeforeStart()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        controller.SetParticipantConnection("guest_1", false);
+
+        MultiplayerRoomSnapshot room = controller.BeginLocalAuthoritativeRound(
+            "host_1",
+            "Host",
+            realmIndex: 0,
+            roomIndex: 0,
+            selectedCardCount: 2,
+            manaBetPerCard: 10,
+            roundSeed: 99,
+            maxCallCount: 30,
+            autoCallIntervalSeconds: 1f);
+
+        Assert.That(room.State, Is.EqualTo(MultiplayerRoomLifecycleState.MatchInProgress));
+        Assert.That(controller.SessionFacade.CurrentMatch, Is.Not.Null);
+        Assert.That(controller.SessionFacade.CurrentMatch.State, Is.EqualTo(MatchAuthorityLifecycleState.InRound));
+    }
+
+    [Test]
+    public void Controller_RemoteLifecycleReplayLoop_ClearsEndedAuthorityStateWhenLobbyResyncArrives()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(
+            new LocalMultiplayerSessionFacade(),
+            adapter);
+
+        controller.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_remote",
+            HostPlayerId = "host_remote",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_remote", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true },
+                new MultiplayerParticipantSyncPayload { PlayerId = "guest_remote", DisplayName = "Guest", IsReady = true, IsConnected = true }
+            }
+        });
+        controller.ApplyReceivedMatchStart(new MultiplayerMatchStartPayload
+        {
+            RoomId = "room_remote",
+            MatchId = "match_remote",
+            HostPlayerId = "host_remote"
+        });
+        controller.ApplyReceivedCallBroadcast(new MultiplayerCallBroadcastPayload
+        {
+            MatchId = "match_remote",
+            CallIndex = 0,
+            CalledNumber = 22,
+            EmittedUtcTicks = 1000
+        });
+        controller.ApplyReceivedMatchEnd(new MultiplayerMatchEndPayload
+        {
+            MatchId = "match_remote",
+            EndReasonKind = BingoRoundEndReasonKind.FinalBall,
+            EndReason = "Ended",
+            FinalCallIndex = 0
+        });
+
+        controller.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_remote",
+            HostPlayerId = "host_remote",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_remote", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true },
+                new MultiplayerParticipantSyncPayload { PlayerId = "guest_remote", DisplayName = "Guest Rejoined", IsReady = false, IsConnected = true }
+            }
+        });
+
+        Assert.That(adapter.Mirror.MirroredRoom.State, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+        Assert.That(adapter.Mirror.MirroredRoom.Participants[1].DisplayName, Is.EqualTo("Guest Rejoined"));
+        Assert.That(adapter.Mirror.MirroredMatch, Is.Null);
+        Assert.That(adapter.Mirror.MirroredCalls.Count, Is.EqualTo(0));
+        Assert.That(adapter.Mirror.MirroredMatchEnds.Count, Is.EqualTo(0));
+    }
 }
