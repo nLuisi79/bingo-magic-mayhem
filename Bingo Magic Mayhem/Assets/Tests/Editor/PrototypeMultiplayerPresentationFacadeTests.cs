@@ -136,6 +136,7 @@ public sealed class PrototypeMultiplayerPresentationFacadeTests
         Assert.That(result.PresentationState, Is.Not.Null);
         Assert.That(result.PresentationState.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchEnded));
         Assert.That(result.PresentationState.GameplayRound.PostRoundSummaryLabel, Does.Contain("no wheelspin entitlements"));
+        Assert.That(result.LatestMatchEnd, Is.Not.Null);
     }
 
     [Test]
@@ -196,5 +197,51 @@ public sealed class PrototypeMultiplayerPresentationFacadeTests
         facade.TryEmitAuthoritativeCall(true);
 
         Assert.That(facade.GetCurrentAuthoritativeCallIndex(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void TrySubmitBingoClaimAndBuildResult_ReturnsResolutionAndUpdatedPresentation()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerPresentationFacade facade = new PrototypeMultiplayerPresentationFacade(
+            controller,
+            new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1"));
+
+        facade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        MatchCallEvent callEvent = facade.TryEmitAuthoritativeCall(true);
+
+        PrototypeMultiplayerClaimSubmitResult result = facade.TrySubmitBingoClaimAndBuildResult(
+            true,
+            cardIndex: 0,
+            claimCallIndex: 0,
+            newBingoCount: 1,
+            markedCellKeys: new[] { "0:0" },
+            claimedNumbers: new[] { callEvent.CalledNumber });
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.Resolution, Is.Not.Null);
+        Assert.That(result.Resolution.Result, Is.EqualTo(MatchClaimResolutionKind.Accepted));
+        Assert.That(result.PresentationState, Is.Not.Null);
+        Assert.That(result.PresentationState.GameplayRound.ClaimSummaryLabel, Does.Contain("Accepted"));
+    }
+
+    [Test]
+    public void TryEmitAuthoritativeCallAndBuildResult_ReturnsCallAndUpdatedPresentation()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerPresentationFacade facade = new PrototypeMultiplayerPresentationFacade(
+            controller,
+            new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1"));
+
+        facade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+
+        PrototypeMultiplayerCallResult result = facade.TryEmitAuthoritativeCallAndBuildResult(true);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.CallEvent, Is.Not.Null);
+        Assert.That(result.CallEvent.CalledNumber, Is.InRange(1, 75));
+        Assert.That(result.PresentationState, Is.Not.Null);
+        Assert.That(result.PresentationState.Session.LatestCallLabel, Does.Contain("Latest call #1"));
+        Assert.That(result.PresentationState.GameplayRound.AuthoritySummaryLabel, Does.Contain("Call authority live."));
     }
 }

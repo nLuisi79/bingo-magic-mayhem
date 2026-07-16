@@ -9864,8 +9864,9 @@ public class BingoPrototype : MonoBehaviour
         int calledNumber;
         if (prototypeMultiplayerRuntime?.PresentationFacade != null)
         {
-            MatchCallEvent authoritativeCall =
-                prototypeMultiplayerRuntime.PresentationFacade.TryEmitAuthoritativeCall(roundFlow.IsActive);
+            PrototypeMultiplayerCallResult callResult =
+                prototypeMultiplayerRuntime.PresentationFacade.TryEmitAuthoritativeCallAndBuildResult(roundFlow.IsActive);
+            MatchCallEvent authoritativeCall = callResult?.CallEvent;
             if (authoritativeCall == null
                 || !roundFlow.RegisterAuthoritativeCall(authoritativeCall.CalledNumber, calledAtTime))
             {
@@ -9874,7 +9875,7 @@ public class BingoPrototype : MonoBehaviour
             }
 
             calledNumber = authoritativeCall.CalledNumber;
-            RefreshPrototypeMultiplayerPresentationState();
+            ApplyPrototypeMultiplayerPresentationState(callResult.PresentationState);
         }
         else if (!roundFlow.TryCallNext(calledAtTime, out calledNumber))
         {
@@ -10184,26 +10185,28 @@ public class BingoPrototype : MonoBehaviour
 
     private void MirrorPrototypeBingoClaim(int cardIndex, int newBingoCount)
     {
-        MatchClaimResolution resolution = prototypeMultiplayerRuntime?.PresentationFacade?.TrySubmitBingoClaim(
-            roundFlow.IsActive,
-            cardIndex,
-            GetPrototypeClaimCallIndex(),
-            newBingoCount,
-            BuildMarkedCellKeys(cardIndex),
-            BuildClaimedNumbers(cardIndex));
-        ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomePresenter.BuildClaimOutcome(resolution));
-        RefreshPrototypeMultiplayerPresentationState();
+        PrototypeMultiplayerClaimSubmitResult claimResult =
+            prototypeMultiplayerRuntime?.PresentationFacade?.TrySubmitBingoClaimAndBuildResult(
+                roundFlow.IsActive,
+                cardIndex,
+                GetPrototypeClaimCallIndex(),
+                newBingoCount,
+                BuildMarkedCellKeys(cardIndex),
+                BuildClaimedNumbers(cardIndex));
+        ApplyPrototypeMultiplayerPresentationState(claimResult?.PresentationState);
+        ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomePresenter.BuildClaimOutcome(claimResult?.Resolution));
     }
 
     private void MirrorPrototypeJackpotStateClaim(int cardIndex)
     {
-        MatchClaimResolution resolution = prototypeMultiplayerRuntime?.PresentationFacade?.TrySubmitJackpotStateClaim(
-            roundFlow.IsActive,
-            cardIndex,
-            GetPrototypeClaimCallIndex(),
-            BuildClaimedNumbers(cardIndex));
-        ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomePresenter.BuildClaimOutcome(resolution));
-        RefreshPrototypeMultiplayerPresentationState();
+        PrototypeMultiplayerClaimSubmitResult claimResult =
+            prototypeMultiplayerRuntime?.PresentationFacade?.TrySubmitJackpotStateClaimAndBuildResult(
+                roundFlow.IsActive,
+                cardIndex,
+                GetPrototypeClaimCallIndex(),
+                BuildClaimedNumbers(cardIndex));
+        ApplyPrototypeMultiplayerPresentationState(claimResult?.PresentationState);
+        ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomePresenter.BuildClaimOutcome(claimResult?.Resolution));
     }
 
     private void ApplyPrototypeAuthorityClaimOutcome(MultiplayerAuthorityOutcomeModel outcome)
@@ -10261,7 +10264,7 @@ public class BingoPrototype : MonoBehaviour
         prototypeRoundEndPublished = publishResult.WasPublished;
         ApplyPrototypeMultiplayerPresentationState(publishResult.PresentationState);
         ApplyPrototypeRoundEndOutcome(MultiplayerAuthorityOutcomePresenter.BuildRoundEndOutcome(
-            GetLatestPrototypePublishedMatchEnd(publishResult.PresentationState)));
+            publishResult.LatestMatchEnd));
     }
 
     private string GetPrototypeMultiplayerHostDisplayName()
@@ -10279,16 +10282,6 @@ public class BingoPrototype : MonoBehaviour
         }
 
         return Mathf.Max(0, roundFlow.History.Count - 1);
-    }
-
-    private static MatchEndEvent GetLatestPrototypePublishedMatchEnd(PrototypeMultiplayerPresentationState state)
-    {
-        if (state?.Snapshot?.MatchEndLog == null || state.Snapshot.MatchEndLog.Count <= 0)
-        {
-            return null;
-        }
-
-        return state.Snapshot.MatchEndLog[state.Snapshot.MatchEndLog.Count - 1];
     }
 
     private List<string> BuildMarkedCellKeys(int cardIndex)

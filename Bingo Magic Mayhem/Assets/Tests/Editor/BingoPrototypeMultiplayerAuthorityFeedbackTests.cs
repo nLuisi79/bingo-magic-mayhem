@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
@@ -63,7 +62,7 @@ public sealed class BingoPrototypeMultiplayerAuthorityFeedbackTests
     }
 
     [Test]
-    public void GetLatestPrototypePublishedMatchEnd_ReadsLatestSnapshotEndEvent()
+    public void PresentationStateInspector_GetLatestMatchEnd_ReadsLatestSnapshotEndEvent()
     {
         BingoMagicMayhem.Multiplayer.PrototypeMultiplayerPresentationState state =
             new BingoMagicMayhem.Multiplayer.PrototypeMultiplayerPresentationState(
@@ -76,13 +75,11 @@ public sealed class BingoPrototypeMultiplayerAuthorityFeedbackTests
         state.Snapshot.MatchEndLog.Add(new BingoMagicMayhem.Multiplayer.MatchEndEvent { EndReason = "First" });
         state.Snapshot.MatchEndLog.Add(new BingoMagicMayhem.Multiplayer.MatchEndEvent { EndReason = "Latest" });
 
-        object result = InvokePrivateMethodWithResult(
-            typeof(BingoPrototype),
-            "GetLatestPrototypePublishedMatchEnd",
-            new object[] { state });
+        BingoMagicMayhem.Multiplayer.MatchEndEvent result =
+            BingoMagicMayhem.Multiplayer.PrototypeMultiplayerPresentationStateInspector.GetLatestMatchEnd(state);
 
-        Assert.That(result, Is.TypeOf<BingoMagicMayhem.Multiplayer.MatchEndEvent>());
-        Assert.That(((BingoMagicMayhem.Multiplayer.MatchEndEvent)result).EndReason, Is.EqualTo("Latest"));
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.EndReason, Is.EqualTo("Latest"));
     }
 
     private static Text CreateStatusText(Transform parent)
@@ -106,10 +103,4 @@ public sealed class BingoPrototypeMultiplayerAuthorityFeedbackTests
         method.Invoke(instance, new[] { argument });
     }
 
-    private static object InvokePrivateMethodWithResult(System.Type type, string methodName, object[] arguments)
-    {
-        MethodInfo method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
-        Assert.That(method, Is.Not.Null, $"Expected private static method '{methodName}' to exist.");
-        return method.Invoke(null, arguments);
-    }
 }

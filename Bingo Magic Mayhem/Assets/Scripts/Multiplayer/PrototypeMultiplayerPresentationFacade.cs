@@ -44,6 +44,35 @@ namespace BingoMagicMayhem.Multiplayer
 
         public bool WasPublished { get; }
         public PrototypeMultiplayerPresentationState PresentationState { get; }
+        public MatchEndEvent LatestMatchEnd => PrototypeMultiplayerPresentationStateInspector.GetLatestMatchEnd(PresentationState);
+    }
+
+    public sealed class PrototypeMultiplayerClaimSubmitResult
+    {
+        public PrototypeMultiplayerClaimSubmitResult(
+            MatchClaimResolution resolution,
+            PrototypeMultiplayerPresentationState presentationState)
+        {
+            Resolution = resolution;
+            PresentationState = presentationState;
+        }
+
+        public MatchClaimResolution Resolution { get; }
+        public PrototypeMultiplayerPresentationState PresentationState { get; }
+    }
+
+    public sealed class PrototypeMultiplayerCallResult
+    {
+        public PrototypeMultiplayerCallResult(
+            MatchCallEvent callEvent,
+            PrototypeMultiplayerPresentationState presentationState)
+        {
+            CallEvent = callEvent;
+            PresentationState = presentationState;
+        }
+
+        public MatchCallEvent CallEvent { get; }
+        public PrototypeMultiplayerPresentationState PresentationState { get; }
     }
 
     /// <summary>
@@ -106,6 +135,19 @@ namespace BingoMagicMayhem.Multiplayer
             }
 
             relayedCount = source.Count;
+        }
+    }
+
+    public static class PrototypeMultiplayerPresentationStateInspector
+    {
+        public static MatchEndEvent GetLatestMatchEnd(PrototypeMultiplayerPresentationState state)
+        {
+            if (state?.Snapshot?.MatchEndLog == null || state.Snapshot.MatchEndLog.Count <= 0)
+            {
+                return null;
+            }
+
+            return state.Snapshot.MatchEndLog[state.Snapshot.MatchEndLog.Count - 1];
         }
     }
 
@@ -217,6 +259,12 @@ namespace BingoMagicMayhem.Multiplayer
             return BuildPresentationState();
         }
 
+        public PrototypeMultiplayerCallResult TryEmitAuthoritativeCallAndBuildResult(bool roundIsActive, long emittedUtcTicks = 0)
+        {
+            MatchCallEvent callEvent = TryEmitAuthoritativeCall(roundIsActive, emittedUtcTicks);
+            return new PrototypeMultiplayerCallResult(callEvent, BuildPresentationState());
+        }
+
         public PrototypeMultiplayerPresentationState TryRecordObservedCallAndBuildState(bool roundIsActive, int calledNumber)
         {
             TryRecordObservedCall(roundIsActive, calledNumber);
@@ -258,6 +306,24 @@ namespace BingoMagicMayhem.Multiplayer
             return BuildPresentationState();
         }
 
+        public PrototypeMultiplayerClaimSubmitResult TrySubmitBingoClaimAndBuildResult(
+            bool roundIsActive,
+            int cardIndex,
+            int claimCallIndex,
+            int newBingoCount,
+            IReadOnlyList<string> markedCellKeys,
+            IReadOnlyList<int> claimedNumbers)
+        {
+            MatchClaimResolution resolution = TrySubmitBingoClaim(
+                roundIsActive,
+                cardIndex,
+                claimCallIndex,
+                newBingoCount,
+                markedCellKeys,
+                claimedNumbers);
+            return new PrototypeMultiplayerClaimSubmitResult(resolution, BuildPresentationState());
+        }
+
         public MatchClaimResolution TrySubmitJackpotStateClaim(
             bool roundIsActive,
             int cardIndex,
@@ -283,6 +349,20 @@ namespace BingoMagicMayhem.Multiplayer
                 claimCallIndex,
                 claimedNumbers);
             return BuildPresentationState();
+        }
+
+        public PrototypeMultiplayerClaimSubmitResult TrySubmitJackpotStateClaimAndBuildResult(
+            bool roundIsActive,
+            int cardIndex,
+            int claimCallIndex,
+            IReadOnlyList<int> claimedNumbers)
+        {
+            MatchClaimResolution resolution = TrySubmitJackpotStateClaim(
+                roundIsActive,
+                cardIndex,
+                claimCallIndex,
+                claimedNumbers);
+            return new PrototypeMultiplayerClaimSubmitResult(resolution, BuildPresentationState());
         }
 
         public bool TryPublishRoundEnd(

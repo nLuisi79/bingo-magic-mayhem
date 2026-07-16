@@ -43,10 +43,13 @@ public sealed class PrototypeMultiplayerRuntimeProviderTests
 
         PrototypeMultiplayerPresentationState roundState =
             runtime.PresentationFacade.BeginAuthoritativeRoundAndBuildState("Host", 0, 0, 2, 10, 99, 30, 1f);
-        PrototypeMultiplayerPresentationState callState =
-            runtime.PresentationFacade.TryRecordObservedCallAndBuildState(true, 22);
+        PrototypeMultiplayerCallResult callResult =
+            runtime.PresentationFacade.TryEmitAuthoritativeCallAndBuildResult(true);
+        PrototypeMultiplayerPresentationState callState = callResult.PresentationState;
 
         Assert.That(roundState, Is.Not.Null);
+        Assert.That(callResult, Is.Not.Null);
+        Assert.That(callResult.CallEvent, Is.Not.Null);
         Assert.That(callState, Is.Not.Null);
         Assert.That(callState.GameplayRound.AuthoritySummaryLabel, Does.Contain("Call authority live."));
         Assert.That(runtime.RoomSessionService.CurrentRoom, Is.Not.Null);
