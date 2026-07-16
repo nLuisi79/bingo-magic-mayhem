@@ -63,10 +63,11 @@ public sealed class PrototypeMultiplayerRuntimeProviderTests
         IPrototypeMultiplayerRuntimeProvider provider = new PrototypeMultiplayerRuntimeProvider();
         PrototypeMultiplayerRuntime runtime = provider.CreateRuntime(PrototypeMultiplayerBackendMode.Ugs, "host_1");
 
-        runtime.RoomSessionService.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
         runtime.PresentationFacade.SyncLobby("Host", 0, 0, 2, 10);
+        runtime.RoomSessionService.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
         runtime.PresentationFacade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
-        runtime.PresentationFacade.TryRecordObservedCall(true, 22);
+        PrototypeMultiplayerCallResult callResult =
+            runtime.PresentationFacade.TryEmitAuthoritativeCallAndBuildResult(true);
         runtime.PresentationFacade.TryPublishRoundEnd(
             false,
             BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
@@ -74,6 +75,8 @@ public sealed class PrototypeMultiplayerRuntimeProviderTests
 
         PrototypeMultiplayerPresentationState mirroredState = runtime.PresentationFacade.BuildMirroredPresentationState();
 
+        Assert.That(callResult, Is.Not.Null);
+        Assert.That(callResult.CallEvent, Is.Not.Null);
         Assert.That(mirroredState, Is.Not.Null);
         Assert.That(mirroredState.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchEnded));
         Assert.That(mirroredState.GameplayRound.PostRoundSummaryLabel, Does.Contain("no wheelspin entitlements"));

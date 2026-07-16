@@ -147,8 +147,8 @@ public sealed class PrototypeMultiplayerPresentationFacadeTests
             controller,
             new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1"));
 
-        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
         facade.SyncLobby("Host", 0, 1, 4, 25);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
         PrototypeMultiplayerPresentationState mirroredLobby = facade.BuildMirroredPresentationState();
 
         facade.BeginAuthoritativeRound("Host", 0, 1, 4, 25, 99, 30, 1f);

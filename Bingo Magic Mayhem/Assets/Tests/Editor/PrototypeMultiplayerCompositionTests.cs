@@ -59,18 +59,22 @@ public sealed class PrototypeMultiplayerCompositionTests
     public void CreateLocalRuntime_BuildMirroredPresentationState_UsesSyncAdapterMirrorForGuestView()
     {
         PrototypeMultiplayerRuntime runtime = PrototypeMultiplayerComposition.CreateLocalRuntime("host_1");
+        runtime.PresentationFacade.SyncLobby("Host", 0, 0, 2, 10);
         runtime.RoomSessionService.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
 
-        runtime.PresentationFacade.SyncLobby("Host", 0, 0, 2, 10);
         runtime.PresentationFacade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
-        runtime.PresentationFacade.TryRecordObservedCall(true, 22);
+        PrototypeMultiplayerCallResult callResult =
+            runtime.PresentationFacade.TryEmitAuthoritativeCallAndBuildResult(true);
 
         PrototypeMultiplayerPresentationState mirroredState = runtime.PresentationFacade.BuildMirroredPresentationState();
 
+        Assert.That(callResult, Is.Not.Null);
+        Assert.That(callResult.CallEvent, Is.Not.Null);
         Assert.That(mirroredState, Is.Not.Null);
         Assert.That(mirroredState.Session, Is.Not.Null);
         Assert.That(mirroredState.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchInProgress));
-        Assert.That(mirroredState.Session.LatestCallLabel, Is.EqualTo("Latest call #1: 22"));
+        Assert.That(mirroredState.Session.LatestCallLabel, Is.EqualTo(
+            $"Latest call #1: {callResult.CallEvent.CalledNumber}"));
         Assert.That(mirroredState.Snapshot.CallLog.Count, Is.EqualTo(1));
         Assert.That(mirroredState.MatchSummary, Is.Null);
     }
