@@ -205,6 +205,8 @@ namespace BingoMagicMayhem.Multiplayer
     /// </summary>
     public interface IMultiplayerMatchAuthorityService
     {
+        MatchCallEvent EmitNextAuthoritativeCall(long emittedUtcTicks = 0);
+
         MatchCallEvent RecordObservedCall(int calledNumber, long emittedUtcTicks = 0);
 
         MatchClaimResolution SubmitBingoClaim(

@@ -123,6 +123,11 @@ namespace BingoMagicMayhem.Multiplayer
             return localFallbackRuntime.MatchAuthorityService.RecordObservedCall(calledNumber, emittedUtcTicks);
         }
 
+        public MatchCallEvent EmitNextAuthoritativeCall(long emittedUtcTicks = 0)
+        {
+            return localFallbackRuntime.MatchAuthorityService.EmitNextAuthoritativeCall(emittedUtcTicks);
+        }
+
         public MatchClaimResolution SubmitBingoClaim(
             string playerId,
             int cardIndex,

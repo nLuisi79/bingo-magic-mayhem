@@ -14,13 +14,13 @@ public sealed class MultiplayerMatchAuthorityServiceContractTests
         roomSessionService.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
         roomSessionService.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
 
-        MatchCallEvent callEvent = authorityService.RecordObservedCall(22, 1000);
+        MatchCallEvent callEvent = authorityService.EmitNextAuthoritativeCall(1000);
         MatchClaimResolution claim = authorityService.SubmitBingoClaim(
             "host_1",
             0,
             0,
             new[] { "0:0" },
-            new[] { 22 },
+            new[] { callEvent.CalledNumber },
             "claim_1");
         MatchEndEvent endEvent = authorityService.PublishRoundEnd(
             BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
@@ -63,17 +63,17 @@ public sealed class MultiplayerMatchAuthorityServiceContractTests
 
         roomSessionService.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
         roomSessionService.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
-        authorityService.RecordObservedCall(22, 1000);
+        authorityService.EmitNextAuthoritativeCall(1000);
         authorityService.PublishRoundEnd(
             BingoRoundEndRules.CreateFinalBallDecision("Round complete."),
             new[] { "host_1" });
 
-        MatchCallEvent afterEndCall = authorityService.RecordObservedCall(44, 2000);
+        MatchCallEvent afterEndCall = authorityService.EmitNextAuthoritativeCall(2000);
         MatchClaimResolution afterEndClaim = authorityService.SubmitJackpotStateClaim(
             "host_1",
             0,
             0,
-            new[] { 22 },
+            new[] { 1 },
             "jackpot_after_end");
 
         Assert.That(afterEndCall, Is.Null);

@@ -53,4 +53,27 @@ public sealed class PrototypeMultiplayerRuntimeProviderTests
         Assert.That(callState.Session.MatchId, Is.Not.Empty);
         Assert.That(callState.MatchSummary.CallCount, Is.EqualTo(1));
     }
+
+    [Test]
+    public void CreateRuntime_UgsMode_BuildMirroredPresentationState_ExposesGuestVisibleFallbackFlow()
+    {
+        IPrototypeMultiplayerRuntimeProvider provider = new PrototypeMultiplayerRuntimeProvider();
+        PrototypeMultiplayerRuntime runtime = provider.CreateRuntime(PrototypeMultiplayerBackendMode.Ugs, "host_1");
+
+        runtime.RoomSessionService.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        runtime.PresentationFacade.SyncLobby("Host", 0, 0, 2, 10);
+        runtime.PresentationFacade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        runtime.PresentationFacade.TryRecordObservedCall(true, 22);
+        runtime.PresentationFacade.TryPublishRoundEnd(
+            false,
+            BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
+            hostEarnedWheelspin: false);
+
+        PrototypeMultiplayerPresentationState mirroredState = runtime.PresentationFacade.BuildMirroredPresentationState();
+
+        Assert.That(mirroredState, Is.Not.Null);
+        Assert.That(mirroredState.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchEnded));
+        Assert.That(mirroredState.GameplayRound.PostRoundSummaryLabel, Does.Contain("no wheelspin entitlements"));
+        Assert.That(runtime.SyncAdapter.Mirror.MirroredMatchEnds.Count, Is.EqualTo(1));
+    }
 }

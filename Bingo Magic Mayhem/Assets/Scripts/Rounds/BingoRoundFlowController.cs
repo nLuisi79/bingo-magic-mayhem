@@ -63,6 +63,17 @@ namespace BingoMagicMayhem.Rounds
             return true;
         }
 
+        public bool RegisterAuthoritativeCall(int calledNumber, float calledAtTime)
+        {
+            if (!caller.TryRegisterAuthoritativeCall(calledNumber))
+            {
+                return false;
+            }
+
+            calledAtTimes[calledNumber] = calledAtTime;
+            return true;
+        }
+
         public bool IsNumberCalled(int number)
         {
             return caller.CalledNumbers.Contains(number);

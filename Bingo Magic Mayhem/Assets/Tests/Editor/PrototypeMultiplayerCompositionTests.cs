@@ -54,4 +54,24 @@ public sealed class PrototypeMultiplayerCompositionTests
         Assert.That(state, Is.Not.Null);
         Assert.That(state.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchInProgress));
     }
+
+    [Test]
+    public void CreateLocalRuntime_BuildMirroredPresentationState_UsesSyncAdapterMirrorForGuestView()
+    {
+        PrototypeMultiplayerRuntime runtime = PrototypeMultiplayerComposition.CreateLocalRuntime("host_1");
+        runtime.RoomSessionService.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+
+        runtime.PresentationFacade.SyncLobby("Host", 0, 0, 2, 10);
+        runtime.PresentationFacade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        runtime.PresentationFacade.TryRecordObservedCall(true, 22);
+
+        PrototypeMultiplayerPresentationState mirroredState = runtime.PresentationFacade.BuildMirroredPresentationState();
+
+        Assert.That(mirroredState, Is.Not.Null);
+        Assert.That(mirroredState.Session, Is.Not.Null);
+        Assert.That(mirroredState.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchInProgress));
+        Assert.That(mirroredState.Session.LatestCallLabel, Is.EqualTo("Latest call #1: 22"));
+        Assert.That(mirroredState.Snapshot.CallLog.Count, Is.EqualTo(1));
+        Assert.That(mirroredState.MatchSummary, Is.Null);
+    }
 }

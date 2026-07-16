@@ -47,4 +47,20 @@ public sealed class BingoRoundFlowControllerTests
         Assert.That(flow.CalledCount, Is.EqualTo(0));
         Assert.That(flow.TryGetCalledAtTime(1, out _), Is.False);
     }
+
+    [Test]
+    public void RegisterAuthoritativeCall_TracksHistoryCalledSetAndTimestamp()
+    {
+        BingoRoundFlowController flow = new BingoRoundFlowController(new BingoRoomRules());
+        flow.BeginRound();
+
+        bool registered = flow.RegisterAuthoritativeCall(22, 12.5f);
+
+        Assert.That(registered, Is.True);
+        Assert.That(flow.History.Count, Is.EqualTo(1));
+        Assert.That(flow.History[0], Is.EqualTo(22));
+        Assert.That(flow.IsNumberCalled(22), Is.True);
+        Assert.That(flow.TryGetCalledAtTime(22, out float calledAtTime), Is.True);
+        Assert.That(calledAtTime, Is.EqualTo(12.5f));
+    }
 }

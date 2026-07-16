@@ -198,6 +198,17 @@ namespace BingoMagicMayhem.Multiplayer
             return callEvent;
         }
 
+        public MatchCallEvent EmitNextAuthoritativeCall(long emittedUtcTicks = 0)
+        {
+            MatchCallEvent callEvent = authorityBridge.EmitPrototypeCall(emittedUtcTicks);
+            if (callEvent != null)
+            {
+                syncAdapter.PublishCallBroadcast(BuildCallBroadcastPayload(callEvent));
+            }
+
+            return callEvent;
+        }
+
         public MultiplayerRoomSyncPayload BuildRoomSyncPayload()
         {
             return MultiplayerTransportPayloadFactory.BuildRoomSyncPayload(sessionFacade.CurrentRoom);
@@ -372,6 +383,22 @@ namespace BingoMagicMayhem.Multiplayer
         public MultiplayerRoomSessionSnapshot BuildSessionSnapshot()
         {
             return MultiplayerRoomSessionSnapshotFactory.Build(sessionFacade);
+        }
+
+        public int GetCurrentAuthoritativeCallIndex()
+        {
+            MultiplayerRoomSessionSnapshot snapshot = BuildSessionSnapshot();
+            if (snapshot?.Match != null && snapshot.Match.CurrentCallIndex >= 0)
+            {
+                return snapshot.Match.CurrentCallIndex;
+            }
+
+            if (snapshot != null && snapshot.CallLog.Count > 0)
+            {
+                return snapshot.CallLog[snapshot.CallLog.Count - 1].CallIndex;
+            }
+
+            return -1;
         }
 
         public LocalAuthoritativeMatchSummary BuildMatchSummary()

@@ -67,19 +67,20 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
             roundSeed: 99,
             maxCallCount: 30,
             autoCallIntervalSeconds: 1f);
-        controller.RecordObservedCall(22, 1000);
+        MatchCallEvent callEvent = controller.EmitNextAuthoritativeCall(1000);
         MatchClaimResolution claim = controller.SubmitBingoClaim(
             "host_1",
             cardIndex: 0,
             claimCallIndex: 0,
             markedCellKeys: new[] { "0:0", "0:1" },
-            claimedNumbers: new[] { 22 },
+            claimedNumbers: new[] { callEvent.CalledNumber },
             idempotencyKey: "claim_1");
         MatchEndEvent end = controller.PublishRoundEnd(
             BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
             new[] { "host_1" });
         LocalAuthoritativeMatchSummary summary = controller.BuildMatchSummary();
 
+        Assert.That(callEvent, Is.Not.Null);
         Assert.That(claim.Result, Is.EqualTo(MatchClaimResolutionKind.Accepted));
         Assert.That(end.EndReasonKind, Is.EqualTo(BingoRoundEndReasonKind.FinalBall));
         Assert.That(summary.CallCount, Is.EqualTo(1));
@@ -98,13 +99,13 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
         controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
         controller.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
-        controller.RecordObservedCall(22, 1000);
+        MatchCallEvent callEvent = controller.EmitNextAuthoritativeCall(1000);
         controller.SubmitBingoClaim(
             "host_1",
             cardIndex: 0,
             claimCallIndex: 0,
             markedCellKeys: new[] { "0:0" },
-            claimedNumbers: new[] { 22 },
+            claimedNumbers: new[] { callEvent.CalledNumber },
             idempotencyKey: "claim_1");
         controller.PublishRoundEnd(
             BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
@@ -198,6 +199,20 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         Assert.That(controller.SessionFacade.CurrentMatch, Is.Null);
         Assert.That(adapter.LatestRoomSync.RoomState, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
         Assert.That(adapter.RoomSyncLog.Count, Is.GreaterThanOrEqualTo(4));
+    }
+
+    [Test]
+    public void GetCurrentAuthoritativeCallIndex_AfterTwoCalls_ReturnsLatestAuthorityIndex()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        controller.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
+
+        controller.EmitNextAuthoritativeCall();
+        controller.EmitNextAuthoritativeCall();
+
+        Assert.That(controller.GetCurrentAuthoritativeCallIndex(), Is.EqualTo(1));
     }
 
     [Test]

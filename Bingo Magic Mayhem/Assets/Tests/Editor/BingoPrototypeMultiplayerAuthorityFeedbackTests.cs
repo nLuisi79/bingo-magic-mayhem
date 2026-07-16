@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
@@ -61,6 +62,29 @@ public sealed class BingoPrototypeMultiplayerAuthorityFeedbackTests
         }
     }
 
+    [Test]
+    public void GetLatestPrototypePublishedMatchEnd_ReadsLatestSnapshotEndEvent()
+    {
+        BingoMagicMayhem.Multiplayer.PrototypeMultiplayerPresentationState state =
+            new BingoMagicMayhem.Multiplayer.PrototypeMultiplayerPresentationState(
+                lobby: null,
+                lobbyStatus: null,
+                session: null,
+                gameplayRound: null,
+                snapshot: new BingoMagicMayhem.Multiplayer.MultiplayerRoomSessionSnapshot(),
+                matchSummary: null);
+        state.Snapshot.MatchEndLog.Add(new BingoMagicMayhem.Multiplayer.MatchEndEvent { EndReason = "First" });
+        state.Snapshot.MatchEndLog.Add(new BingoMagicMayhem.Multiplayer.MatchEndEvent { EndReason = "Latest" });
+
+        object result = InvokePrivateMethodWithResult(
+            typeof(BingoPrototype),
+            "GetLatestPrototypePublishedMatchEnd",
+            new object[] { state });
+
+        Assert.That(result, Is.TypeOf<BingoMagicMayhem.Multiplayer.MatchEndEvent>());
+        Assert.That(((BingoMagicMayhem.Multiplayer.MatchEndEvent)result).EndReason, Is.EqualTo("Latest"));
+    }
+
     private static Text CreateStatusText(Transform parent)
     {
         GameObject textObject = new GameObject("status_text");
@@ -80,5 +104,12 @@ public sealed class BingoPrototypeMultiplayerAuthorityFeedbackTests
         MethodInfo method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.That(method, Is.Not.Null, $"Expected private method '{methodName}' to exist.");
         method.Invoke(instance, new[] { argument });
+    }
+
+    private static object InvokePrivateMethodWithResult(System.Type type, string methodName, object[] arguments)
+    {
+        MethodInfo method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.That(method, Is.Not.Null, $"Expected private static method '{methodName}' to exist.");
+        return method.Invoke(null, arguments);
     }
 }

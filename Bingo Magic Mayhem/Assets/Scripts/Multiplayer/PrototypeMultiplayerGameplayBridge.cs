@@ -73,6 +73,16 @@ namespace BingoMagicMayhem.Multiplayer
             return matchAuthorityService.RecordObservedCall(calledNumber);
         }
 
+        public MatchCallEvent TryEmitAuthoritativeCall(bool roundIsActive, long emittedUtcTicks = 0)
+        {
+            if (!roundIsActive)
+            {
+                return null;
+            }
+
+            return matchAuthorityService.EmitNextAuthoritativeCall(emittedUtcTicks);
+        }
+
         public MatchClaimResolution TrySubmitBingoClaim(
             bool roundIsActive,
             int cardIndex,

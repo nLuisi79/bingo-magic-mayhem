@@ -49,6 +49,17 @@ namespace BingoMagicMayhem.Multiplayer
             return simulator.RecordObservedHostCall(calledNumber, emittedUtcTicks);
         }
 
+        public MatchCallEvent EmitPrototypeCall(long emittedUtcTicks = 0)
+        {
+            MatchCallEvent callEvent = simulator.EmitNextHostCall();
+            if (callEvent != null && emittedUtcTicks > 0)
+            {
+                callEvent.EmittedUtcTicks = emittedUtcTicks;
+            }
+
+            return callEvent;
+        }
+
         public MatchClaimResolution SubmitPrototypeBingoClaim(
             string playerId,
             int cardIndex,

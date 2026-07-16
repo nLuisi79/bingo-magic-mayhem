@@ -11,14 +11,14 @@ public sealed class PrototypeMultiplayerGameplayBridgeTests
         PrototypeMultiplayerGameplayBridge bridge = new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1");
 
         bridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
-        MatchCallEvent observedCall = bridge.TryRecordObservedCall(true, 22);
+        MatchCallEvent observedCall = bridge.TryEmitAuthoritativeCall(true);
         MatchClaimResolution claim = bridge.TrySubmitBingoClaim(
             true,
             cardIndex: 0,
             claimCallIndex: 0,
             newBingoCount: 1,
             markedCellKeys: new[] { "0:0" },
-            claimedNumbers: new[] { 22 });
+            claimedNumbers: new[] { observedCall.CalledNumber });
         bool published = bridge.TryPublishRoundEnd(
             false,
             BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
@@ -32,6 +32,18 @@ public sealed class PrototypeMultiplayerGameplayBridgeTests
         Assert.That(controller.SessionFacade.MatchEndLog.Count, Is.EqualTo(1));
         Assert.That(controller.SessionFacade.MatchEndLog[0].WheelspinEntitledPlayerIds.Count, Is.EqualTo(1));
         Assert.That(published, Is.True);
+    }
+
+    [Test]
+    public void TryEmitAuthoritativeCall_WhenRoundInactive_ReturnsNullAndDoesNothing()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerGameplayBridge bridge = new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1");
+
+        MatchCallEvent callEvent = bridge.TryEmitAuthoritativeCall(false);
+
+        Assert.That(callEvent, Is.Null);
+        Assert.That(controller.SessionFacade.CallLog.Count, Is.EqualTo(0));
     }
 
     [Test]

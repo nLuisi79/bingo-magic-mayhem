@@ -40,6 +40,26 @@ namespace BingoMagicMayhem.Multiplayer
             return snapshot;
         }
 
+        public static MultiplayerRoomSessionSnapshot Build(IMultiplayerRoomSessionMirrorView mirrorView)
+        {
+            MultiplayerRoomSessionSnapshot snapshot = new MultiplayerRoomSessionSnapshot
+            {
+                SnapshotUtcTicks = DateTime.UtcNow.Ticks
+            };
+
+            if (mirrorView == null)
+            {
+                return snapshot;
+            }
+
+            snapshot.Room = CloneRoom(mirrorView.MirroredRoom) ?? new MultiplayerRoomSnapshot();
+            snapshot.Match = CloneMatch(mirrorView.MirroredMatch);
+            CopyCalls(mirrorView.MirroredCalls, snapshot.CallLog);
+            CopyClaims(mirrorView.MirroredClaimResolutions, snapshot.ClaimLog);
+            CopyEnds(mirrorView.MirroredMatchEnds, snapshot.MatchEndLog);
+            return snapshot;
+        }
+
         private static MultiplayerRoomSnapshot CloneRoom(MultiplayerRoomSnapshot room)
         {
             if (room == null)

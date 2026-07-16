@@ -9860,13 +9860,27 @@ public class BingoPrototype : MonoBehaviour
 
     private void CallNumber()
     {
-        if (!roundFlow.TryCallNext(Time.time, out int calledNumber))
+        float calledAtTime = Time.time;
+        int calledNumber;
+        if (prototypeMultiplayerRuntime?.PresentationFacade != null)
+        {
+            MatchCallEvent authoritativeCall =
+                prototypeMultiplayerRuntime.PresentationFacade.TryEmitAuthoritativeCall(roundFlow.IsActive);
+            if (authoritativeCall == null
+                || !roundFlow.RegisterAuthoritativeCall(authoritativeCall.CalledNumber, calledAtTime))
+            {
+                StartFinalBallCountdown("No more numbers to call.");
+                return;
+            }
+
+            calledNumber = authoritativeCall.CalledNumber;
+            RefreshPrototypeMultiplayerPresentationState();
+        }
+        else if (!roundFlow.TryCallNext(calledAtTime, out calledNumber))
         {
             StartFinalBallCountdown("No more numbers to call.");
             return;
         }
-
-        MirrorPrototypeObservedCall(calledNumber);
 
         if (powerUps.ClairvoyanceActive)
         {
@@ -10247,7 +10261,7 @@ public class BingoPrototype : MonoBehaviour
         prototypeRoundEndPublished = publishResult.WasPublished;
         ApplyPrototypeMultiplayerPresentationState(publishResult.PresentationState);
         ApplyPrototypeRoundEndOutcome(MultiplayerAuthorityOutcomePresenter.BuildRoundEndOutcome(
-            publishResult.PresentationState?.MatchSummary?.LastMatchEnd));
+            GetLatestPrototypePublishedMatchEnd(publishResult.PresentationState)));
     }
 
     private string GetPrototypeMultiplayerHostDisplayName()
@@ -10257,7 +10271,24 @@ public class BingoPrototype : MonoBehaviour
 
     private int GetPrototypeClaimCallIndex()
     {
+        int authoritativeCallIndex =
+            prototypeMultiplayerRuntime?.PresentationFacade?.GetCurrentAuthoritativeCallIndex() ?? -1;
+        if (authoritativeCallIndex >= 0)
+        {
+            return authoritativeCallIndex;
+        }
+
         return Mathf.Max(0, roundFlow.History.Count - 1);
+    }
+
+    private static MatchEndEvent GetLatestPrototypePublishedMatchEnd(PrototypeMultiplayerPresentationState state)
+    {
+        if (state?.Snapshot?.MatchEndLog == null || state.Snapshot.MatchEndLog.Count <= 0)
+        {
+            return null;
+        }
+
+        return state.Snapshot.MatchEndLog[state.Snapshot.MatchEndLog.Count - 1];
     }
 
     private List<string> BuildMarkedCellKeys(int cardIndex)

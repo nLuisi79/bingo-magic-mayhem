@@ -38,6 +38,28 @@ public sealed class BingoCaller
         return true;
     }
 
+    public bool TryRegisterAuthoritativeCall(int calledNumber)
+    {
+        if (calledNumber < 1 || calledNumber > 75)
+        {
+            return false;
+        }
+
+        if (CalledNumbers.Contains(calledNumber))
+        {
+            return false;
+        }
+
+        if (!callPool.Remove(calledNumber))
+        {
+            return false;
+        }
+
+        History.Insert(0, calledNumber);
+        CalledNumbers.Add(calledNumber);
+        return true;
+    }
+
     public static string GetBingoLetter(int number)
     {
         if (number <= 15) return "B";

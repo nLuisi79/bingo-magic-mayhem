@@ -13,14 +13,14 @@ public sealed class PrototypeMultiplayerPresentationFacadeTests
             new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1"));
 
         facade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
-        MatchCallEvent observedCall = facade.TryRecordObservedCall(true, 22);
+        MatchCallEvent observedCall = facade.TryEmitAuthoritativeCall(true);
         MatchClaimResolution claim = facade.TrySubmitBingoClaim(
             true,
             cardIndex: 0,
             claimCallIndex: 0,
             newBingoCount: 1,
             markedCellKeys: new[] { "0:0" },
-            claimedNumbers: new[] { 22 });
+            claimedNumbers: new[] { observedCall.CalledNumber });
         bool published = facade.TryPublishRoundEnd(
             false,
             BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
@@ -81,14 +81,14 @@ public sealed class PrototypeMultiplayerPresentationFacadeTests
         PrototypeMultiplayerPresentationState lobbyState = facade.BuildPresentationState();
 
         facade.BeginAuthoritativeRound("Host", 0, 1, 4, 25, 99, 30, 1f);
-        facade.TryRecordObservedCall(true, 22);
+        MatchCallEvent callEvent = facade.TryEmitAuthoritativeCall(true);
         facade.TrySubmitBingoClaim(
             true,
             cardIndex: 0,
             claimCallIndex: 0,
             newBingoCount: 1,
             markedCellKeys: new[] { "0:0" },
-            claimedNumbers: new[] { 22 });
+            claimedNumbers: new[] { callEvent.CalledNumber });
         facade.TryPublishRoundEnd(
             false,
             BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
@@ -136,5 +136,65 @@ public sealed class PrototypeMultiplayerPresentationFacadeTests
         Assert.That(result.PresentationState, Is.Not.Null);
         Assert.That(result.PresentationState.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchEnded));
         Assert.That(result.PresentationState.GameplayRound.PostRoundSummaryLabel, Does.Contain("no wheelspin entitlements"));
+    }
+
+    [Test]
+    public void BuildMirroredPresentationState_AfterHostRoundFlow_ReflectsGuestVisibleLifecycle()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerPresentationFacade facade = new PrototypeMultiplayerPresentationFacade(
+            controller,
+            new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1"));
+
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        facade.SyncLobby("Host", 0, 1, 4, 25);
+        PrototypeMultiplayerPresentationState mirroredLobby = facade.BuildMirroredPresentationState();
+
+        facade.BeginAuthoritativeRound("Host", 0, 1, 4, 25, 99, 30, 1f);
+        MatchCallEvent callEvent = facade.TryEmitAuthoritativeCall(true);
+        facade.TrySubmitBingoClaim(
+            true,
+            cardIndex: 0,
+            claimCallIndex: 0,
+            newBingoCount: 1,
+            markedCellKeys: new[] { "0:0" },
+            claimedNumbers: new[] { callEvent.CalledNumber });
+        PrototypeMultiplayerPresentationState mirroredRound = facade.BuildMirroredPresentationState();
+
+        facade.TryPublishRoundEnd(
+            false,
+            BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
+            hostEarnedWheelspin: true);
+        PrototypeMultiplayerPresentationState mirroredEnd = facade.BuildMirroredPresentationState();
+
+        Assert.That(mirroredLobby, Is.Not.Null);
+        Assert.That(mirroredLobby.Session.RoomStateLabel, Does.Contain("Lobby"));
+        Assert.That(mirroredLobby.LobbyStatus.ReadinessSummaryLabel, Is.EqualTo("2/2 ready"));
+
+        Assert.That(mirroredRound, Is.Not.Null);
+        Assert.That(mirroredRound.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchInProgress));
+        Assert.That(mirroredRound.GameplayRound.AuthoritySummaryLabel, Does.Contain("Call authority live."));
+        Assert.That(mirroredRound.GameplayRound.ClaimSummaryLabel, Does.Contain("Accepted"));
+        Assert.That(mirroredRound.MatchSummary, Is.Null);
+
+        Assert.That(mirroredEnd, Is.Not.Null);
+        Assert.That(mirroredEnd.Session.GameplayFlowState, Is.EqualTo(MultiplayerGameplayFlowState.MatchEnded));
+        Assert.That(mirroredEnd.GameplayRound.PostRoundSummaryLabel, Does.Contain("1 player is queued for jackpot wheelspin handoff"));
+        Assert.That(mirroredEnd.GameplayRound.PostRoundSummaryLabel, Does.Contain("Max balls reached."));
+    }
+
+    [Test]
+    public void GetCurrentAuthoritativeCallIndex_AfterTwoCalls_ReturnsLatestAuthorityIndex()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerPresentationFacade facade = new PrototypeMultiplayerPresentationFacade(
+            controller,
+            new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1"));
+
+        facade.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        facade.TryEmitAuthoritativeCall(true);
+        facade.TryEmitAuthoritativeCall(true);
+
+        Assert.That(facade.GetCurrentAuthoritativeCallIndex(), Is.EqualTo(1));
     }
 }
