@@ -1,4 +1,4 @@
-# 09 â€” Open Decisions
+# 09 — Open Decisions
 
 ## Source-of-truth rule for Codex
 
@@ -13,228 +13,141 @@ When a feature is labeled **LOCKED**, Codex may model data structures, UI placeh
 
 ## Confidence labels
 
-- **LOCKED** â€” appears explicitly chosen in later discussion, reflected in a packaged locked handoff, or called out as the current source of truth in the extraction documents.
-- **HIGH / LIKELY FINAL** â€” repeated later preference or consistent direction, but still needs exact tuning, naming, or implementation confirmation.
-- **PROPOSED** â€” usable as design context only; do not implement as a final rule without approval.
-- **OPEN** â€” known unresolved decision or contradiction.
-- **ARCHIVE / OUTDATED** â€” older architecture or replaced idea; do not implement unless re-approved.
+- **LOCKED** — appears explicitly chosen in later discussion, reflected in a packaged locked handoff, or called out as the current source of truth in the extraction documents.
+- **HIGH / LIKELY FINAL** — repeated later preference or consistent direction, but still needs exact tuning, naming, or implementation confirmation.
+- **PROPOSED** — usable as design context only; do not implement as a final rule without approval.
+- **OPEN** — known unresolved decision or contradiction.
+- **ARCHIVE / OUTDATED** — older architecture or replaced idea; do not implement unless re-approved.
 
 ## Open-decision handling rule
 
-Everything in this file requires product approval before Codex treats it as implementation truth. Codex may create configurable placeholders, TODOs, interfaces, or test fixtures, but must not hardcode final values or lock gameplay outcomes.
-
-## Extracted open decisions and unresolved tuning
-
-## 19. Open decisions
-
-| Decision | Category | Why it appears locked | Related constraints | Possible conflict / caveat |
-| --- | --- | --- | --- | --- |
-| Final public title: Bingo Magic Blast vs Bingo Magic Mayhem. | Open identity decision | Older handoffs use Bingo Magic Blast; later locked visual file uses Bingo Magic Mayhem. | Choose one before logo, app-store metadata, and master handoff. | Current user requested Bingo Magic Blast for this document, so file title uses Bingo Magic Blast. |
-| Final economy relationship between mana, coins, energy, crystals, and tickets. | Open economy decision | Later UI locks mana bet per card, while older architecture includes coins/energy/crystals. | Top currency bar and reward tables depend on this. | Do not balance economy until resource hierarchy is locked. |
-| Final jackpot model: wheelspin only, Portal Surge, Jackpot Spins, or layered system. | Open reward decision | Later UI locks jackpot wheel placement; older architecture includes Portal Surge and Jackpot Spins. | Need decide if Portal Surge survives as separate rare event. | Avoid casino-like wheel language/visuals beyond approved jackpot wheel. |
-| Final collection counts for Grimoire and Book of Shadows. | Open collection decision | Later 80-card preference conflicts with older 25-set/90-day and 32-set rarity discussions. | Must lock before final card list, rarity tables, UI slots, rewards, and drop rates. | 10 cards per set appears locked. |
-| Final Ancient/Gilded quantity and rules per set. | Open rarity decision | The topic exists but the actual counts are not surfaced in available source snippets. | Impacts card art, rarity frames, trading, wildcard rules, and pack odds. | Retrieve specific project discussion before deciding. |
-| Final duplicate conversion formula and market value behavior. | Open economy decision | Duplicate tracking/conversion is required, and market value was strongly discussed, but final formula is not locked. | Must align with trading, set completion, card packs, and monetization fairness. | Variable market value may add complexity. |
-| Final trade/gift eligibility rules. | Open social/economy decision | Coven + Bazaar handoff scope includes what can/cannot be traded, but details are not visible in available snippets. | Needs daily limits, cooldowns, rarity restrictions, ingredient/card differences, and Coven-only/global rules. | Fairness and abuse prevention are key. |
-| Final Oracle Alley / Madame Solange role. | Open feature/naming decision | Oracle Alley remained a possible sub-feature; Madame Solange was not found in available source search. | Needs name, host character, availability, output, odds, and economy constraints. | Do not include as locked until explicitly chosen. |
-| Final daily rewards calendar/streak design. | Open retention decision | Rewards/Retention handoff exists, but exact daily ladder is not visible in snippets. | Needs calendar length, streak rules, missed-day handling, reward types, and Council/Coven interactions. | Daily reward claim animation is clearly needed. |
-| Final MVP vs Phase 2 scope for Coven Ritual, Coven Emporium, Player Den, Bazaar, Oracle Alley, and Book of Shadows. | Open scope decision | Some systems have locked handoffs but older architecture placed full Coven Ritual and advanced systems in Phase 2. | Master MVP handoff should not be created until scope is reconciled. | Locked concept does not automatically mean MVP. |
-
-## Unresolved tuning values
-
-Mana cost per card and per room.
-
-Whether mana cost scales by 1 / 2 / 4 / 6 card selection linearly or with a discount/premium.
-
-Whether older coins and energy remain as separate resources.
-
-Crystals earn rate, purchase rate, and spend sinks.
-
-Charm Token earn rate, redemption value, and acquisition sources, if Charm Tokens are retained.
-
-Stardust earn rate, duplicate conversion ratio, and redemption thresholds, if Stardust is retained.
-
-Oracle Dust earn rate, reading cost, and wild-card odds, if Oracle Dust is retained.
-
-Regular duplicate conversion ratio.
-
-Rare and Extra Rare duplicate conversion ratio.
-
-Book of Shadows duplicate behavior and whether it uses a separate conversion path.
-
-Wild card shard thresholds and rarity eligibility.
-
-Daily reward calendar length, streak rules, and missed-day behavior.
-
-Daily spin availability and prize table.
-
-Weekly reward track milestones, free-track reward amounts, and paid upgrade reward amounts.
-
-Portal Surge odds, jackpot wheel odds, and whether those are one system or two.
-
-Marketplace/set value formula and whether value can be cashed out, traded, or only displayed.
-
-## Global risks / balance concerns
-
-Currency clutter risk: Mana, coins, crystals, Charm Tokens, Stardust, Oracle Dust, Coven Orbs, wildcard shards, Jackpot Spins, Ritual Calls, and other event resources can overwhelm players if too many appear at once.
-
-Duplicate frustration risk: Collections are a major motivator, but duplicate-heavy progression can feel punishing unless conversion, sharing, requesting, and New-to-You rewards are generous and transparent.
-
-Premium collection fairness risk: Book of Shadows should feel premium/special, but not predatory. Duplicate behavior for a premium track must be more protective than the base collection or clearly more rewarding.
-
-Jackpot/casino tone risk: The jackpot wheel must stay magical and casual-game-like, not casino-like. Portal Surge should be visually distinct from a standard prize wheel if retained.
-
-Market value complexity risk: Variable set value may make the economy feel richer, but can confuse players and complicate balancing, trading, fraud prevention, and messaging.
-
-Social abuse risk: Card/ingredient trading, gifting, and requests require limits, cooldowns, rarity restrictions, and anti-exploit controls.
-
-Paid track risk: A paid upgrade track must not make free players feel blocked from core collection completion.
-
-## Things Codex or a developer must not assume
-
-Do not assume mana, coins, and energy are all final separate currencies.
-
-Do not assume Charm Tokens, Stardust, or Oracle Dust have confirmed earning or spending rules.
-
-Do not assume duplicate conversion rates; no final formula is locked.
-
-Do not assume rare, extra rare, Ancient, Gilded, or Book of Shadows duplicates convert into the same resource as regular duplicates.
-
-Do not assume any paid upgrade track exists as final monetization without a lock.
-
-Do not assume Portal Surge, jackpot wheel, and Jackpot Spins are interchangeable names for the same feature.
-
-Do not assume Book of Shadows is always paid, always premium-only, or always separate from the main Grimoire reward logic.
-
-Do not assume completed set market value is spendable currency; its function is unresolved.
-
-Do not assume trading is global; Coven-only vs broader marketplace scope is unresolved.
-
-Do not assume rare/extra rare/Ancient/Gilded cards are tradeable or wildcard-eligible.
-
-## Final lock checklist before Codex/development implementation
-
-Confirm final resource hierarchy: mana vs coins vs energy.
-
-Confirm whether Charm Tokens, Stardust, and Oracle Dust exist.
-
-Confirm duplicate conversion output and thresholds by card class.
-
-Confirm Book of Shadows duplicate behavior separately from Grimoire.
-
-Confirm wild card types and eligibility rules.
-
-Confirm Grimoire and Book of Shadows collection sizes and durations.
-
-Confirm realm completion payout table.
-
-Confirm jackpot wheel vs Portal Surge architecture.
-
-Confirm daily rewards, daily spin, weekly track, and paid track scope.
-
-Confirm Marketplace / Bewitchment Bazaar value formula and trade limits.
-
-Confirm monetization constraints and premium currency sinks.
-
-## 15. Unresolved contradictions between older and newer versions
-
-| Topic | Older version | Newer/later-current version | Required decision |
-| --- | --- | --- | --- |
-| Realm structure | Realm contains 4-5 Mystical Lands. | Realm contains four rooms: three regular + one special/finale. | Use four-room model unless older terminology is explicitly revived. |
-| Progression object | Restore Enchanted Artifact through fragments. | Complete potions/spells through ingredient cards and cast them in special room. | Decide whether artifacts are display relics only, narrative items, or gameplay objects. |
-| Finale board | Threshold Board is a special finale experience that closes after completion. | Special room remains part of the four-room realm and may remain replayable/challenge-ready. | Rename Threshold Board, retire it, or map it to special room. |
-| Room access after completion | Standard boards remain playable; Threshold Boards close except during Portal Reawakening. | Rooms should remain accessible so players can replay for ingredients. | Lock exact access rules for special room after restoration. |
-| Realm names/order | Whispering Fen -> Shattered Observatory -> Clockwork Spire -> Dragonwake Ruins -> Frostveil Peaks -> Mirage Dunes. | Current locked work centers on Everbloom Sanctuary and Sunpetal Conservatory. | Lock final Realm 1, Realm 2, and world order. |
-| Portal system | Threshold Board opens next realm; Portal Surge and Enchanted Keys exist as rare jackpot-style feature. | Open portal state and visible jackpot wheel are later-current UI/world pieces. | Define whether portal progression, jackpot wheel, and Portal Surge are separate systems. |
-| Special mode | Threshold Board has custom board mechanic and higher buy-in. | Special room may be blackout or multi-bingo, but not chosen. | Select special-room format and whether it varies by realm. |
-| Rewards | Older architecture includes broad rewards: coins, energy, crystals, power-ups, collection cards, Jackpot Spins, Ritual Calls, Realm progress. | Restore reward specifically constrained to mana and card packs. | Separate match rewards from realm-restore rewards. |
-
-## 17. Developer / Codex must not assume
-
-Do not assume the older 4-5 Mystical Lands model is final.
-
-Do not assume Whispering Fen is Realm 1 or Shattered Observatory is Realm 2.
-
-Do not assume Threshold Board is the final user-facing name for the special room.
-
-Do not assume Threshold Boards close after completion; later direction says rooms should remain accessible for ingredients.
-
-Do not assume artifact fragments are still the primary realm progression item.
-
-Do not assume every potion has exactly 10 ingredients until the Ingredient / Potion Drop Rules locked handoff is fully reviewed, even though 10-item structures recur strongly.
-
-Do not invent missing room names for Everbloom Sanctuary or Sunpetal Conservatory from visual guesses.
-
-Do not implement blackout as the special room mode until it is explicitly selected over multi-bingo or another format.
-
-Do not merge jackpot wheel, Portal Surge, Jackpot Spins, Enchanted Keys, and portal progression into one system without a decision.
-
-Do not show chests as restoration rewards; later direction says restore rewards are mana and card packs.
-
-Do not close completed rooms in a way that prevents ingredient replay.
-
-Do not make weekly witch revisit punitive without explicit approval; the idea should create purpose/rewards, not frustration.
-
-Do not move locked room-entry UI regions to fit background art.
-
-Do not change realm names, room names, or room count inside generated assets without explicit instruction.
-
-## 18. Open decisions checklist
-
-| Decision needed | Why it matters | Dependency |
-| --- | --- | --- |
-| Final public title and realm naming convention. | Affects handoffs, app metadata, logo, and asset naming. | Brand lock. |
-| Final Realm 1 / Realm 2 order. | Affects onboarding, progression tuning, locked asset order, and story. | Everbloom/Sunpetal ordering decision. |
-| Exact room lists for Everbloom Sanctuary and Sunpetal Conservatory. | Needed for content tables, asset IDs, ingredient ownership, and quest routing. | Locked realm handoffs. |
-| Special room format: blackout, multi-bingo, rotating special modes, or realm-specific modes. | Affects match engine, UI, rewards, and tutorial. | Gameplay screen lock. |
-| Whether special room is always open after restoration. | Affects replay, weekly challenge, and ingredient access. | Realm replay rules. |
-| Exact potion/spell count per realm. | Current reading is three regular-room spells feeding one ritual; needs formal lock. | Ingredient and drop rules. |
-| Potion vs artifact vs relic terminology. | Affects story copy, UI labels, Player Den Relic Wall, and developer schema. | Narrative/system naming lock. |
-| Portal progression model. | Need decide open-portal visual only vs interactive portal vs Threshold Board vs Portal Surge links. | World map and rewards. |
-| Realm completion reward values. | Need mana amounts, card pack type/count, first-time-only rules, and repeat rewards. | Economy tuning. |
-| Post-restoration replay drop rules. | Needed to avoid ingredient dead ends and economy exploits. | Ingredient drop tables. |
-| Weekly witch challenge rules. | Need host character, cadence, target rooms, reward size, and whether anything breaks. | Event/quest system. |
-| Ingredient gifting/requesting eligibility. | Affects Coven/Bazaar inventory schema and room replay value. | Trading/social lock. |
-
-## 27. Open visual decisions
-
-| Open item | Decision needed |
-| --- | --- |
-| Final logo | Need final chosen logo direction and app icon treatment. |
-| Final project title lock | Bingo Magic Blast vs Bingo Magic Mayhem must be aligned in art files. |
-| Player Den layout | Need lock on single hub room vs separate Apothecary/Library/Relic Wall screens. |
-| Oracle Alley status | Need feature/name lock before producing final UI. |
-| Madame Solange status | Need character/name lock before character art. |
-| Crystal ball reveal | Need system placement: Oracle, daily bonus, mystery reward, or general reveal. |
-| Marketplace scope | Need Coven-only vs global trading before final Bazaar UI. |
-| Collection spread dimensions | Need final card count/page layout constraints after final collection size is locked. |
-| Book of Shadows access model | Need free/premium/paid-track relationship before final UI hierarchy. |
-| Portal Surge vs jackpot wheel | Need final distinction before animating portal/jackpot systems. |
-| Daily/weekly paid track visuals | Need monetization scope lock before VIP/track-like visual treatment. |
-| Power-up icon set | Need final named power-up list and generic category icon approval. |
-| Rarity frame system | Need final rarity taxonomy including Rare, Extra Rare, Ancient, Gilded, Astral, Wild. |
-
-## Cross-system open-decision index
-
-| Area | Open decision |
-|---|---|
-| Product identity | Final public title: Bingo Magic Blast vs Bingo Magic Mayhem. |
-| Economy | Whether mana replaces coins/energy or coexists with them. |
-| Economy | Whether crystals are active, and what they buy. |
-| Economy | Whether Charm Tokens, Stardust, and Oracle Dust exist. |
-| Economy | Duplicate conversion values and thresholds. |
-| Economy | Rare / Extra Rare / Ancient / Gilded duplicate behavior. |
-| Economy | Whether set/market value is informational, redeemable, or marketplace-facing. |
-| Collections | Final Grimoire card count, page count, duration, and rarity distribution. |
-| Collections | Final Book of Shadows card count, duplicate behavior, rewards, and wild-card eligibility. |
-| Realms | Final realm order and exact room list per realm. |
-| Realms | Exact special-room mode: blackout, multi-bingo, ritual-only, or other. |
-| Realms | Exact room unlock and realm restoration rules. |
-| Realms | Exact portal system and whether Portal Surge survives. |
-| Social | Trade/gift/request limits, cooldowns, eligibility, and scope. |
-| Social | Coven Ritual MVP/Phase 2 status. |
-| Marketplace | Bewitchment Bazaar exact scope and whether Oracle Alley is a sub-feature. |
-| Oracle | Whether Madame Solange is official. |
-| Rewards | Daily reward calendar, streak, daily spin, weekly track, paid track. |
-| Player Den | MVP scope and mechanics for Apothecary, Library, Relic Wall. |
-| Visual | Final logo, typography, icon set, power-up icon set, card frames, active bingo screen. |
+Everything in this file requires product approval before Codex treats it as implementation truth. Codex may create configurable placeholders, TODOs, interfaces, schemas, and test fixtures, but must not hardcode final values or lock gameplay outcomes from these items.
+
+## Documentation-level open decisions
+
+These are the biggest unresolved areas surfaced by the current packet structure itself.
+
+| Open area | Why it is still open | Why it matters |
+|---|---|---|
+| Final public title: **Bingo Magic Blast** vs **Bingo Magic Mayhem** | The packet title and glossary still show a naming conflict between the document set and later visual references. | Affects app/store metadata, final logo lock, repo naming, asset naming, and handoff consistency. |
+| Exact MVP / Beta 1 feature boundary | Multiple systems are conceptually established, but the packet does not yet provide one explicit “ship now vs later” scope sheet. | Prevents safe implementation sequencing and makes it easy to overbuild. |
+| Which repo / workspace is the implementation source of truth | The packet is authoritative for design intent, but implementation may occur elsewhere. | Future chats can accidentally continue in the doc repo instead of the game repo, or vice versa. |
+| Final “verified current state” summary | The packet previously lacked a dedicated verified-state document. | Makes it harder for new chats to distinguish current truth from strong preferences and archive material. |
+
+## Product identity and scope
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Final public game title | `08_NAMING_GLOSSARY.md` still presents both titles as current candidates. | Needed before final branding, logo exports, repo normalization, and production handoff. |
+| Beta 1 / MVP system scope | Core systems exist conceptually, but feature-phase boundaries are still distributed across docs instead of formally consolidated. | Needed before implementation sequencing, UI prioritization, and live-content planning. |
+| What is explicitly Phase 2+ | Some concepts are real but may not be launch-scope. | Prevents mixing “important long-term” systems into immediate Beta build work. |
+
+## Realms, rooms, and progression
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Final realm order | Everbloom Sanctuary and Sunpetal Conservatory are both treated as real/current realms, but exact ordering remains unresolved. | Affects onboarding, map flow, art production order, and reward tuning. |
+| Exact room list per locked realm | The packet confirms realm structure and some named rooms, but not a single final master room index for every realm. | Needed for content IDs, scene naming, ingredient ownership, and quest routing. |
+| Special room format | Blackout, multi-bingo, or another special mode remains open. | Affects rules engine, UI, tutorialization, rewards, and difficulty curve. |
+| Post-restoration access rules for the special room | Replayability is strongly preferred, but exact special-room behavior after restoration is not fully locked. | Needed to avoid content dead ends or reward exploits. |
+| Portal model | Later packet guidance supports visible portal/jackpot presentation, but the relationship to older Portal Surge structures is unresolved. | Needed to keep progression, jackpot, and event systems distinct. |
+| Potion/spell vs artifact/relic language | Potion/spell-forward progression is current, but older artifact terminology still exists in archival materials. | Needed for consistent UI copy, data naming, and future lore hooks. |
+
+## Economy, rewards, and scarcity
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Final resource hierarchy | Mana is strong/current in UI direction, but coins, energy, crystals, and other named resources remain unresolved or legacy. | Needed for every HUD, reward table, store, and balance sheet. |
+| Whether crystals are active in Beta 1 | Crystals remain present in concepts but not fully normalized as final. | Affects premium/pseudo-premium sink design and interface commitment. |
+| Whether Charm Tokens, Stardust, and Oracle Dust are real live resources | Mentioned in economy planning, but not locked as active currencies. | Prevents unnecessary currency clutter and false backend assumptions. |
+| Duplicate conversion outputs and thresholds | Duplicate handling is important, but exact formulas remain unresolved. | Needed before implementing collection progression, reward loops, or marketplace behavior. |
+| Book of Shadows duplicate behavior | Treated as distinct from Grimoire, but exact reward/protection logic is still open. | Needed to avoid predatory or confusing premium-collection behavior. |
+| Wildcard types and redemption thresholds | Wildcard support is a strong concept, but exact forms and costs remain open. | Impacts collection completion pacing and scarcity tuning. |
+| Realm completion reward values | Reward categories are constrained more than exact amounts. | Needed for retention pacing and room replay balance. |
+| Daily reward, daily spin, weekly track, and paid track specifics | These systems exist conceptually, but exact ladders and payout curves remain unresolved. | Needed for retention balance, economy fairness, and monetization scope control. |
+| Marketplace / set value behavior | Value-display and reward ideas exist, but final use of “set value” remains unresolved. | Needed before adding marketplace logic, redemption loops, or social economy messaging. |
+
+## Collections
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Final Grimoire size and page structure | Main collection is real/locked as a system area, but exact totals remain contradictory. | Needed for UI slots, pack odds, drop pacing, and asset production. |
+| Final Book of Shadows size and access structure | System direction exists, but exact scope and progression remain open. | Needed for launch-scope planning and premium collection rules. |
+| Final rarity taxonomy in production | Rare / Extra Rare are strong; Ancient / Gilded are named; Astral appears archival; exact live taxonomy is not fully normalized. | Needed for frame sets, card data, duplicate rules, and trading rules. |
+| Per-set counts for special card types | Ancient and Gilded presence is discussed, but exact per-set counts remain open. | Needed for art production, rarity balance, and collection progression. |
+
+## Social, marketplace, and oracle features
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Trade / gift / request eligibility rules | Social direction exists, but exact limits, cooldowns, and scope remain open. | Needed for exploit prevention and economy protection. |
+| Coven launch scope | Covens are real as a system area, but specific MVP operations are still not fully normalized. | Needed before backend and UI sequencing. |
+| Marketplace scope | Bewitchment Bazaar is the current preferred name, but exact scope is still open. | Needed to separate collection help, trade, gifting, and shop behaviors. |
+| Oracle Alley status | Still explicitly unresolved / proposed in the packet. | Needed before UI, economy, or character art production. |
+| Madame Solange status | Still not confirmed as an official locked character. | Needed before writing lore, character art, or feature-specific UI. |
+
+## Player Den and inventory
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Final Beta 1 Player Den scope | Player Den is real, but exact launch features within it remain distributed across docs. | Needed to keep hub work focused and shippable. |
+| Single Den surface vs multiple destination screens | The packet supports Den subareas, but exact UX packaging remains open. | Needed before navigation architecture is finalized. |
+| Which inventory surfaces must ship first | Cabinet of Curiosities, Library, Apothecary, and Relic Wall are not equally urgent. | Needed for UI staging and content production sequencing. |
+
+## Visual and UI decisions still open
+
+| Decision needed | Current packet evidence | Why it must be locked |
+|---|---|---|
+| Final logo treatment | Direction exists, but the packet still flags logo as an open visual decision. | Needed for consistent shell/header/app icon exports. |
+| Final active gameplay UI composition | Room-entry is far more locked than gameplay HUD. | Needed before polishing the in-round player experience. |
+| Final world map structure and density | Realm presentation direction exists, but world-map packaging is not fully formalized in the packet. | Needed for hub flow, future realm placeholders, and onboarding. |
+| Final power-up icon set | Power-up presentation is needed, but the final icon set is still open. | Needed before inventory, gameplay, and monetization polish. |
+| Final rarity frame set | Rarity names exist, but final frame taxonomy is not fully locked. | Needed before card art production can stabilize. |
+
+## Archive conflicts that still require conscious handling
+
+These are the archive-driven contradictions that remain risky unless a future implementation chat is explicitly warned away from them.
+
+| Conflict area | Older / archive direction | Current safer direction |
+|---|---|---|
+| Realm structure | 4–5 Mystical Lands per realm chain | Four-room realm structure with three regular rooms plus one special room |
+| Realm progression object | Enchanted Artifact fragments | Potion / spell / ingredient-forward progression |
+| Finale room model | Threshold Board closes after completion | Rooms, including special content, should not be assumed permanently closed |
+| Realm chain | Whispering Fen / Shattered Observatory / etc. | Everbloom Sanctuary and Sunpetal Conservatory are the current safe named realms |
+| Jackpot / portal | Portal Surge and related legacy structures | Do not merge legacy portal concepts into the current jackpot-visible direction without approval |
+| Restoration rewards | Chests and broader reward bundles | Mana and card packs are the current safer restore-reward direction |
+| Room-entry UI | Called balls and extra decorative clutter | Keep room-entry focused on selection, bet, potion/progress, and clarity |
+
+## Thin or missing packet areas
+
+These are not necessarily “product decisions,” but they are documentation gaps that future chats should treat carefully.
+
+- No dedicated master Beta 1 / MVP scope doc.
+- No dedicated cross-repo implementation handoff note explaining where live implementation is occurring.
+- No dedicated current-state verification file before this audit pass.
+- No single launch-priority list that orders systems by immediate implementation importance.
+- No formal “do this next” execution sequence for future chats.
+
+## What Codex or a developer must not assume
+
+- Do not assume the public title is finally locked.
+- Do not assume every named currency in the packet is live for Beta 1.
+- Do not assume older archive realm chains are valid current realm order.
+- Do not assume Portal Surge and the later jackpot-visible direction are the same system.
+- Do not assume Book of Shadows duplicate rules match Grimoire duplicate rules.
+- Do not assume Oracle Alley or Madame Solange are launch-approved.
+- Do not assume all Den subareas are equal-priority MVP work.
+- Do not assume all conceptually “real” systems are Beta 1 scope.
+
+## Final lock checklist before implementation-heavy work resumes
+
+- Confirm final public game title.
+- Confirm Beta 1 / MVP system boundary.
+- Confirm exact realm order and exact room list per active realm.
+- Confirm special-room format and replay rules.
+- Confirm final active resource hierarchy.
+- Confirm duplicate conversion behavior by collection/card class.
+- Confirm final Grimoire and Book of Shadows size/taxonomy.
+- Confirm trade / gift / request rules and marketplace scope.
+- Confirm Player Den MVP surfaces.
+- Confirm final logo / HUD / world-map production direction.
