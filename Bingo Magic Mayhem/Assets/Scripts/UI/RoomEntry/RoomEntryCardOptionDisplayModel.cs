@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace BingoMagicMayhem.UI.RoomEntry
 {
     public sealed class RoomEntryCardOptionDisplayModel
@@ -9,7 +11,9 @@ namespace BingoMagicMayhem.UI.RoomEntry
             string ingredientText,
             string chanceText,
             string actionText,
-            bool canPlay)
+            bool canPlay,
+            Color backgroundColor,
+            Color actionButtonColor)
         {
             CardCount = cardCount;
             Title = title;
@@ -18,6 +22,8 @@ namespace BingoMagicMayhem.UI.RoomEntry
             ChanceText = chanceText;
             ActionText = actionText;
             CanPlay = canPlay;
+            BackgroundColor = backgroundColor;
+            ActionButtonColor = actionButtonColor;
         }
 
         public int CardCount { get; }
@@ -27,5 +33,7 @@ namespace BingoMagicMayhem.UI.RoomEntry
         public string ChanceText { get; }
         public string ActionText { get; }
         public bool CanPlay { get; }
+        public Color BackgroundColor { get; }
+        public Color ActionButtonColor { get; }
     }
 }

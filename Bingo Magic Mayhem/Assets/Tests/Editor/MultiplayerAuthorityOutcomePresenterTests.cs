@@ -55,4 +55,23 @@ public sealed class MultiplayerAuthorityOutcomePresenterTests
         Assert.That(outcome.Detail, Is.EqualTo("Max balls reached."));
         Assert.That(outcome.ShouldQueueJackpotHandoff, Is.True);
     }
+
+    [Test]
+    public void BuildRoundEndOutcome_WithCompletedHandoff_ReturnsCompletionOutcome()
+    {
+        MatchEndEvent endEvent = new MatchEndEvent
+        {
+            EndReason = "Max balls reached.",
+            HandoffState = MultiplayerPostRoundHandoffState.JackpotCompleted,
+            ResolvedWheelspinPlayerId = "host_1"
+        };
+        endEvent.WheelspinEntitledPlayerIds.Add("host_1");
+
+        MultiplayerAuthorityOutcomeModel outcome = MultiplayerAuthorityOutcomePresenter.BuildRoundEndOutcome(endEvent);
+
+        Assert.That(outcome.FeedbackKind, Is.EqualTo(MultiplayerAuthorityFeedbackKind.Success));
+        Assert.That(outcome.Headline, Is.EqualTo("Wheelspin handoff completed."));
+        Assert.That(outcome.Detail, Does.Contain("host_1"));
+        Assert.That(outcome.ShouldQueueJackpotHandoff, Is.False);
+    }
 }

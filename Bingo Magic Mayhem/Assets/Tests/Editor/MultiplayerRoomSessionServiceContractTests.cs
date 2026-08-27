@@ -36,7 +36,7 @@ public sealed class MultiplayerRoomSessionServiceContractTests
         service.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
         authorityService.PublishRoundEnd(
             BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
-            new[] { "host_1" });
+            System.Array.Empty<string>());
 
         MultiplayerRoomSnapshot room = service.ReturnCurrentRoomToLobby();
 

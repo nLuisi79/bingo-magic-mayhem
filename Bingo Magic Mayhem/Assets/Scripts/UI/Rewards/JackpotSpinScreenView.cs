@@ -1,4 +1,5 @@
 using System;
+using BingoMagicMayhem.UI.Common;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,6 +15,7 @@ namespace BingoMagicMayhem.UI.Rewards
         [SerializeField] private Text resultText;
         [SerializeField] private Button centerButton;
         [SerializeField] private Button collectButton;
+        [SerializeField] private UIFadeCanvasGroup fadeCanvasGroup;
 
         public event Action CenterRequested;
         public event Action CollectRequested;
@@ -30,6 +32,7 @@ namespace BingoMagicMayhem.UI.Rewards
             resultText = null;
             centerButton = null;
             collectButton = null;
+            fadeCanvasGroup = null;
         }
 
         public void Initialize(Text title, Text subtitle, Text roomName, Text spinStatus, Text result, Button center, Button collect)
@@ -53,6 +56,16 @@ namespace BingoMagicMayhem.UI.Rewards
                 collectButton.onClick.RemoveListener(HandleCollectRequested);
                 collectButton.onClick.AddListener(HandleCollectRequested);
             }
+        }
+
+        public void PlayIntroPresentation()
+        {
+            if (fadeCanvasGroup == null)
+            {
+                fadeCanvasGroup = gameObject.GetComponent<UIFadeCanvasGroup>();
+            }
+
+            fadeCanvasGroup?.Show();
         }
 
         public void Apply(JackpotSpinScreenDisplayModel displayModel)

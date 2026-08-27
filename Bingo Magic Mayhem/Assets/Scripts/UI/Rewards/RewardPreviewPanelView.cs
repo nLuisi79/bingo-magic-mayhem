@@ -1,4 +1,5 @@
 using System;
+using BingoMagicMayhem.UI.Common;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,6 +13,7 @@ namespace BingoMagicMayhem.UI.Rewards
         [SerializeField] private Text collectedRewardsTitleText;
         [SerializeField] private Text potionProgressTitleText;
         [SerializeField] private Button continueButton;
+        [SerializeField] private UIFadeCanvasGroup fadeCanvasGroup;
 
         public event Action ContinueRequested;
 
@@ -27,6 +29,7 @@ namespace BingoMagicMayhem.UI.Rewards
             collectedRewardsTitleText = null;
             potionProgressTitleText = null;
             continueButton = null;
+            fadeCanvasGroup = null;
         }
 
         public void Initialize(
@@ -47,6 +50,16 @@ namespace BingoMagicMayhem.UI.Rewards
                 continueButton.onClick.RemoveListener(HandleContinueRequested);
                 continueButton.onClick.AddListener(HandleContinueRequested);
             }
+        }
+
+        public void PlayIntroPresentation()
+        {
+            if (fadeCanvasGroup == null)
+            {
+                fadeCanvasGroup = gameObject.GetComponent<UIFadeCanvasGroup>();
+            }
+
+            fadeCanvasGroup?.Show();
         }
 
         public void Apply(RewardPreviewPanelDisplayModel displayModel)

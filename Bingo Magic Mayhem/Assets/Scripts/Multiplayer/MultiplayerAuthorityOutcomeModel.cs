@@ -91,6 +91,28 @@ namespace BingoMagicMayhem.Multiplayer
                     false);
             }
 
+            if (endEvent.HandoffState == MultiplayerPostRoundHandoffState.JackpotCompleted)
+            {
+                string detail;
+                if (endEvent.ResolvedWheelspinPlayerIds.Count > 1)
+                {
+                    detail = $"Authority completed the jackpot handoff for {endEvent.ResolvedWheelspinPlayerIds.Count} players.";
+                }
+                else
+                {
+                    detail = string.IsNullOrEmpty(endEvent.ResolvedWheelspinPlayerId)
+                        ? "Authority completed the jackpot handoff."
+                        : $"Authority completed the jackpot handoff for {endEvent.ResolvedWheelspinPlayerId}.";
+                }
+
+                return new MultiplayerAuthorityOutcomeModel(
+                    MultiplayerAuthorityFeedbackKind.Success,
+                    "Wheelspin handoff completed.",
+                    detail,
+                    false,
+                    false);
+            }
+
             bool hasWheelspin = endEvent.WheelspinEntitledPlayerIds.Count > 0;
             return new MultiplayerAuthorityOutcomeModel(
                 hasWheelspin ? MultiplayerAuthorityFeedbackKind.Success : MultiplayerAuthorityFeedbackKind.Informational,

@@ -123,4 +123,94 @@ public sealed class PrototypeMultiplayerGameplayBridgeTests
         Assert.That(resolution, Is.Not.Null);
         Assert.That(resolution.Result, Is.EqualTo(MatchClaimResolutionKind.RoundClosed));
     }
+
+    [Test]
+    public void TrySubmitBingoClaim_GuestPlayer_RoutesClaimThroughAuthorityBoundary()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerGameplayBridge bridge = new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1");
+        controller.EnsureLocalLobby(
+            "host_1",
+            "Host",
+            0,
+            0,
+            2,
+            10,
+            new[]
+            {
+                new LocalAuthoritativeMatchParticipant
+                {
+                    PlayerId = "guest_1",
+                    DisplayName = "Guest",
+                    Ready = true
+                }
+            });
+        bridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        MatchCallEvent observedCall = bridge.TryEmitAuthoritativeCall(true);
+
+        MatchClaimResolution claim = bridge.TrySubmitBingoClaim(
+            true,
+            "guest_1",
+            cardIndex: 0,
+            claimCallIndex: 0,
+            newBingoCount: 1,
+            markedCellKeys: new[] { "0:0" },
+            claimedNumbers: new[] { observedCall.CalledNumber });
+
+        Assert.That(claim, Is.Not.Null);
+        Assert.That(claim.Result, Is.EqualTo(MatchClaimResolutionKind.Accepted));
+        Assert.That(claim.PlayerId, Is.EqualTo("guest_1"));
+        Assert.That(controller.SessionFacade.ClaimLog[0].PlayerId, Is.EqualTo("guest_1"));
+    }
+
+    [Test]
+    public void TryPublishRoundEnd_WithGuestWheelspinEntitlement_PreservesExplicitRecipient()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerGameplayBridge bridge = new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1");
+        controller.EnsureLocalLobby(
+            "host_1",
+            "Host",
+            0,
+            0,
+            2,
+            10,
+            new[]
+            {
+                new LocalAuthoritativeMatchParticipant
+                {
+                    PlayerId = "guest_1",
+                    DisplayName = "Guest",
+                    Ready = true
+                }
+            });
+        bridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+
+        bool published = bridge.TryPublishRoundEnd(
+            false,
+            BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
+            new[] { "guest_1" });
+
+        Assert.That(published, Is.True);
+        Assert.That(controller.SessionFacade.MatchEndLog.Count, Is.EqualTo(1));
+        Assert.That(controller.SessionFacade.MatchEndLog[0].WheelspinEntitledPlayerIds, Is.EquivalentTo(new[] { "guest_1" }));
+    }
+
+    [Test]
+    public void TryResolvePostRoundHandoff_AfterWheelspinEnd_CompletesPendingState()
+    {
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController();
+        PrototypeMultiplayerGameplayBridge bridge = new PrototypeMultiplayerGameplayBridge(controller, controller, "host_1");
+        bridge.BeginAuthoritativeRound("Host", 0, 0, 2, 10, 99, 30, 1f);
+        bridge.TryPublishRoundEnd(
+            false,
+            BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
+            hostEarnedWheelspin: true);
+
+        MatchEndEvent resolved = bridge.TryResolvePostRoundHandoff("host_1");
+
+        Assert.That(resolved, Is.Not.Null);
+        Assert.That(resolved.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(resolved.ResolvedWheelspinPlayerId, Is.EqualTo("host_1"));
+    }
 }

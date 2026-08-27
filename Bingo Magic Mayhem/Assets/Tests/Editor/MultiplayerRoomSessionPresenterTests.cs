@@ -248,6 +248,36 @@ public sealed class MultiplayerRoomSessionPresenterTests
     }
 
     [Test]
+    public void Build_RoundEndedWithPartialJackpotResolution_ShowsRemainingQueuedPlayers()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 42,
+            MaxCallCount = 30,
+            AutoCallIntervalSeconds = 1f
+        });
+        facade.PublishMatchEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."),
+            new[] { "host_1", "guest_1" });
+        facade.ResolvePostRoundHandoff("host_1");
+
+        MultiplayerRoomSessionDisplayModel model = MultiplayerRoomSessionPresenter.Build(facade);
+
+        Assert.That(model.PostRoundSequenceState, Is.EqualTo(MultiplayerPostRoundSequenceState.JackpotPending));
+        Assert.That(model.JackpotHandoffLabel, Does.Contain("host_1"));
+        Assert.That(model.JackpotHandoffLabel, Does.Contain("1 player still queued"));
+    }
+
+    [Test]
     public void Build_FromSnapshot_PreservesLobbyPresentationWithoutFacadeBinding()
     {
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();

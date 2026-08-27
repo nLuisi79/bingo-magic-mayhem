@@ -35,6 +35,14 @@ namespace BingoMagicMayhem.Multiplayer
         RoundClosed = 3
     }
 
+    public enum MultiplayerPostRoundHandoffState
+    {
+        None = 0,
+        NoJackpot = 1,
+        JackpotPending = 2,
+        JackpotCompleted = 3
+    }
+
     public sealed class MultiplayerParticipantSnapshot
     {
         public string PlayerId = "";
@@ -84,6 +92,9 @@ namespace BingoMagicMayhem.Multiplayer
         public int CurrentCallIndex = -1;
         public string PendingEndReason = "";
         public string EndedReason = "";
+        public MultiplayerPostRoundHandoffState PostRoundHandoffState = MultiplayerPostRoundHandoffState.None;
+        public string ResolvedWheelspinPlayerId = "";
+        public int PendingWheelspinEntitlementCount;
     }
 
     public sealed class MatchCallEvent
@@ -123,7 +134,11 @@ namespace BingoMagicMayhem.Multiplayer
         public BingoMagicMayhem.Rounds.BingoRoundEndReasonKind EndReasonKind = BingoMagicMayhem.Rounds.BingoRoundEndReasonKind.None;
         public string EndReason = "";
         public int FinalCallIndex = -1;
+        public MultiplayerPostRoundHandoffState HandoffState = MultiplayerPostRoundHandoffState.None;
+        public string ResolvedWheelspinPlayerId = "";
+        public int PendingWheelspinEntitlementCount;
         public readonly List<string> WheelspinEntitledPlayerIds = new List<string>();
+        public readonly List<string> ResolvedWheelspinPlayerIds = new List<string>();
     }
 
     public interface IMultiplayerSessionFacade
@@ -144,6 +159,7 @@ namespace BingoMagicMayhem.Multiplayer
         MatchCallEvent RegisterObservedCall(int calledNumber, long emittedUtcTicks = 0);
         MatchClaimResolution ResolveClaim(MatchClaimAttempt attempt);
         MatchEndEvent PublishMatchEnd(BingoMagicMayhem.Rounds.BingoRoundEndDecision decision, IEnumerable<string> wheelspinEntitledPlayerIds);
+        MatchEndEvent ResolvePostRoundHandoff(string resolvedPlayerId);
     }
 
     /// <summary>
@@ -227,6 +243,8 @@ namespace BingoMagicMayhem.Multiplayer
         MatchEndEvent PublishRoundEnd(
             BingoMagicMayhem.Rounds.BingoRoundEndDecision decision,
             IReadOnlyList<string> wheelspinEntitledPlayerIds);
+
+        MatchEndEvent ResolvePostRoundHandoff(string resolvedPlayerId);
     }
 
     /// <summary>
@@ -350,6 +368,13 @@ namespace BingoMagicMayhem.Multiplayer
                 throw new InvalidOperationException("Cannot return room to lobby while an authoritative round is still active.");
             }
 
+            if (CurrentMatch != null
+                && CurrentMatch.State == MatchAuthorityLifecycleState.Ended
+                && CurrentMatch.PostRoundHandoffState == MultiplayerPostRoundHandoffState.JackpotPending)
+            {
+                throw new InvalidOperationException("Cannot return room to lobby while jackpot handoff is still pending.");
+            }
+
             CurrentRoom.State = MultiplayerRoomLifecycleState.Lobby;
             CurrentMatch = null;
             callLog.Clear();
@@ -417,7 +442,10 @@ namespace BingoMagicMayhem.Multiplayer
                 AutoCallIntervalSeconds = Mathf.Max(0.1f, request?.AutoCallIntervalSeconds ?? 1f),
                 CurrentCallIndex = -1,
                 PendingEndReason = "",
-                EndedReason = ""
+                EndedReason = "",
+                PostRoundHandoffState = MultiplayerPostRoundHandoffState.None,
+                ResolvedWheelspinPlayerId = "",
+                PendingWheelspinEntitlementCount = 0
             };
 
             CurrentRoom.State = MultiplayerRoomLifecycleState.MatchInProgress;
@@ -509,9 +537,17 @@ namespace BingoMagicMayhem.Multiplayer
                 return resolution;
             }
 
-            if (FindParticipant(attempt.PlayerId) == null)
+            MultiplayerParticipantSnapshot claimingParticipant = FindParticipant(attempt.PlayerId);
+            if (claimingParticipant == null)
             {
                 resolution.Reason = "Claiming player is not present in the active room.";
+                claimLog.Add(resolution);
+                return resolution;
+            }
+
+            if (!claimingParticipant.IsConnected)
+            {
+                resolution.Reason = "Claiming player is not currently connected.";
                 claimLog.Add(resolution);
                 return resolution;
             }
@@ -608,11 +644,119 @@ namespace BingoMagicMayhem.Multiplayer
                 }
             }
 
+            endEvent.PendingWheelspinEntitlementCount = endEvent.WheelspinEntitledPlayerIds.Count;
+            endEvent.HandoffState = endEvent.PendingWheelspinEntitlementCount > 0
+                ? MultiplayerPostRoundHandoffState.JackpotPending
+                : MultiplayerPostRoundHandoffState.NoJackpot;
+
             CurrentMatch.State = MatchAuthorityLifecycleState.Ended;
             CurrentMatch.EndedReason = endEvent.EndReason;
+            CurrentMatch.PostRoundHandoffState = endEvent.HandoffState;
+            CurrentMatch.ResolvedWheelspinPlayerId = "";
+            CurrentMatch.PendingWheelspinEntitlementCount = endEvent.PendingWheelspinEntitlementCount;
             CurrentRoom.State = MultiplayerRoomLifecycleState.Closed;
             matchEndLog.Add(endEvent);
-            return endEvent;
+            return CloneMatchEndEvent(endEvent);
+        }
+
+        public MatchEndEvent ResolvePostRoundHandoff(string resolvedPlayerId)
+        {
+            if (CurrentMatch == null || CurrentMatch.State != MatchAuthorityLifecycleState.Ended || matchEndLog.Count <= 0)
+            {
+                return null;
+            }
+
+            MatchEndEvent latestEnd = matchEndLog[matchEndLog.Count - 1];
+            if (latestEnd == null)
+            {
+                return null;
+            }
+
+            if (latestEnd.HandoffState == MultiplayerPostRoundHandoffState.NoJackpot
+                || latestEnd.HandoffState == MultiplayerPostRoundHandoffState.JackpotCompleted)
+            {
+                return CloneMatchEndEvent(latestEnd);
+            }
+
+            if (string.IsNullOrEmpty(resolvedPlayerId))
+            {
+                return null;
+            }
+
+            for (int index = 0; index < latestEnd.ResolvedWheelspinPlayerIds.Count; index++)
+            {
+                if (string.Equals(latestEnd.ResolvedWheelspinPlayerIds[index], resolvedPlayerId, StringComparison.Ordinal))
+                {
+                    return CloneMatchEndEvent(latestEnd);
+                }
+            }
+
+            bool isEntitledPlayer = false;
+            for (int index = 0; index < latestEnd.WheelspinEntitledPlayerIds.Count; index++)
+            {
+                if (string.Equals(latestEnd.WheelspinEntitledPlayerIds[index], resolvedPlayerId, StringComparison.Ordinal))
+                {
+                    isEntitledPlayer = true;
+                    break;
+                }
+            }
+
+            if (!isEntitledPlayer)
+            {
+                return null;
+            }
+
+            latestEnd.ResolvedWheelspinPlayerIds.Add(resolvedPlayerId);
+            latestEnd.ResolvedWheelspinPlayerId = resolvedPlayerId;
+            latestEnd.PendingWheelspinEntitlementCount = Math.Max(
+                0,
+                latestEnd.WheelspinEntitledPlayerIds.Count - latestEnd.ResolvedWheelspinPlayerIds.Count);
+            latestEnd.HandoffState = latestEnd.PendingWheelspinEntitlementCount > 0
+                ? MultiplayerPostRoundHandoffState.JackpotPending
+                : MultiplayerPostRoundHandoffState.JackpotCompleted;
+            CurrentMatch.PostRoundHandoffState = latestEnd.HandoffState;
+            CurrentMatch.ResolvedWheelspinPlayerId = resolvedPlayerId;
+            CurrentMatch.PendingWheelspinEntitlementCount = latestEnd.PendingWheelspinEntitlementCount;
+            return CloneMatchEndEvent(latestEnd);
+        }
+
+        private static MatchEndEvent CloneMatchEndEvent(MatchEndEvent source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            MatchEndEvent clone = new MatchEndEvent
+            {
+                MatchId = source.MatchId ?? "",
+                EndReasonKind = source.EndReasonKind,
+                EndReason = source.EndReason ?? "",
+                FinalCallIndex = source.FinalCallIndex,
+                HandoffState = source.HandoffState,
+                ResolvedWheelspinPlayerId = source.ResolvedWheelspinPlayerId ?? "",
+                PendingWheelspinEntitlementCount = source.PendingWheelspinEntitlementCount
+            };
+
+            for (int index = 0; index < source.WheelspinEntitledPlayerIds.Count; index++)
+            {
+                string playerId = source.WheelspinEntitledPlayerIds[index];
+                if (!string.IsNullOrEmpty(playerId))
+                {
+                    clone.WheelspinEntitledPlayerIds.Add(playerId);
+                }
+            }
+
+            for (int index = 0; index < source.ResolvedWheelspinPlayerIds.Count; index++)
+            {
+                string playerId = source.ResolvedWheelspinPlayerIds[index];
+                if (!string.IsNullOrEmpty(playerId))
+                {
+                    clone.ResolvedWheelspinPlayerIds.Add(playerId);
+                }
+            }
+
+            return clone;
         }
 
         private MultiplayerParticipantSnapshot FindParticipant(string playerId)

@@ -122,7 +122,10 @@ namespace BingoMagicMayhem.Multiplayer
                 AutoCallIntervalSeconds = match.AutoCallIntervalSeconds,
                 CurrentCallIndex = match.CurrentCallIndex,
                 PendingEndReason = match.PendingEndReason ?? "",
-                EndedReason = match.EndedReason ?? ""
+                EndedReason = match.EndedReason ?? "",
+                PostRoundHandoffState = match.PostRoundHandoffState,
+                ResolvedWheelspinPlayerId = match.ResolvedWheelspinPlayerId ?? "",
+                PendingWheelspinEntitlementCount = match.PendingWheelspinEntitlementCount
             };
         }
 
@@ -199,7 +202,10 @@ namespace BingoMagicMayhem.Multiplayer
                     MatchId = end.MatchId ?? "",
                     EndReasonKind = end.EndReasonKind,
                     EndReason = end.EndReason ?? "",
-                    FinalCallIndex = end.FinalCallIndex
+                    FinalCallIndex = end.FinalCallIndex,
+                    HandoffState = end.HandoffState,
+                    ResolvedWheelspinPlayerId = end.ResolvedWheelspinPlayerId ?? "",
+                    PendingWheelspinEntitlementCount = end.PendingWheelspinEntitlementCount
                 };
 
                 for (int wheelspinIndex = 0; wheelspinIndex < end.WheelspinEntitledPlayerIds.Count; wheelspinIndex++)
@@ -208,6 +214,15 @@ namespace BingoMagicMayhem.Multiplayer
                     if (!string.IsNullOrEmpty(playerId))
                     {
                         clone.WheelspinEntitledPlayerIds.Add(playerId);
+                    }
+                }
+
+                for (int resolvedIndex = 0; resolvedIndex < end.ResolvedWheelspinPlayerIds.Count; resolvedIndex++)
+                {
+                    string playerId = end.ResolvedWheelspinPlayerIds[resolvedIndex];
+                    if (!string.IsNullOrEmpty(playerId))
+                    {
+                        clone.ResolvedWheelspinPlayerIds.Add(playerId);
                     }
                 }
 

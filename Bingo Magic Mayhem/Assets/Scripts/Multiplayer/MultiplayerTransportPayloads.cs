@@ -88,6 +88,10 @@ namespace BingoMagicMayhem.Multiplayer
         public BingoMagicMayhem.Rounds.BingoRoundEndReasonKind EndReasonKind = BingoMagicMayhem.Rounds.BingoRoundEndReasonKind.None;
         public string EndReason = "";
         public int FinalCallIndex = -1;
+        public MultiplayerPostRoundHandoffState HandoffState = MultiplayerPostRoundHandoffState.None;
+        public string ResolvedWheelspinPlayerId = "";
+        public int PendingWheelspinEntitlementCount;
         public readonly List<string> WheelspinEntitledPlayerIds = new List<string>();
+        public readonly List<string> ResolvedWheelspinPlayerIds = new List<string>();
     }
 }

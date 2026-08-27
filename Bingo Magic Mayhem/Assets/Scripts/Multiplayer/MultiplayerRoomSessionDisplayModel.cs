@@ -28,7 +28,8 @@ namespace BingoMagicMayhem.Multiplayer
         RoundActive = 1,
         RoundEnded = 2,
         JackpotPending = 3,
-        JackpotNotEligible = 4
+        JackpotNotEligible = 4,
+        JackpotCompleted = 5
     }
 
     public sealed class MultiplayerRoomParticipantDisplayModel

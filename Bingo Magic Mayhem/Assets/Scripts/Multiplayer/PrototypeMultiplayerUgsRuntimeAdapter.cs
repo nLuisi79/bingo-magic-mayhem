@@ -166,5 +166,10 @@ namespace BingoMagicMayhem.Multiplayer
         {
             return localFallbackRuntime.MatchAuthorityService.PublishRoundEnd(decision, wheelspinEntitledPlayerIds);
         }
+
+        public MatchEndEvent ResolvePostRoundHandoff(string resolvedPlayerId)
+        {
+            return localFallbackRuntime.MatchAuthorityService.ResolvePostRoundHandoff(resolvedPlayerId);
+        }
     }
 }

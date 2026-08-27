@@ -250,7 +250,10 @@ namespace BingoMagicMayhem.Multiplayer
                 MatchId = payload?.MatchId ?? "",
                 EndReasonKind = payload?.EndReasonKind ?? BingoMagicMayhem.Rounds.BingoRoundEndReasonKind.None,
                 EndReason = payload?.EndReason ?? "",
-                FinalCallIndex = payload?.FinalCallIndex ?? -1
+                FinalCallIndex = payload?.FinalCallIndex ?? -1,
+                HandoffState = payload?.HandoffState ?? MultiplayerPostRoundHandoffState.None,
+                ResolvedWheelspinPlayerId = payload?.ResolvedWheelspinPlayerId ?? "",
+                PendingWheelspinEntitlementCount = payload?.PendingWheelspinEntitlementCount ?? 0
             };
 
             if (payload != null)
@@ -263,6 +266,15 @@ namespace BingoMagicMayhem.Multiplayer
                         endEvent.WheelspinEntitledPlayerIds.Add(playerId);
                     }
                 }
+
+                for (int index = 0; index < payload.ResolvedWheelspinPlayerIds.Count; index++)
+                {
+                    string playerId = payload.ResolvedWheelspinPlayerIds[index];
+                    if (!string.IsNullOrEmpty(playerId))
+                    {
+                        endEvent.ResolvedWheelspinPlayerIds.Add(playerId);
+                    }
+                }
             }
 
             mirroredMatchEnds.Add(endEvent);
@@ -271,6 +283,9 @@ namespace BingoMagicMayhem.Multiplayer
                 MirroredMatch.State = MatchAuthorityLifecycleState.Ended;
                 MirroredMatch.EndedReason = endEvent.EndReason;
                 MirroredMatch.CurrentCallIndex = endEvent.FinalCallIndex;
+                MirroredMatch.PostRoundHandoffState = endEvent.HandoffState;
+                MirroredMatch.ResolvedWheelspinPlayerId = endEvent.ResolvedWheelspinPlayerId;
+                MirroredMatch.PendingWheelspinEntitlementCount = endEvent.PendingWheelspinEntitlementCount;
             }
 
             if (MirroredRoom != null)
@@ -422,7 +437,13 @@ namespace BingoMagicMayhem.Multiplayer
                 return "match_end:null";
             }
 
-            return $"match_end:{payload.MatchId}:{payload.EndReasonKind}:{payload.FinalCallIndex}:{payload.EndReason}";
+            string resolvedPlayerSignature = "";
+            for (int index = 0; index < payload.ResolvedWheelspinPlayerIds.Count; index++)
+            {
+                resolvedPlayerSignature += $":{payload.ResolvedWheelspinPlayerIds[index]}";
+            }
+
+            return $"match_end:{payload.MatchId}:{payload.EndReasonKind}:{payload.FinalCallIndex}:{payload.EndReason}:{payload.HandoffState}:{payload.ResolvedWheelspinPlayerId}:{payload.PendingWheelspinEntitlementCount}:{resolvedPlayerSignature}";
         }
     }
 }

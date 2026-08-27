@@ -67,7 +67,7 @@ Later:
 
 ### Daily and Hourly Rewards
 
-Status: Prototype pass in progress.
+Status: Not implemented.
 
 Primary role:
 - Return incentives and light resource drip.
@@ -76,28 +76,9 @@ First v0.1 scope:
 - Daily claim timer.
 - Hourly claim timer.
 - Rewards can include mana, crystals, Clairvoyance minutes, Pandora Sigil, power-ups, and card packs.
-- Daily Bonus is a simple 7-day claim loop.
-- The claimable day button should read "Claim"; "today" is implied.
-- Day 7 is a Daily Bonus Chest.
-- A separate compact streak rail tracks the player's true running daily streak.
-- Streak chest milestones: day 7, day 14, day 30, day 60, day 100, day 180, and day 365.
-- Streak chest labels: 7 days = Small Streak Chest; 14 days = Better Streak Chest; 30 days = Major Streak Chest; 60 days = Rare Streak Chest; 100 days = Legendary Streak Chest plus cosmetic/badge; 180 days = Grand Loyalty Chest; 365 days = Annual Mayhem Chest plus exclusive title.
-- Missing a day can be protected by a streak save.
-- The first streak save is free.
-- After the free save is consumed, streak saves cost crystals.
-- Streak save cost ladder: 1st save free; 2nd save 50 crystals; 3rd save 100 crystals; 4th save 200 crystals; 5th and later saves 300+ crystals or capped.
-- Consider a monthly or seasonal reset on streak-save cost so the system does not become permanently punishing.
-- Only prompt the player to spend crystals if the streak is meaningful enough.
-- Streak-save details should not clutter the main Daily Bonus modal; they belong behind the info icon or a recovery prompt when needed.
-- The Daily Bonus info icon owns explanatory text so the main screen can stay focused on the 7-day cards.
 
 Design note:
 - Realm ingredients should primarily come from Realm gameplay, not generic login rewards, unless a special event explicitly does that.
-- Daily Bonus, daily spin, Freebies, Realm income, and Enchanted Trail are separate reward loops.
-- Daily Spin is a separate daily free wheel/spinner style reward, not the same thing as Daily Bonus.
-- Freebies are official channel links such as Facebook, Instagram, and Website; rewards from those links return through Inbox > Gifts.
-- Restored Realm income is collected through the Den/Cauldron style loop, not the Daily Bonus modal.
-- Exact Day 7 chest contents are not locked yet; current code contents are prototype placeholders.
 
 ### Enchanted Trail
 

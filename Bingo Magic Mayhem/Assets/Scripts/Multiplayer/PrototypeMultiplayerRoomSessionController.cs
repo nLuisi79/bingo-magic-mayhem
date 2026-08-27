@@ -330,6 +330,19 @@ namespace BingoMagicMayhem.Multiplayer
             return endEvent;
         }
 
+        public MatchEndEvent ResolvePostRoundHandoff(string resolvedPlayerId)
+        {
+            MatchEndEvent endEvent = authorityBridge.ResolvePrototypePostRoundHandoff(resolvedPlayerId);
+            if (endEvent == null)
+            {
+                return null;
+            }
+
+            syncAdapter.PublishRoomSync(BuildRoomSyncPayload());
+            syncAdapter.PublishMatchEnd(BuildMatchEndPayload(endEvent));
+            return endEvent;
+        }
+
         public MultiplayerMatchEndPayload BuildMatchEndPayload(MatchEndEvent endEvent)
         {
             return MultiplayerTransportPayloadFactory.BuildMatchEndPayload(endEvent);

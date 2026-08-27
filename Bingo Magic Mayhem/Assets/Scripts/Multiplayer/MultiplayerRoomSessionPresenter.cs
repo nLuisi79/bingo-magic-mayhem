@@ -63,7 +63,7 @@ namespace BingoMagicMayhem.Multiplayer
             MatchClaimResolution lastClaim = snapshot.ClaimLog.Count > 0 ? snapshot.ClaimLog[snapshot.ClaimLog.Count - 1] : null;
             MatchEndEvent lastEnd = snapshot.MatchEndLog.Count > 0 ? snapshot.MatchEndLog[snapshot.MatchEndLog.Count - 1] : null;
             MultiplayerClaimPresentationState claimPresentationState = BuildClaimPresentationState(lastClaim);
-            MultiplayerPostRoundSequenceState postRoundSequenceState = BuildPostRoundSequenceState(gameplayFlowState, lastEnd);
+            MultiplayerPostRoundSequenceState postRoundSequenceState = BuildPostRoundSequenceState(gameplayFlowState, match, lastEnd);
 
             return new MultiplayerRoomSessionDisplayModel(
                 room.RoomId,
@@ -381,6 +381,7 @@ namespace BingoMagicMayhem.Multiplayer
 
         private static MultiplayerPostRoundSequenceState BuildPostRoundSequenceState(
             MultiplayerGameplayFlowState gameplayFlowState,
+            MatchAuthorityState match,
             MatchEndEvent lastEnd)
         {
             if (gameplayFlowState == MultiplayerGameplayFlowState.MatchInProgress)
@@ -391,6 +392,12 @@ namespace BingoMagicMayhem.Multiplayer
             if (lastEnd == null)
             {
                 return MultiplayerPostRoundSequenceState.None;
+            }
+
+            if (match?.PostRoundHandoffState == MultiplayerPostRoundHandoffState.JackpotCompleted
+                || lastEnd.HandoffState == MultiplayerPostRoundHandoffState.JackpotCompleted)
+            {
+                return MultiplayerPostRoundSequenceState.JackpotCompleted;
             }
 
             if (lastEnd.WheelspinEntitledPlayerIds.Count > 0)
@@ -408,10 +415,34 @@ namespace BingoMagicMayhem.Multiplayer
                 return "No jackpot handoff pending.";
             }
 
+            int resolvedCount = lastEnd.ResolvedWheelspinPlayerIds.Count;
+            int pendingCount = lastEnd.PendingWheelspinEntitlementCount;
+
+            if (lastEnd.HandoffState == MultiplayerPostRoundHandoffState.JackpotCompleted)
+            {
+                if (resolvedCount > 1)
+                {
+                    return $"Round ended. Jackpot handoff completed for {resolvedCount} players.";
+                }
+
+                return string.IsNullOrEmpty(lastEnd.ResolvedWheelspinPlayerId)
+                    ? "Round ended. Jackpot handoff completed."
+                    : $"Round ended. Jackpot handoff completed for {lastEnd.ResolvedWheelspinPlayerId}.";
+            }
+
             int entitledCount = lastEnd.WheelspinEntitledPlayerIds.Count;
             if (entitledCount <= 0)
             {
                 return "Round ended with no wheelspin entitlements queued.";
+            }
+
+            if (resolvedCount > 0 && pendingCount > 0)
+            {
+                string completedSummary = string.IsNullOrEmpty(lastEnd.ResolvedWheelspinPlayerId)
+                    ? $"{resolvedCount} player"
+                    : lastEnd.ResolvedWheelspinPlayerId;
+                string pendingSummary = pendingCount == 1 ? "1 player still queued" : $"{pendingCount} players still queued";
+                return $"Round ended. Jackpot handoff completed for {completedSummary}; {pendingSummary}.";
             }
 
             return entitledCount == 1

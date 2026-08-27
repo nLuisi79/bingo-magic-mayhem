@@ -99,6 +99,11 @@ namespace BingoMagicMayhem.Multiplayer
             return simulator.EndMatch(decision, wheelspinEntitledPlayerIds);
         }
 
+        public MatchEndEvent ResolvePrototypePostRoundHandoff(string resolvedPlayerId)
+        {
+            return simulator.ResolvePostRoundHandoff(resolvedPlayerId);
+        }
+
         public LocalAuthoritativeMatchSummary BuildSummary()
         {
             return simulator.BuildSummary();

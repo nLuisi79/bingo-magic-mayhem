@@ -146,6 +146,11 @@ namespace BingoMagicMayhem.Multiplayer
             return sessionFacade.PublishMatchEnd(decision, wheelspinEntitledPlayerIds);
         }
 
+        public MatchEndEvent ResolvePostRoundHandoff(string resolvedPlayerId)
+        {
+            return sessionFacade.ResolvePostRoundHandoff(resolvedPlayerId);
+        }
+
         public LocalAuthoritativeMatchSummary BuildSummary()
         {
             IReadOnlyList<MatchCallEvent> calls = sessionFacade.CallLog;

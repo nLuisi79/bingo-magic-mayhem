@@ -68,13 +68,13 @@ namespace BingoMagicMayhem.UI.RoomEntry
             }
         }
 
-        public void Apply(RoomEntryCardOptionDisplayModel displayModel, Color backgroundColor)
+        public void Apply(RoomEntryCardOptionDisplayModel displayModel)
         {
             cardCount = displayModel.CardCount;
 
             if (background != null)
             {
-                background.color = backgroundColor;
+                background.color = displayModel.BackgroundColor;
             }
 
             if (titleText != null)
@@ -100,6 +100,13 @@ namespace BingoMagicMayhem.UI.RoomEntry
             if (actionButton != null)
             {
                 actionButton.interactable = displayModel.CanPlay;
+                ColorBlock colors = actionButton.colors;
+                colors.normalColor = displayModel.ActionButtonColor;
+                colors.highlightedColor = displayModel.ActionButtonColor;
+                colors.selectedColor = displayModel.ActionButtonColor;
+                colors.pressedColor = displayModel.ActionButtonColor * 0.9f;
+                colors.disabledColor = displayModel.ActionButtonColor;
+                actionButton.colors = colors;
             }
 
             if (actionButtonText != null)

@@ -91,18 +91,41 @@ namespace BingoMagicMayhem.Multiplayer
             IReadOnlyList<string> markedCellKeys,
             IReadOnlyList<int> claimedNumbers)
         {
+            return TrySubmitBingoClaim(
+                roundIsActive,
+                hostPlayerId,
+                cardIndex,
+                claimCallIndex,
+                newBingoCount,
+                markedCellKeys,
+                claimedNumbers);
+        }
+
+        public MatchClaimResolution TrySubmitBingoClaim(
+            bool roundIsActive,
+            string playerId,
+            int cardIndex,
+            int claimCallIndex,
+            int newBingoCount,
+            IReadOnlyList<string> markedCellKeys,
+            IReadOnlyList<int> claimedNumbers,
+            string idempotencyKey = null)
+        {
             if (!roundIsActive)
             {
                 return null;
             }
 
+            string resolvedPlayerId = ResolvePlayerId(playerId);
             return matchAuthorityService.SubmitBingoClaim(
-                hostPlayerId,
+                resolvedPlayerId,
                 cardIndex,
                 claimCallIndex,
                 markedCellKeys,
                 claimedNumbers,
-                BuildBingoClaimIdempotencyKey(cardIndex, newBingoCount, claimCallIndex));
+                string.IsNullOrEmpty(idempotencyKey)
+                    ? BuildBingoClaimIdempotencyKey(resolvedPlayerId, cardIndex, newBingoCount, claimCallIndex)
+                    : idempotencyKey);
         }
 
         public MatchClaimResolution TrySubmitJackpotStateClaim(
@@ -111,17 +134,36 @@ namespace BingoMagicMayhem.Multiplayer
             int claimCallIndex,
             IReadOnlyList<int> claimedNumbers)
         {
+            return TrySubmitJackpotStateClaim(
+                roundIsActive,
+                hostPlayerId,
+                cardIndex,
+                claimCallIndex,
+                claimedNumbers);
+        }
+
+        public MatchClaimResolution TrySubmitJackpotStateClaim(
+            bool roundIsActive,
+            string playerId,
+            int cardIndex,
+            int claimCallIndex,
+            IReadOnlyList<int> claimedNumbers,
+            string idempotencyKey = null)
+        {
             if (!roundIsActive)
             {
                 return null;
             }
 
+            string resolvedPlayerId = ResolvePlayerId(playerId);
             return matchAuthorityService.SubmitJackpotStateClaim(
-                hostPlayerId,
+                resolvedPlayerId,
                 cardIndex,
                 claimCallIndex,
                 claimedNumbers,
-                BuildJackpotClaimIdempotencyKey(cardIndex, claimCallIndex));
+                string.IsNullOrEmpty(idempotencyKey)
+                    ? BuildJackpotClaimIdempotencyKey(resolvedPlayerId, cardIndex, claimCallIndex)
+                    : idempotencyKey);
         }
 
         public bool TryPublishRoundEnd(
@@ -129,31 +171,65 @@ namespace BingoMagicMayhem.Multiplayer
             BingoMagicMayhem.Rounds.BingoRoundEndDecision decision,
             bool hostEarnedWheelspin)
         {
+            IReadOnlyList<string> explicitEntitledPlayerIds = hostEarnedWheelspin
+                ? new[] { hostPlayerId }
+                : Array.Empty<string>();
+
+            return TryPublishRoundEnd(alreadyPublished, decision, explicitEntitledPlayerIds);
+        }
+
+        public bool TryPublishRoundEnd(
+            bool alreadyPublished,
+            BingoMagicMayhem.Rounds.BingoRoundEndDecision decision,
+            IReadOnlyList<string> wheelspinEntitledPlayerIds)
+        {
             if (alreadyPublished)
             {
                 return false;
             }
 
-            List<string> wheelspinEntitledPlayerIds = new List<string>();
-            if (hostEarnedWheelspin)
+            List<string> resolvedEntitledPlayerIds = new List<string>();
+            if (wheelspinEntitledPlayerIds != null)
             {
-                wheelspinEntitledPlayerIds.Add(hostPlayerId);
+                for (int index = 0; index < wheelspinEntitledPlayerIds.Count; index++)
+                {
+                    string resolvedPlayerId = ResolvePlayerId(wheelspinEntitledPlayerIds[index]);
+                    if (!resolvedEntitledPlayerIds.Contains(resolvedPlayerId))
+                    {
+                        resolvedEntitledPlayerIds.Add(resolvedPlayerId);
+                    }
+                }
             }
 
             matchAuthorityService.PublishRoundEnd(
                 decision ?? new BingoMagicMayhem.Rounds.BingoRoundEndDecision(BingoMagicMayhem.Rounds.BingoRoundEndReasonKind.None, "", ""),
-                wheelspinEntitledPlayerIds);
+                resolvedEntitledPlayerIds);
             return true;
         }
 
-        private static string BuildBingoClaimIdempotencyKey(int cardIndex, int newBingoCount, int claimCallIndex)
+        public MatchEndEvent TryResolvePostRoundHandoff(string resolvedPlayerId)
         {
-            return $"prototype_bingo:{cardIndex}:{newBingoCount}:{claimCallIndex}";
+            if (string.IsNullOrEmpty(resolvedPlayerId))
+            {
+                return null;
+            }
+
+            return matchAuthorityService.ResolvePostRoundHandoff(resolvedPlayerId);
         }
 
-        private static string BuildJackpotClaimIdempotencyKey(int cardIndex, int claimCallIndex)
+        private string ResolvePlayerId(string playerId)
         {
-            return $"prototype_jackpot:{cardIndex}:{claimCallIndex}";
+            return string.IsNullOrEmpty(playerId) ? hostPlayerId : playerId;
+        }
+
+        private static string BuildBingoClaimIdempotencyKey(string playerId, int cardIndex, int newBingoCount, int claimCallIndex)
+        {
+            return $"prototype_bingo:{playerId}:{cardIndex}:{newBingoCount}:{claimCallIndex}";
+        }
+
+        private static string BuildJackpotClaimIdempotencyKey(string playerId, int cardIndex, int claimCallIndex)
+        {
+            return $"prototype_jackpot:{playerId}:{cardIndex}:{claimCallIndex}";
         }
     }
 }

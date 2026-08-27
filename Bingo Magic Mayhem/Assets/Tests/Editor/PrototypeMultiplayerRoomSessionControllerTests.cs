@@ -191,7 +191,7 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         controller.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
         controller.PublishRoundEnd(
             BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
-            new[] { "host_1" });
+            System.Array.Empty<string>());
 
         MultiplayerRoomSnapshot room = controller.ReturnCurrentRoomToLobby();
 
@@ -199,6 +199,58 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         Assert.That(controller.SessionFacade.CurrentMatch, Is.Null);
         Assert.That(adapter.LatestRoomSync.RoomState, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
         Assert.That(adapter.RoomSyncLog.Count, Is.GreaterThanOrEqualTo(4));
+    }
+
+    [Test]
+    public void ResolvePostRoundHandoff_PublishesUpdatedLifecyclePayloadAndAllowsReplay()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(
+            new LocalMultiplayerSessionFacade(),
+            adapter);
+
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        controller.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
+        controller.PublishRoundEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1" });
+
+        MatchEndEvent resolved = controller.ResolvePostRoundHandoff("host_1");
+        MultiplayerRoomSnapshot room = controller.ReturnCurrentRoomToLobby();
+
+        Assert.That(resolved, Is.Not.Null);
+        Assert.That(resolved.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(adapter.LatestMatchEnd.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(adapter.LatestRoomSync.RoomState, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+        Assert.That(room.State, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+    }
+
+    [Test]
+    public void ResolvePostRoundHandoff_WithMultipleEntitledPlayers_PublishesProgressiveState()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(
+            new LocalMultiplayerSessionFacade(),
+            adapter);
+
+        controller.EnsureHostReady("host_1", "Host", 0, 0, 2, 10);
+        controller.AddOrUpdateLocalParticipant("guest_1", "Guest", true);
+        controller.BeginLocalAuthoritativeRound("host_1", "Host", 0, 0, 2, 10, 99, 30, 1f);
+        controller.PublishRoundEnd(
+            BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1", "guest_1" });
+
+        MatchEndEvent firstResolution = controller.ResolvePostRoundHandoff("host_1");
+        MatchEndEvent secondResolution = controller.ResolvePostRoundHandoff("guest_1");
+
+        Assert.That(firstResolution, Is.Not.Null);
+        Assert.That(firstResolution.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotPending));
+        Assert.That(firstResolution.PendingWheelspinEntitlementCount, Is.EqualTo(1));
+        Assert.That(adapter.MatchEndLog[1].ResolvedWheelspinPlayerIds, Is.EquivalentTo(new[] { "host_1" }));
+        Assert.That(secondResolution, Is.Not.Null);
+        Assert.That(secondResolution.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(adapter.LatestMatchEnd.ResolvedWheelspinPlayerIds, Is.EquivalentTo(new[] { "host_1", "guest_1" }));
     }
 
     [Test]
@@ -315,5 +367,57 @@ public sealed class PrototypeMultiplayerRoomSessionControllerTests
         Assert.That(adapter.Mirror.MirroredMatch, Is.Null);
         Assert.That(adapter.Mirror.MirroredCalls.Count, Is.EqualTo(0));
         Assert.That(adapter.Mirror.MirroredMatchEnds.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Controller_RemoteMatchEndResolutionUpdate_CompletesMirroredJackpotHandoff()
+    {
+        LocalInMemoryMultiplayerRoomSessionSyncAdapter adapter = new LocalInMemoryMultiplayerRoomSessionSyncAdapter();
+        PrototypeMultiplayerRoomSessionController controller = new PrototypeMultiplayerRoomSessionController(
+            new LocalMultiplayerSessionFacade(),
+            adapter);
+
+        controller.ApplyReceivedRoomSync(new MultiplayerRoomSyncPayload
+        {
+            RoomId = "room_remote",
+            HostPlayerId = "host_remote",
+            RoomState = MultiplayerRoomLifecycleState.Lobby,
+            Participants =
+            {
+                new MultiplayerParticipantSyncPayload { PlayerId = "host_remote", DisplayName = "Host", IsHost = true, IsReady = true, IsConnected = true }
+            }
+        });
+        controller.ApplyReceivedMatchStart(new MultiplayerMatchStartPayload
+        {
+            RoomId = "room_remote",
+            MatchId = "match_remote",
+            HostPlayerId = "host_remote"
+        });
+        controller.ApplyReceivedMatchEnd(new MultiplayerMatchEndPayload
+        {
+            MatchId = "match_remote",
+            EndReasonKind = BingoRoundEndReasonKind.FinalBall,
+            EndReason = "Ended",
+            FinalCallIndex = 0,
+            HandoffState = MultiplayerPostRoundHandoffState.JackpotPending,
+            PendingWheelspinEntitlementCount = 1,
+            WheelspinEntitledPlayerIds = { "host_remote" }
+        });
+        controller.ApplyReceivedMatchEnd(new MultiplayerMatchEndPayload
+        {
+            MatchId = "match_remote",
+            EndReasonKind = BingoRoundEndReasonKind.FinalBall,
+            EndReason = "Ended",
+            FinalCallIndex = 0,
+            HandoffState = MultiplayerPostRoundHandoffState.JackpotCompleted,
+            ResolvedWheelspinPlayerId = "host_remote",
+            PendingWheelspinEntitlementCount = 0,
+            WheelspinEntitledPlayerIds = { "host_remote" }
+        });
+
+        Assert.That(adapter.Mirror.MirroredMatch, Is.Not.Null);
+        Assert.That(adapter.Mirror.MirroredMatch.PostRoundHandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(adapter.Mirror.MirroredMatch.ResolvedWheelspinPlayerId, Is.EqualTo("host_remote"));
+        Assert.That(adapter.Mirror.MirroredMatchEnds.Count, Is.EqualTo(2));
     }
 }

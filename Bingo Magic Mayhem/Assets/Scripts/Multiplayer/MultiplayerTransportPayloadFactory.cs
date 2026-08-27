@@ -194,7 +194,11 @@ namespace BingoMagicMayhem.Multiplayer
             payload.EndReasonKind = endEvent.EndReasonKind;
             payload.EndReason = endEvent.EndReason ?? "";
             payload.FinalCallIndex = endEvent.FinalCallIndex;
+            payload.HandoffState = endEvent.HandoffState;
+            payload.ResolvedWheelspinPlayerId = endEvent.ResolvedWheelspinPlayerId ?? "";
+            payload.PendingWheelspinEntitlementCount = endEvent.PendingWheelspinEntitlementCount;
             AppendRange(payload.WheelspinEntitledPlayerIds, endEvent.WheelspinEntitledPlayerIds);
+            AppendRange(payload.ResolvedWheelspinPlayerIds, endEvent.ResolvedWheelspinPlayerIds);
             return payload;
         }
 

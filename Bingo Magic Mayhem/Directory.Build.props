@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(FrameworkPathOverride)' == '' and Exists('C:\Program Files\Unity\Hub\Editor\6000.4.10f1\Editor\Data\MonoBleedingEdge\lib\mono\4.7.1-api')">
+    <FrameworkPathOverride>C:\Program Files\Unity\Hub\Editor\6000.4.10f1\Editor\Data\MonoBleedingEdge\lib\mono\4.7.1-api</FrameworkPathOverride>
+  </PropertyGroup>
+</Project>

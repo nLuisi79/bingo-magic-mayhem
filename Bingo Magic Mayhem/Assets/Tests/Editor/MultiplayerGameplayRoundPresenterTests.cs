@@ -81,4 +81,32 @@ public sealed class MultiplayerGameplayRoundPresenterTests
         Assert.That(model.PostRoundSummaryLabel, Does.Contain("queued for jackpot wheelspin handoff"));
         Assert.That(model.PostRoundSummaryLabel, Does.Contain("Ended: Max balls reached."));
     }
+
+    [Test]
+    public void Build_RoundEndedAfterResolvedHandoff_SummarizesCompletionState()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 42,
+            MaxCallCount = 30,
+            AutoCallIntervalSeconds = 1f
+        });
+        facade.PublishMatchEnd(BingoRoundEndRules.CreateFinalBallDecision("Max balls reached."), new[] { "guest_1" });
+        facade.ResolvePostRoundHandoff("guest_1");
+
+        MultiplayerRoomSessionDisplayModel sessionModel = MultiplayerRoomSessionPresenter.Build(facade);
+        MultiplayerGameplayRoundDisplayModel model = MultiplayerGameplayRoundPresenter.Build(sessionModel);
+
+        Assert.That(model.PostRoundSummaryLabel, Does.Contain("completed"));
+        Assert.That(model.PostRoundSummaryLabel, Does.Contain("guest_1"));
+    }
 }

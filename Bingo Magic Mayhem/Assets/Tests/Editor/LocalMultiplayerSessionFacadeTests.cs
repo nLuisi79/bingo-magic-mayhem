@@ -131,6 +131,42 @@ public sealed class LocalMultiplayerSessionFacadeTests
     }
 
     [Test]
+    public void ResolveClaim_DisconnectedGuest_IsRejected()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.SetParticipantConnection("guest_1", false);
+        MatchAuthorityState match = facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 79,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1.5f
+        });
+
+        facade.RegisterObservedCall(22, 1000);
+
+        MatchClaimResolution disconnectedClaim = facade.ResolveClaim(new MatchClaimAttempt
+        {
+            MatchId = match.MatchId,
+            PlayerId = "guest_1",
+            ClaimType = MatchClaimType.Bingo,
+            ClaimCallIndex = 0,
+            IdempotencyKey = "disconnected",
+            ClaimedNumbers = { 22 }
+        });
+
+        Assert.That(disconnectedClaim.Result, Is.EqualTo(MatchClaimResolutionKind.Rejected));
+        Assert.That(disconnectedClaim.Reason, Does.Contain("not currently connected"));
+    }
+
+    [Test]
     public void ResolveClaim_BeforeAnyAuthoritativeCall_RejectsFutureCallReference()
     {
         LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
@@ -223,7 +259,10 @@ public sealed class LocalMultiplayerSessionFacadeTests
         Assert.That(endEvent.MatchId, Is.EqualTo(match.MatchId));
         Assert.That(endEvent.EndReasonKind, Is.EqualTo(BingoRoundEndReasonKind.FinalBall));
         Assert.That(endEvent.WheelspinEntitledPlayerIds.Count, Is.EqualTo(1));
+        Assert.That(endEvent.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotPending));
+        Assert.That(endEvent.PendingWheelspinEntitlementCount, Is.EqualTo(1));
         Assert.That(facade.CurrentMatch.State, Is.EqualTo(MatchAuthorityLifecycleState.Ended));
+        Assert.That(facade.CurrentMatch.PostRoundHandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotPending));
         Assert.That(facade.CurrentRoom.State, Is.EqualTo(MultiplayerRoomLifecycleState.Closed));
     }
 
@@ -337,7 +376,7 @@ public sealed class LocalMultiplayerSessionFacadeTests
         facade.RegisterObservedCall(22, 1000);
         facade.PublishMatchEnd(
             BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
-            new[] { "host_1" });
+            Array.Empty<string>());
 
         MultiplayerRoomSnapshot room = facade.ReturnCurrentRoomToLobby();
 
@@ -348,6 +387,100 @@ public sealed class LocalMultiplayerSessionFacadeTests
         Assert.That(facade.MatchEndLog.Count, Is.EqualTo(0));
         Assert.That(room.Participants[0].IsReady, Is.True);
         Assert.That(room.Participants[1].IsReady, Is.False);
+    }
+
+    [Test]
+    public void ReturnCurrentRoomToLobby_WhenJackpotHandoffPending_Throws()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 17,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1f
+        });
+        facade.PublishMatchEnd(
+            BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1" });
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => facade.ReturnCurrentRoomToLobby());
+
+        Assert.That(exception.Message, Does.Contain("jackpot handoff is still pending"));
+    }
+
+    [Test]
+    public void ResolvePostRoundHandoff_CompletesPendingJackpotAndAllowsLobbyReturn()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 17,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1f
+        });
+        facade.PublishMatchEnd(
+            BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1" });
+
+        MatchEndEvent resolved = facade.ResolvePostRoundHandoff("host_1");
+        MultiplayerRoomSnapshot room = facade.ReturnCurrentRoomToLobby();
+
+        Assert.That(resolved, Is.Not.Null);
+        Assert.That(resolved.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(resolved.ResolvedWheelspinPlayerId, Is.EqualTo("host_1"));
+        Assert.That(facade.CurrentMatch, Is.Null);
+        Assert.That(room.State, Is.EqualTo(MultiplayerRoomLifecycleState.Lobby));
+    }
+
+    [Test]
+    public void ResolvePostRoundHandoff_WithMultipleEntitledPlayers_DecrementsPendingUntilAllResolved()
+    {
+        LocalMultiplayerSessionFacade facade = new LocalMultiplayerSessionFacade();
+        facade.CreateRoom("host_1", "Host", 0, 0, 2, 10);
+        facade.AddLocalParticipant("guest_1", "Guest");
+        facade.SetParticipantReady("host_1", true);
+        facade.SetParticipantReady("guest_1", true);
+        facade.StartAuthoritativeMatch(new AuthoritativeMatchStartRequest
+        {
+            RealmIndex = 0,
+            RoomIndex = 0,
+            SelectedCardCount = 2,
+            ManaBetPerCard = 10,
+            RoundSeed = 17,
+            MaxCallCount = 20,
+            AutoCallIntervalSeconds = 1f
+        });
+        facade.PublishMatchEnd(
+            BingoMagicMayhem.Rounds.BingoRoundEndRules.CreateFinalBallDecision("Replay ready."),
+            new[] { "host_1", "guest_1" });
+
+        MatchEndEvent firstResolution = facade.ResolvePostRoundHandoff("host_1");
+        MatchEndEvent secondResolution = facade.ResolvePostRoundHandoff("guest_1");
+
+        Assert.That(firstResolution, Is.Not.Null);
+        Assert.That(firstResolution.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotPending));
+        Assert.That(firstResolution.PendingWheelspinEntitlementCount, Is.EqualTo(1));
+        Assert.That(firstResolution.ResolvedWheelspinPlayerIds, Is.EquivalentTo(new[] { "host_1" }));
+        Assert.That(secondResolution, Is.Not.Null);
+        Assert.That(secondResolution.HandoffState, Is.EqualTo(MultiplayerPostRoundHandoffState.JackpotCompleted));
+        Assert.That(secondResolution.PendingWheelspinEntitlementCount, Is.EqualTo(0));
+        Assert.That(secondResolution.ResolvedWheelspinPlayerIds, Is.EquivalentTo(new[] { "host_1", "guest_1" }));
     }
 
     [Test]
@@ -422,7 +555,11 @@ public sealed class LocalMultiplayerSessionFacadeTests
             BingoRoundEndRules.CreateFinalBallDecision("Different duplicate reason."),
             new[] { "host_1" });
 
-        Assert.That(second, Is.SameAs(first));
+        Assert.That(second, Is.Not.SameAs(first));
+        Assert.That(second.MatchId, Is.EqualTo(first.MatchId));
+        Assert.That(second.EndReasonKind, Is.EqualTo(first.EndReasonKind));
+        Assert.That(second.EndReason, Is.EqualTo(first.EndReason));
+        Assert.That(second.WheelspinEntitledPlayerIds, Is.EquivalentTo(first.WheelspinEntitledPlayerIds));
         Assert.That(facade.MatchEndLog.Count, Is.EqualTo(1));
     }
 }
