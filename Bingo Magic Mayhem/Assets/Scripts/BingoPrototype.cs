@@ -83,6 +83,7 @@ public class BingoPrototype : MonoBehaviour
     private const string WorldMapResourceRoot = "prototype/ui/world_map/unity_files/";
     private const string WorldMapDisplayFontResource = "prototype/fonts/EBGaramond-SemiBold";
     private const string WorldMapProfileFontResource = "prototype/fonts/EBGaramond-ExtraBold";
+    private const string WorldMapOpenedSavePrefix = "BingoMagicMayhem.WorldMap.Opened.";
     private const string WorldMapRestoredClosedSavePrefix = "BingoMagicMayhem.WorldMap.RestoredClosed.";
 
     private static readonly WorldMapRealmPlacement[] WorldMapRealms =
@@ -148,6 +149,7 @@ public class BingoPrototype : MonoBehaviour
     private WorldMapRealmVisualState worldMapPreviewRealmState = WorldMapRealmVisualState.RestoredOpen;
     private int worldMapRestoringRealmIndex = -1;
     private Image activeWorldMapPortalSwirl;
+    private Sprite worldMapActiveMarkerGlowSprite;
     private Coroutine worldMapRestoreTransitionRoutine;
     private Coroutine worldMapSlideRoutine;
     private int worldMapFirstRealmIndex;
@@ -337,6 +339,7 @@ public class BingoPrototype : MonoBehaviour
     private enum WorldMapRealmVisualState
     {
         Locked,
+        BrokenClosed,
         Open,
         Restoring,
         RestoredOpen,
@@ -360,6 +363,11 @@ public class BingoPrototype : MonoBehaviour
             return WorldMapRealmVisualState.Locked;
         }
 
+        if (!HasWorldMapRealmBeenOpened(realmIndex))
+        {
+            return WorldMapRealmVisualState.BrokenClosed;
+        }
+
         if (!IsRealmComplete(realmIndex))
         {
             return WorldMapRealmVisualState.Open;
@@ -373,6 +381,17 @@ public class BingoPrototype : MonoBehaviour
     private bool IsWorldMapRealmRestoredClosed(int realmIndex)
     {
         return PlayerPrefs.GetInt(WorldMapRestoredClosedSavePrefix + realmIndex, 0) == 1;
+    }
+
+    private bool HasWorldMapRealmBeenOpened(int realmIndex)
+    {
+        return PlayerPrefs.GetInt(WorldMapOpenedSavePrefix + realmIndex, 0) == 1;
+    }
+
+    private void MarkWorldMapRealmOpened(int realmIndex)
+    {
+        PlayerPrefs.SetInt(WorldMapOpenedSavePrefix + realmIndex, 1);
+        PlayerPrefs.Save();
     }
 
     private void MarkPreviousRealmRestoredClosedAfterRoundStart()
@@ -1156,13 +1175,27 @@ public class BingoPrototype : MonoBehaviour
         }
 
         Image door = CreateMapImage(parent, realm.Folder + " door", doorAssetPath, doorWidth, doorHeight, doorX, doorY);
+        if (visualState == WorldMapRealmVisualState.Locked)
+        {
+            // Keep locked realms recognizable while clearly unavailable.
+            door.color = new Color(0.42f, 0.42f, 0.42f, 1f);
+        }
+
         if (visualState == WorldMapRealmVisualState.Restoring)
         {
             activeWorldMapPortalSwirl = door;
         }
+
         Image frame = CreateMapImage(parent, realm.Folder + " frame", frameAssetPath, frameWidth, frameHeight, frameX, frameY);
-        CreateWorldMapRealmButton(door, index);
-        CreateWorldMapRealmButton(frame, index);
+        if (visualState == WorldMapRealmVisualState.Locked)
+        {
+            frame.color = new Color(0.42f, 0.42f, 0.42f, 1f);
+        }
+        else
+        {
+            CreateWorldMapRealmButton(door, index);
+            CreateWorldMapRealmButton(frame, index);
+        }
 
         // Plates and bottle groups follow the measured frame centre, not the old default realm centre.
         float plateX = frameX;
@@ -1212,6 +1245,8 @@ public class BingoPrototype : MonoBehaviour
 
     private void CreateWorldMapHud(Transform parent)
     {
+        const float realmNavUpOffset = 10f;
+
         // Photoshop bounds: left -931, right -738, top 504, bottom 322.
         CreateMapImage(parent, "Avatar", "Nav unity ready/profile level/nav_worldHome_avatar_witch_001", 193f, 182f, -834.5f, 413f);
         // Photoshop bounds: left -931, right -737, top 516, bottom 323.
@@ -1244,24 +1279,40 @@ public class BingoPrototype : MonoBehaviour
         settingsButton.onClick.AddListener(() => BuildDevSettingsUi(true));
 
         CreateMapImage(parent, "Realm banner", "Nav unity ready/bottom Nav/realm banner", 804f, 56f, 1f, -324f);
-        CreateMapImage(parent, "Realm nav", "Nav unity ready/bottom Nav/nav_worldHome_realmNavProgress", 1648f, 127f, -3f, -442.5f);
+        CreateMapImage(parent, "Realm nav", "Nav unity ready/bottom Nav/nav_worldHome_realmNavProgress", 1648f, 127f, -3f, -442.5f + realmNavUpOffset);
         // Photoshop bounds: left -715, right 715, top -433, bottom -442.
-        CreateMapImage(parent, "Realm nav line", "Nav unity ready/bottom Nav/nav_worldHome_realmNavProgressRealms", 1430f, 9f, 0f, -427.5f);
+        CreateMapImage(parent, "Realm nav line", "Nav unity ready/bottom Nav/nav_worldHome_realmNavProgressRealms", 1430f, 9f, 0f, -427.5f + realmNavUpOffset);
         Image leftArrow = CreateMapImage(parent, "Left arrow", "Nav unity ready/bottom Nav/nav_worldHome_realmNavProgress_arrowleft", 42f, 67f, -771f, -442.5f);
         Image rightArrow = CreateMapImage(parent, "Right arrow", "Nav unity ready/bottom Nav/nav_worldHome_realmNavProgress_arrowright", 42f, 67f, 767f, -442.5f);
         CreateWorldMapArrowButton(leftArrow, -1);
         CreateWorldMapArrowButton(rightArrow, 1);
 
+        int activeRealmIndex = Mathf.Clamp(RealmContentCatalog.ActivePrototypeRealmIndex, 0, WorldMapRealms.Length - 1);
+        float activeMarkerX = Mathf.Lerp(-645.5f, 627.5f, activeRealmIndex / (float)(WorldMapRealms.Length - 1));
+        CreateWorldMapActiveMarkerGlow(parent, activeMarkerX, -428.5f + realmNavUpOffset);
+
         for (int index = 0; index < WorldMapRealms.Length; index++)
         {
             // First marker bounds [-659, -632, -425, -452]; last [614, 641, -425, -452].
             float markerX = Mathf.Lerp(-645.5f, 627.5f, index / (float)(WorldMapRealms.Length - 1));
-            Image marker = CreateMapImage(parent, "Realm marker " + (index + 1), "Nav unity ready/bottom Nav/progressNavMarkerScaled", 27f, 27f, markerX, -428.5f);
-            CreateWorldMapRealmButton(marker, index);
+            bool unlocked = IsRealmUnlocked(index);
+            string markerAssetPath = unlocked
+                ? "Nav unity ready/bottom Nav/progressNavMarkerScaled"
+                : "Nav unity ready/bottom Nav/lock-realm";
+            float markerSize = unlocked ? 27f : 48f;
+            Image marker = CreateMapImage(parent, "Realm marker " + (index + 1), markerAssetPath, markerSize, markerSize, markerX, -428.5f + realmNavUpOffset);
+            if (unlocked)
+            {
+                CreateWorldMapRealmButton(marker, index);
+            }
 
-            Text label = CreateAnchoredText(parent, WorldMapRealmLabels[index], 15, FontStyle.Bold, new Color(1f, 0.84f, 0.22f), 132f, 36f, markerX, -465f);
+            Color labelColor = unlocked ? new Color(1f, 0.84f, 0.22f) : new Color(0.62f, 0.53f, 0.28f);
+            Text label = CreateAnchoredText(parent, WorldMapRealmLabels[index], 15, FontStyle.Bold, labelColor, 132f, 36f, markerX, -470f);
             label.lineSpacing = 0.8f;
-            CreateWorldMapRealmButton(label, index);
+            if (unlocked)
+            {
+                CreateWorldMapRealmButton(label, index);
+            }
         }
 
         // Photoshop bounds: left -728, right -364, top 480, bottom 432.
@@ -1307,6 +1358,12 @@ public class BingoPrototype : MonoBehaviour
 
     private void OpenWorldMapRealm(int realmIndex)
     {
+        if (!IsRealmUnlocked(realmIndex))
+        {
+            return;
+        }
+
+        MarkWorldMapRealmOpened(realmIndex);
         // Only Sunpetal has its own room data today; the shared room-entry screen is the temporary destination.
         RealmContentCatalog.SetActivePrototypeRealm(realmIndex);
         BuildLobbyUi();
@@ -1433,6 +1490,48 @@ public class BingoPrototype : MonoBehaviour
         Image image = CreateAnchoredImage(parent, WorldMapResourceRoot + relativePath, width, height, x, y);
         image.preserveAspect = false;
         return image;
+    }
+
+    private void CreateWorldMapActiveMarkerGlow(Transform parent, float x, float y)
+    {
+        GameObject glowObject = CreateAnchoredPanel(parent, "Active realm marker glow", Color.white, 72f, 72f, x, y);
+        Image glow = glowObject.GetComponent<Image>();
+        glow.sprite = GetWorldMapActiveMarkerGlowSprite();
+        glow.preserveAspect = true;
+        glow.raycastTarget = false;
+    }
+
+    private Sprite GetWorldMapActiveMarkerGlowSprite()
+    {
+        if (worldMapActiveMarkerGlowSprite != null)
+        {
+            return worldMapActiveMarkerGlowSprite;
+        }
+
+        const int textureSize = 128;
+        Texture2D texture = new Texture2D(textureSize, textureSize, TextureFormat.RGBA32, false);
+        texture.name = "WorldMapActiveMarkerGlow";
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[textureSize * textureSize];
+        for (int y = 0; y < textureSize; y++)
+        {
+            for (int x = 0; x < textureSize; x++)
+            {
+                float normalizedX = ((x + 0.5f) / textureSize * 2f) - 1f;
+                float normalizedY = ((y + 0.5f) / textureSize * 2f) - 1f;
+                float radius = Mathf.Sqrt((normalizedX * normalizedX) + (normalizedY * normalizedY));
+                // Keep this close to the marker so it reads as a soft shadow, not a second icon.
+                float alpha = Mathf.Exp(-4.5f * radius * radius) * 0.3f;
+                pixels[(y * textureSize) + x] = new Color(0.8f, 0.16f, 1f, alpha);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        worldMapActiveMarkerGlowSprite = Sprite.Create(texture, new Rect(0f, 0f, textureSize, textureSize), new Vector2(0.5f, 0.5f));
+        return worldMapActiveMarkerGlowSprite;
     }
 
     private void BuildRealmMapUi()
