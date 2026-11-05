@@ -125,3 +125,15 @@ Most recent result: build succeeded with 0 errors and 2 warnings.
 ```text
 Continue from CURRENT_PROTOTYPE_STATE.md plus Docs/LOCKED_DECISIONS.md, Docs/09_OPEN_DECISIONS.md, Docs/10_VERIFIED_PROJECT_STATE.md, Docs/11_RANK_REWARDS_V0.1.md, Docs/12_BETA_1_PRODUCTION_READINESS.md, Docs/OPEN_DECISIONS.md, Docs/IMPLEMENTATION_GAPS.md, the ChatGPT export archive at Docs/Archive/ChatGPT_Project_Exports, the Cocos/Cocos2d archive at Docs/Archive/Cocos2d_Chat_Exports, and the comprehensive handoff at C:\Users\nLuis\OneDrive\Desktop\nLuisi Laptop\Bingo Magic Mayhem\Bingo_Magic_Mayhem_Comprehensive_Project_Handoff-jun26.md. Work narrowly. The project is now Beta-directed: finish visible feature coverage while beginning production hardening. Do not change core gameplay, economy tuning, jackpot, album, coven, room progression, or navigation rules without asking first.
 ```
+
+## Latest Asset Handoff — 2026-10-06
+
+Sunpetal Conservatory: five 1920 x 1080 background state PNGs supplied and inspected. Navigation/title graphics will follow from the user after background placement. Source receipt is verified; repository placement, Unity import, and runtime integration are pending. See `Bingo Magic Mayhem/docs/21_SUNPETAL_BACKGROUND_STATE_INTAKE.md` for source paths, file inventory, review notes, and remaining integration checks. This handoff does not lock gameplay or economy decisions.
+
+### Sunpetal Import Follow-Up — 2026-10-06
+
+The five supplied backgrounds have replaced the existing `sunpetal-realm-broken0`, `broken1`, `broken2`, `broken3`, and `restored` PNGs in `Assets/Resources/prototype/ui/realm_home/sunpetal`. Image hashes and preservation of all existing metadata were verified. Existing restoration-count selection and Resources loading already address these files; no code changed. Repository placement and runtime-path discovery are complete, superseding the earlier pending status. Unity editor reimport/on-screen verification and title/navigation overlay review remain pending. See `21_SUNPETAL_BACKGROUND_STATE_INTAKE.md` for the exact mapping.
+
+### Sunpetal Production Asset Supersession — 2026-10-06
+
+The newer production-tree set from `prod assets/UnityFiles/rooms unity ready/01_sunpetal/world/final` now supersedes the earlier imported artwork in the same five runtime slots. The installed sequence is `sunpetal-realm-broken.png`, `sunpetal-realm-1.png`, `sunpetal-realm-2.png`, `sunpetal-realm-3.png`, and `sunpetal-realm-restored.png`, mapped to `broken0`, `broken1`, `broken2`, `broken3`, and `restored`. All five installed hashes match the new sources, all images remain 1920 x 1080, and existing Unity metadata remains unchanged. The displaced set is backed up at `C:\Users\nLuis\Documents\Codex\2026-10-06\i\work\sunpetal-before-prod-assets-import`. No game code or progression logic changed. Unity editor refresh, on-screen state review, overlay contrast, and transition-registration checks remain pending.

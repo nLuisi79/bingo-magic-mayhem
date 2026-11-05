@@ -149,3 +149,32 @@ Authority rule: locked docs and current handoffs win over older v0.1 docs and ar
 - Album/card/ingredient UI should trend toward reusable data-populated templates with stable catalog IDs, set/page data, rarity/frame data, and asset keys; final metadata schema remains open.
 - Multi-card bingo UI performance needs a production pass before broad mobile testing: canvas rebuild strategy, Sprite Atlas grouping, 9-sliced scalable UI, animation/particle budget, and final UGUI vs UI Toolkit split remain open.
 - Real-time multiplayer is not locked. If live shared rooms or synchronized bingo calls become scope, build a greybox network-authority prototype before visual polish.
+
+## Sunpetal Background Intake Update — 2026-10-06
+
+See [Sunpetal background state intake](21_SUNPETAL_BACKGROUND_STATE_INTAKE.md) for the five user-supplied source images, confirmed dimensions, artwork path, and current handoff status.
+
+- Source receipt is verified; repository placement, Unity import, runtime keys, and rendering are not yet verified.
+- Navigation and title graphics will be supplied by the user after the backgrounds are in place.
+- Confirm state-to-room/hotspot mapping without treating `realm1restore` / `realm2restore` / `realm3restore` as global realm identities.
+- Verify alignment, transition behavior, crop/safe areas, and overlay readability before closing visual integration work.
+- Retained thorny vines in the final upper-right terrace are an assistant review observation, not an approved art change.
+- This asset set does not finalize restoration triggers, progression, rewards, economy, rarity, or monetization.
+
+Documentation-location correction: root `AGENTS.md` and root `00_READ_ME_FIRST.md` are present and were read for this update. The earlier statement that AGENTS.md was absent is outdated. `docs/00_READ_ME_FIRST.md` remains absent. The current entry point already links the numbered audit documents. Root packet confidence labels and newer Unity locks differ in places; reconcile explicitly rather than applying the older packet indiscriminately. Existing duplicated open-decision registers still need consolidation.
+
+### Sunpetal Import Follow-Up — 2026-10-06
+
+The five supplied backgrounds have replaced the existing `sunpetal-realm-broken0`, `broken1`, `broken2`, `broken3`, and `restored` PNGs in `Assets/Resources/prototype/ui/realm_home/sunpetal`. Image hashes and preservation of all existing metadata were verified. Existing restoration-count selection and Resources loading already address these files; no code changed. Repository placement and runtime-path discovery are complete, superseding the earlier pending status. Unity editor reimport/on-screen verification and title/navigation overlay review remain pending. See `21_SUNPETAL_BACKGROUND_STATE_INTAKE.md` for the exact mapping.
+
+### Sunpetal Production Asset Supersession — 2026-10-06
+
+The newer production-tree files `sunpetal-realm-broken.png`, `sunpetal-realm-1.png`, `sunpetal-realm-2.png`, `sunpetal-realm-3.png`, and `sunpetal-realm-restored.png` now occupy the existing `broken0` through `restored` runtime slots. This supersedes the prior artwork import without changing runtime keys, metadata, gameplay code, or restoration-count selection. Remaining open checks are Unity editor reimport, on-screen crop/safe-area review, overlay readability with the pending navigation/title graphics, and transition registration between all five states. The previous thorn observation described the superseded artwork and is not an approved requirement for the current set.
+
+### Sunpetal Realm-Home UI Follow-Up — 2026-10-14
+
+The complete parchment header, dark-green room labels, arrows, medallion frame/lock, and four potion/shadow pairs are now installed and wired to the existing Sunpetal realm-home flow. The original `fullBroken` through `st-fullrestore` sequence was re-supplied and now supersedes the 2026-10-06 production-tree background set; all five installed hashes match the newly supplied files.
+
+Unity import and editor compilation are confirmed. Still open: device-safe placement, text fit, overlay contrast, button hit-target review, disabled-state treatment for the next-realm arrow, and visual review of every restoration state. This visual integration does not resolve or change room unlock logic, restoration triggers, progression, gameplay, economy, rarity, rewards, or monetization.
+
+The first-pass follow-up removes redundant textual room-state labels, uses full/shadow/lock medallions as the visual state language, adds the supplied combined ingredient-count badge to unfinished unlocked rooms, and replaces the temporary top-right bar with the existing production world-map counter/home assets. Runtime visual review remains open; the presentation change does not alter underlying state rules.

@@ -151,47 +151,53 @@ public sealed class RewardPreview
             int bingos = cards.GetBingoCount(cardIndex);
             if (bingos <= 0)
             {
+                TryAddRareNoBingoIngredient(roomIngredients);
                 continue;
             }
 
             int multiplier = cards.GetPotionMultiplier(cardIndex);
-            TryAddIngredientDrop(roomIngredients[0], multiplier);
-
-            if (bingos >= 2)
+            for (int bingoIndex = 0; bingoIndex < bingos; bingoIndex++)
             {
-                TryAddIngredientDrop(roomIngredients[1], multiplier);
-            }
-
-            if (bingos >= 3)
-            {
-                TryAddIngredientDrop(roomIngredients[2], multiplier);
-            }
-
-            if (bingos >= 4)
-            {
-                TryAddIngredientDrop(roomIngredients[3], multiplier);
-            }
-
-            if (bingos >= BingoRoomRules.JackpotBingosPerCard)
-            {
-                TryAddIngredientDrop(roomIngredients[4], 1);
+                IngredientRequirement ingredient = RollIngredientByRarity(roomIngredients);
+                AddIngredientDrop(ingredient.Name, multiplier);
             }
         }
     }
 
-    private void TryAddIngredientDrop(IngredientRequirement ingredient, int quantity)
+    private void TryAddRareNoBingoIngredient(IReadOnlyList<IngredientRequirement> roomIngredients)
     {
-        float baseChance = RealmContentCatalog.ActivePrototypeRoom.Progression.IngredientDropChance;
-        float rarityChance = GetIngredientRarityChance(ingredient.Rarity);
-        if (Random.value > baseChance * rarityChance)
+        float chance = RealmContentCatalog.ActivePrototypeRoom.Progression.NoBingoIngredientDropChance;
+        if (Random.value > chance)
         {
             return;
         }
 
-        AddIngredientDrop(ingredient.Name, quantity);
+        IngredientRequirement ingredient = RollIngredientByRarity(roomIngredients);
+        AddIngredientDrop(ingredient.Name, 1);
     }
 
-    private float GetIngredientRarityChance(string rarity)
+    private IngredientRequirement RollIngredientByRarity(IReadOnlyList<IngredientRequirement> ingredients)
+    {
+        float totalWeight = 0f;
+        for (int index = 0; index < ingredients.Count; index++)
+        {
+            totalWeight += GetIngredientRarityWeight(ingredients[index].Rarity);
+        }
+
+        float roll = Random.value * totalWeight;
+        for (int index = 0; index < ingredients.Count; index++)
+        {
+            roll -= GetIngredientRarityWeight(ingredients[index].Rarity);
+            if (roll <= 0f)
+            {
+                return ingredients[index];
+            }
+        }
+
+        return ingredients[ingredients.Count - 1];
+    }
+
+    private float GetIngredientRarityWeight(string rarity)
     {
         if (rarity == "Common")
         {

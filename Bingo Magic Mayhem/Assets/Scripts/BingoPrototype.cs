@@ -83,6 +83,11 @@ public class BingoPrototype : MonoBehaviour
     private const string WorldMapResourceRoot = "prototype/ui/world_map/unity_files/";
     private const string WorldMapDisplayFontResource = "prototype/fonts/EBGaramond-SemiBold";
     private const string WorldMapProfileFontResource = "prototype/fonts/EBGaramond-ExtraBold";
+    private const string SunpetalRealmBackgroundResourceRoot = "prototype/ui/realm_home/sunpetal/sunpetal-realm-";
+    private const string SunpetalRealmUiResourceRoot = "prototype/ui/realm_home/sunpetal/ui/";
+    private const string SunpetalRealmHeaderResourceRoot = SunpetalRealmUiResourceRoot + "realm_header/";
+    private const string SunpetalRoomLabelResourceRoot = SunpetalRealmUiResourceRoot + "room_label/";
+    private const string LoadingScreenBackgroundResource = "prototype/ui/loading/loading";
     private const string WorldMapOpenedSavePrefix = "BingoMagicMayhem.WorldMap.Opened.";
     private const string WorldMapRestoredClosedSavePrefix = "BingoMagicMayhem.WorldMap.RestoredClosed.";
 
@@ -112,6 +117,21 @@ public class BingoPrototype : MonoBehaviour
         "Crimson Moon\nCanyon",
         "Arcane Aerie\nHeights",
         "Crystalline\nChanterelle"
+    };
+
+    // Filled bottles use the restored door's signature gem color for their realm.
+    private static readonly Color[] WorldMapRealmPotionColors =
+    {
+        new Color(0.16f, 0.72f, 1f),  // Sunpetal: sky blue
+        new Color(0.53f, 0.28f, 0.92f), // Floating Lotus: violet
+        new Color(0.96f, 0.33f, 0.63f), // Everbloom: rose pink
+        new Color(0.94f, 0.12f, 0.58f), // Glimmerwisp: fuchsia
+        new Color(0.18f, 0.62f, 1f),  // Cerulean: sapphire blue
+        new Color(0.56f, 0.28f, 0.48f), // Emberglass: plum
+        new Color(1f, 0.56f, 0.12f),  // Howling Hollows: amber
+        new Color(0.88f, 0.4f, 0.66f), // Crimson Moon: orchid
+        new Color(0.62f, 0.35f, 0.9f), // Arcane Aerie: amethyst
+        new Color(0.84f, 0.94f, 1f)   // Crystalline Chanterelle: icy crystal
     };
 
 
@@ -156,6 +176,7 @@ public class BingoPrototype : MonoBehaviour
     private Vector2 lastRootSize;
     private float activeStageWidth = StageWidth;
     private float activeStageHeight = StageHeight;
+    private bool activeStageFillsViewport;
     private Text roomText;
     private Text calledNumberText;
     private Text calledHistoryText;
@@ -254,6 +275,41 @@ public class BingoPrototype : MonoBehaviour
     private float powerUpSaveAccumulator;
     private Coroutine powerUpBurstRoutine;
     private Coroutine finalBallCountdownRoutine;
+    private Coroutine loadingTransitionRoutine;
+    private readonly Dictionary<string, Sprite> loadingRoundedRectSprites = new Dictionary<string, Sprite>();
+
+    private sealed class LoadingFillView
+    {
+        private const float FillHeight = 42f;
+        private const float FillWidth = 840f;
+        private const float FillLeft = -420f;
+
+        private readonly Image fill;
+        private readonly System.Func<int, Sprite> spriteForWidth;
+
+        public LoadingFillView(Image fill, System.Func<int, Sprite> spriteForWidth)
+        {
+            this.fill = fill;
+            this.spriteForWidth = spriteForWidth;
+        }
+
+        public void SetProgress(float progress)
+        {
+            float width = FillWidth * Mathf.Clamp01(progress);
+            bool visible = width > 0.01f;
+            fill.enabled = visible;
+            if (!visible)
+            {
+                return;
+            }
+
+            width = Mathf.Max(FillHeight, width);
+            int pixelWidth = Mathf.CeilToInt(width);
+            fill.sprite = spriteForWidth(pixelWidth);
+            fill.rectTransform.sizeDelta = new Vector2(pixelWidth, FillHeight);
+            fill.rectTransform.anchoredPosition = new Vector2(FillLeft + (pixelWidth * 0.5f), 0f);
+        }
+    }
 
     private static readonly IReadOnlyList<CosmeticDefinition> PrototypeAvatars = CosmeticCatalog.Avatars;
     private static readonly IReadOnlyList<CosmeticDefinition> PrototypeAvatarFrames = CosmeticCatalog.Frames;
@@ -265,6 +321,7 @@ public class BingoPrototype : MonoBehaviour
         EnsureRuntimeState();
         await InitializeInfrastructureAsync();
         inventory.Load();
+        inventory.ReconcileSequentialRoomRestores();
         coven.Load();
         LoadPrototypeFriendsState();
         LoadPrototypeCovenDiscoveryState();
@@ -363,19 +420,16 @@ public class BingoPrototype : MonoBehaviour
             return WorldMapRealmVisualState.Locked;
         }
 
-        if (!HasWorldMapRealmBeenOpened(realmIndex))
+        if (IsRealmComplete(realmIndex))
         {
-            return WorldMapRealmVisualState.BrokenClosed;
+            return IsWorldMapRealmRestoredClosed(realmIndex)
+                ? WorldMapRealmVisualState.RestoredClosed
+                : WorldMapRealmVisualState.RestoredOpen;
         }
 
-        if (!IsRealmComplete(realmIndex))
-        {
-            return WorldMapRealmVisualState.Open;
-        }
-
-        return IsWorldMapRealmRestoredClosed(realmIndex)
-            ? WorldMapRealmVisualState.RestoredClosed
-            : WorldMapRealmVisualState.RestoredOpen;
+        return HasWorldMapRealmBeenOpened(realmIndex)
+            ? WorldMapRealmVisualState.Open
+            : WorldMapRealmVisualState.BrokenClosed;
     }
 
     private bool IsWorldMapRealmRestoredClosed(int realmIndex)
@@ -1072,15 +1126,30 @@ public class BingoPrototype : MonoBehaviour
 
         if (isEverbloom)
         {
-            // Photoshop bounds: frame [-131, 241, 277, -121], door [-59, 150, 221, -78].
-            frameX = 55f;
-            frameY = 78f;
-            frameWidth = 372f;
-            frameHeight = 398f;
-            doorX = 45.5f;
-            doorY = 71.5f;
-            doorWidth = 209f;
-            doorHeight = 299f;
+            if (!usesRestoredFrame)
+            {
+                // Broken frame bounds: [-178, 240, 312, -175]. Door vertical bounds: [188, -118].
+                frameX = 31f;
+                frameY = 68.5f;
+                frameWidth = 418f;
+                frameHeight = 487f;
+                doorX = 46.5f;
+                doorY = 35f;
+                doorWidth = 191f;
+                doorHeight = 306f;
+            }
+            else
+            {
+                // Restored frame keeps its established placement; its door shares the measured vertical bounds.
+                frameX = 55f;
+                frameY = 78f;
+                frameWidth = 372f;
+                frameHeight = 398f;
+                doorX = 45.5f;
+                doorY = 35f;
+                doorWidth = 209f;
+                doorHeight = 306f;
+            }
         }
 
         if (isGlimmerwisp)
@@ -1207,10 +1276,19 @@ public class BingoPrototype : MonoBehaviour
         CreateWorldMapRealmButton(realmTitle, index);
 
         float[] potionOffsets = { -108f, -46f, 19f, 78f };
+        Color realmPotionColor = WorldMapRealmPotionColors[Mathf.Clamp(index, 0, WorldMapRealmPotionColors.Length - 1)];
+        IReadOnlyList<RoomDefinition> realmRooms = RealmContentCatalog.AllRealms[index].Rooms;
 
         for (int potionIndex = 0; potionIndex < potionOffsets.Length; potionIndex++)
         {
             float potionX = plateX + potionOffsets[potionIndex];
+            bool roomRestored = potionIndex < realmRooms.Count && inventory.IsRoomRestored(realmRooms[potionIndex]);
+            if (roomRestored)
+            {
+                Image potionInner = CreateMapImage(parent, realm.Folder + " potion inner " + potionIndex, "rooms unity ready/title_bottle/potion_inner", 44f, 69f, potionX, -235f);
+                potionInner.color = realmPotionColor;
+            }
+
             CreateMapImage(parent, realm.Folder + " potion outer " + potionIndex, "rooms unity ready/title_bottle/potion_outer", 44f, 69f, potionX, -235f);
         }
     }
@@ -1363,10 +1441,156 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        MarkWorldMapRealmOpened(realmIndex);
-        // Only Sunpetal has its own room data today; the shared room-entry screen is the temporary destination.
-        RealmContentCatalog.SetActivePrototypeRealm(realmIndex);
-        BuildLobbyUi();
+        BeginLoadingTransition(() =>
+        {
+            MarkWorldMapRealmOpened(realmIndex);
+            // Enter the realm home first; a selected room then opens its room-entry lobby.
+            RealmContentCatalog.SetActivePrototypeRealm(realmIndex);
+            inventory.RefreshActiveRoomState();
+            ApplySavedManaBetForActiveRoom();
+            BuildRealmMapUi();
+        });
+    }
+
+    private void BeginLoadingTransition(System.Action destination)
+    {
+        if (loadingTransitionRoutine != null)
+        {
+            return;
+        }
+
+        loadingTransitionRoutine = StartCoroutine(PlayLoadingTransition(destination));
+    }
+
+    private IEnumerator PlayLoadingTransition(System.Action destination)
+    {
+        GameObject loadingOverlay = CreateLoadingOverlay(out CanvasGroup canvasGroup, out LoadingFillView fill);
+        yield return null;
+
+        float elapsed = 0f;
+        while (elapsed < 0.55f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            fill.SetProgress(Mathf.Lerp(0f, 0.82f, elapsed / 0.55f));
+            yield return null;
+        }
+
+        destination?.Invoke();
+        yield return null;
+
+        elapsed = 0f;
+        while (elapsed < 0.2f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            fill.SetProgress(Mathf.Lerp(0.82f, 1f, elapsed / 0.2f));
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < 0.18f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            canvasGroup.alpha = 1f - (elapsed / 0.18f);
+            yield return null;
+        }
+
+        Destroy(loadingOverlay);
+        loadingTransitionRoutine = null;
+    }
+
+    private GameObject CreateLoadingOverlay(out CanvasGroup canvasGroup, out LoadingFillView fill)
+    {
+        GameObject overlay = new GameObject(
+            "Loading Transition",
+            typeof(RectTransform),
+            typeof(Canvas),
+            typeof(CanvasScaler),
+            typeof(GraphicRaycaster),
+            typeof(CanvasGroup));
+        Canvas canvas = overlay.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 1000;
+
+        CanvasScaler scaler = overlay.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
+        canvasGroup = overlay.GetComponent<CanvasGroup>();
+
+        Image background = CreateAnchoredImage(overlay.transform, LoadingScreenBackgroundResource, 1920f, 1080f, 0f, 0f);
+        background.name = "Loading Background";
+        background.preserveAspect = false;
+        background.raycastTarget = true;
+
+        Image glow = CreateLoadingRoundedImage(overlay.transform, "Loading Bar Glow", 924f, 100f, 0f, -285f, 50f, new Color(1f, 0f, 0.94f, 0.22f));
+        glow.raycastTarget = false;
+        Image frame = CreateLoadingRoundedImage(overlay.transform, "Loading Bar Frame", 900f, 76f, 0f, -285f, 38f, new Color(1f, 0.82f, 1f));
+        frame.raycastTarget = false;
+        Image inset = CreateLoadingRoundedImage(frame.transform, "Loading Bar Inset", 876f, 52f, 0f, 0f, 26f, new Color(0.12f, 0.015f, 0.2f));
+        inset.raycastTarget = false;
+
+        Image fillImage = CreateLoadingRoundedImage(frame.transform, "Loading Bar Fill", 42f, 42f, -399f, 0f, 21f, new Color(1f, 0.1f, 0.92f));
+        fillImage.raycastTarget = false;
+        fill = new LoadingFillView(fillImage, width => GetLoadingRoundedRectSprite(width, 42, 21));
+        fill.SetProgress(0f);
+        return overlay;
+    }
+
+    private Image CreateLoadingRoundedImage(Transform parent, string name, float width, float height, float x, float y, float radius, Color color)
+    {
+        GameObject imageObject = CreateAnchoredPanel(parent, name, color, width, height, x, y);
+        Image image = imageObject.GetComponent<Image>();
+        image.sprite = GetLoadingRoundedRectSprite(Mathf.RoundToInt(width), Mathf.RoundToInt(height), Mathf.RoundToInt(radius));
+        image.type = Image.Type.Simple;
+        return image;
+    }
+
+    private Sprite GetLoadingRoundedRectSprite(int width, int height, int radius)
+    {
+        string key = width + "x" + height + "x" + radius;
+        if (loadingRoundedRectSprites.TryGetValue(key, out Sprite sprite))
+        {
+            return sprite;
+        }
+
+        Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        texture.name = "LoadingRoundedRect_" + key;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.filterMode = FilterMode.Bilinear;
+        Color[] pixels = new Color[width * height];
+        float minX = radius;
+        float maxX = width - 1f - radius;
+        float minY = radius;
+        float maxY = height - 1f - radius;
+        if (maxX < minX)
+        {
+            minX = maxX = (width - 1f) * 0.5f;
+        }
+
+        if (maxY < minY)
+        {
+            minY = maxY = (height - 1f) * 0.5f;
+        }
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float nearestX = Mathf.Clamp(x, minX, maxX);
+                float nearestY = Mathf.Clamp(y, minY, maxY);
+                float distance = Vector2.Distance(new Vector2(x, y), new Vector2(nearestX, nearestY));
+                float alpha = radius <= 0 ? 1f : Mathf.Clamp01(radius + 0.5f - distance);
+                pixels[(y * width) + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 1f);
+        loadingRoundedRectSprites.Add(key, sprite);
+        return sprite;
     }
 
     private void SlideWorldMap(int direction)
@@ -1480,7 +1704,8 @@ public class BingoPrototype : MonoBehaviour
         CreateMapImage(parent, name + " pill right", "Nav unity ready/profile inventory/nav_profileInventoryPill_countPillRight", pillRightWidth, pillHeight, pillRightX, pillY);
         CreateMapImage(parent, name + " icon background", "Nav unity ready/profile inventory/nav_profileInventory_countBG", 69f, 69f, backgroundX, 473.5f);
         CreateMapImage(parent, name + " icon", iconPath, iconWidth, iconHeight, iconX, iconY);
-        Text count = CreateAnchoredText(parent, countText, 28, FontStyle.Normal, Color.white, 86f, 46f, pillCenterX + 10f, pillY);
+        int countFontSize = countText.Length >= 6 ? 24 : 28;
+        Text count = CreateAnchoredText(parent, countText, countFontSize, FontStyle.Normal, Color.white, 86f, 46f, pillCenterX + 10f, pillY);
         ApplyWorldMapDisplayTextTreatment(count, addShadow: false);
         CreateMapImage(parent, name + " add", "Nav unity ready/profile inventory/nav_profileInventory_countPillAdd", 36f, 36f, addX, 475f);
     }
@@ -1541,6 +1766,16 @@ public class BingoPrototype : MonoBehaviour
 
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.1f, 0.22f, 0.17f, 0.98f), 0, 0);
         layout.enabled = false;
+        activeStageSafePadding = 0f;
+        activeStageFillsViewport = RealmContentCatalog.ActivePrototypeRealmIndex == 0;
+        CreateActiveRealmMapBackground();
+
+        if (RealmContentCatalog.ActivePrototypeRealmIndex == 0)
+        {
+            CreateSunpetalRealmMapUi();
+            ApplyStageScale(true);
+            return;
+        }
 
         GameObject accountBar = CreateAnchoredPanel(contentRoot, "RealmAccountBar", new Color(0.09f, 0.04f, 0.15f), 720, 74, 395f, 386f);
         lobbyManaText = CreateLobbyResourceTile(accountBar.transform, "Mana", inventory.GetManaText(), "*", 220, -245f);
@@ -1548,7 +1783,7 @@ public class BingoPrototype : MonoBehaviour
         CreateLobbyResourceTile(accountBar.transform, "Power-Ups", inventory.GetPowerUpText(), "+", 240, 255f);
 
         Button map = CreateAnchoredButton(contentRoot, "Map", 18, 82, 54, new Color(0.35f, 0.12f, 0.62f), -732f, 386f);
-        map.onClick.AddListener(BuildWorldMapUi);
+        map.onClick.AddListener(() => BeginLoadingTransition(BuildWorldMapUi));
 
         GameObject titlePanel = CreateAnchoredPanel(contentRoot, "RealmTitle", new Color(0.08f, 0.28f, 0.12f), 860, 150, -260f, 284f);
         CreateAnchoredText(titlePanel.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 58, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 820, 72, 0f, 14f);
@@ -1563,6 +1798,250 @@ public class BingoPrototype : MonoBehaviour
         CreateAnchoredText(contentRoot, "Restore each room's potion to unlock the next room path.", 24, FontStyle.Bold, new Color(0.9f, 0.95f, 0.86f), 980, 40, 0f, -410f);
 
         ApplyStageScale(true);
+    }
+
+    private void CreateSunpetalRealmMapUi()
+    {
+        IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
+        CreateSunpetalTopNavigation();
+
+        Image mapArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-left", 90f, 90f, -753f, 353f);
+        mapArrow.name = "Return to world map";
+        Button mapButton = mapArrow.gameObject.AddComponent<Button>();
+        mapButton.targetGraphic = mapArrow;
+        mapButton.onClick.AddListener(() => BeginLoadingTransition(BuildWorldMapUi));
+
+        Image nextArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-right", 90f, 90f, -75f, 353f);
+        nextArrow.name = "Next realm";
+        Button nextButton = nextArrow.gameObject.AddComponent<Button>();
+        nextButton.targetGraphic = nextArrow;
+        nextButton.interactable = RealmContentCatalog.AllRealms.Count > 1 && IsRealmUnlocked(1);
+        ColorBlock nextArrowColors = nextButton.colors;
+        nextArrowColors.disabledColor = new Color(1f, 1f, 1f, 0.82f);
+        nextButton.colors = nextArrowColors;
+        nextButton.onClick.AddListener(() => EnterRealm(1));
+
+        GameObject header = CreateSunpetalNineTileFrame(
+            contentRoot,
+            "Sunpetal realm header",
+            SunpetalRealmHeaderResourceRoot,
+            645f,
+            166f,
+            -414f,
+            353f);
+        Text realmTitle = CreateAnchoredText(header.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 41, FontStyle.Normal, new Color(0.31f, 0.12f, 0.04f), 570f, 52f, 0f, -46f);
+        ApplyWorldMapDisplayTextTreatment(realmTitle, WorldMapProfileFontResource, new Vector2(1f, -1f));
+
+        float[] potionOffsets = { -150f, -50f, 50f, 150f };
+        for (int roomIndex = 0; roomIndex < rooms.Count && roomIndex < potionOffsets.Length; roomIndex++)
+        {
+            string potionState = inventory.IsRoomRestored(rooms[roomIndex]) ? "potion" : "shadow";
+            GetSunpetalHeaderPotionLayout(roomIndex, out float potionWidth, out float potionHeight, out float potionY);
+            Image potion = CreateAnchoredImage(
+                header.transform,
+                GetSunpetalPotionResource(roomIndex, potionState),
+                potionWidth,
+                potionHeight,
+                potionOffsets[roomIndex],
+                potionY);
+            potion.preserveAspect = true;
+            potion.raycastTarget = false;
+        }
+
+        CreateSunpetalRoomNode(rooms[0], 0, -621f, 28f);
+        CreateSunpetalRoomNode(rooms[1], 1, 577f, 65f);
+        CreateSunpetalRoomNode(rooms[2], 2, -463f, -323f);
+        CreateSunpetalRoomNode(rooms[3], 3, 483f, -365f);
+    }
+
+    private void CreateSunpetalTopNavigation()
+    {
+        GameObject counterRoot = CreateAnchoredPanel(contentRoot, "Sunpetal top counters", Color.clear, 1f, 1f, 15f, -138f);
+        counterRoot.GetComponent<Image>().raycastTarget = false;
+        CreateTopCounter(counterRoot.transform, "Mana", "Nav unity ready/profile inventory/nav_profileMana_count");
+        CreateTopCounter(counterRoot.transform, "Crystal", "Nav unity ready/profile inventory/nav_profileCrystal_count");
+        CreateTopCounter(counterRoot.transform, "Power", "Nav unity ready/profile inventory/nav_profilePowerUp_count");
+
+        Image home = CreateMapImage(contentRoot, "Sunpetal Home", "Nav unity ready/top nav/nav_worldHome_default", 76f, 76f, 755f, 337f);
+        Button homeButton = home.gameObject.AddComponent<Button>();
+        homeButton.targetGraphic = home;
+        homeButton.onClick.AddListener(BuildPlayerDenUi);
+    }
+
+    private void CreateSunpetalRoomNode(RoomDefinition room, int roomIndex, float x, float y)
+    {
+        bool available = IsRoomUnlocked(roomIndex);
+        GameObject node = CreateAnchoredPanel(contentRoot, $"SunpetalRoom_{roomIndex + 1}", Color.clear, 360f, 120f, x, y);
+        Image nodeImage = node.GetComponent<Image>();
+        Button nodeButton = node.AddComponent<Button>();
+        nodeButton.targetGraphic = nodeImage;
+        nodeButton.interactable = available;
+        if (available)
+        {
+            nodeButton.onClick.AddListener(() => EnterRoom(roomIndex));
+        }
+
+        GameObject label = CreateSunpetalNineTileFrame(
+            node.transform,
+            $"Room {roomIndex + 1} label",
+            SunpetalRoomLabelResourceRoot,
+            280f,
+            80f,
+            20f,
+            0f);
+        Text roomTitle = CreateAnchoredText(label.transform, GetSunpetalRoomDisplayName(roomIndex), 24, FontStyle.Normal, new Color(1f, 0.86f, 0.3f), 220f, 66f, 20f, 0f);
+        ApplyWorldMapDisplayTextTreatment(roomTitle, WorldMapDisplayFontResource, new Vector2(1f, -1f));
+
+        Image frame = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "room-frame", 128f, 128f, -125f, 0f);
+        frame.raycastTarget = false;
+        bool restored = inventory.IsRoomRestored(room);
+        string medallionResource = restored
+            ? GetSunpetalPotionResource(roomIndex, "potion")
+            : available
+                ? GetSunpetalPotionResource(roomIndex, "shadow")
+                : SunpetalRealmUiResourceRoot + "room-lock";
+        float medallionWidth;
+        float medallionHeight;
+        float medallionY;
+        if (restored || available)
+        {
+            GetSunpetalMedallionPotionLayout(roomIndex, out medallionWidth, out medallionHeight, out medallionY);
+        }
+        else
+        {
+            medallionWidth = 76f;
+            medallionHeight = 76f;
+            medallionY = 0f;
+        }
+
+        Image medallion = CreateAnchoredImage(node.transform, medallionResource, medallionWidth, medallionHeight, -125f, medallionY);
+        medallion.preserveAspect = true;
+        medallion.raycastTarget = false;
+
+        if (available && !restored)
+        {
+            Image countBadge = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "potion-count", 61f, 35f, -65f, -46f);
+            countBadge.preserveAspect = false;
+            countBadge.raycastTarget = false;
+            Text count = CreateAnchoredText(countBadge.transform, inventory.GetCombinedIngredientProgressText(room), 16, FontStyle.Normal, new Color(0.28f, 0.12f, 0.02f), 54f, 27f, 0f, -1f);
+            ApplyWorldMapDisplayTextTreatment(count, WorldMapDisplayFontResource, new Vector2(1f, -1f));
+        }
+    }
+
+    private GameObject CreateSunpetalNineTileFrame(
+        Transform parent,
+        string name,
+        string resourceRoot,
+        float width,
+        float height,
+        float x,
+        float y)
+    {
+        GameObject frame = CreateAnchoredPanel(parent, name, Color.clear, width, height, x, y);
+        frame.GetComponent<Image>().raycastTarget = false;
+        float tileStepX = width / 3f;
+        float tileStepY = height / 3f;
+        float tileWidth = tileStepX + 2f;
+        float tileHeight = tileStepY + 2f;
+        string[] columns = { "a", "b", "c" };
+
+        for (int column = 0; column < columns.Length; column++)
+        {
+            for (int row = 0; row < 3; row++)
+            {
+                Image tile = CreateAnchoredImage(
+                    frame.transform,
+                    resourceRoot + "tile-" + columns[column] + (row + 1),
+                    tileWidth,
+                    tileHeight,
+                    (column - 1) * tileStepX,
+                    (1 - row) * tileStepY);
+                tile.preserveAspect = false;
+                tile.raycastTarget = false;
+            }
+        }
+
+        return frame;
+    }
+
+    private string GetSunpetalPotionResource(int roomIndex, string state)
+    {
+        string[] potionNames =
+        {
+            "sunpetal-conservatory",
+            "thorn-tangled",
+            "pollenspire",
+            "solstice-bloom"
+        };
+        int safeIndex = Mathf.Clamp(roomIndex, 0, potionNames.Length - 1);
+        return SunpetalRealmUiResourceRoot + "potions/" + potionNames[safeIndex] + "-" + state;
+    }
+
+    private string GetSunpetalRoomDisplayName(int roomIndex)
+    {
+        string[] roomNames =
+        {
+            "Gilded Azalea\nArboretum",
+            "Thorn-Tangled\nTerrace",
+            "Pollenspire\nFountain",
+            "Solstice Bloom\nGlasshouse"
+        };
+        return roomNames[Mathf.Clamp(roomIndex, 0, roomNames.Length - 1)];
+    }
+
+    private void GetSunpetalHeaderPotionLayout(int roomIndex, out float width, out float height, out float y)
+    {
+        float[] widths = { 77f, 85f, 48f, 79f };
+        float[] heights = { 110f, 112f, 112f, 108f };
+        float[] verticalOffsets = { 34f, 38f, 34f, 34f };
+        int safeIndex = Mathf.Clamp(roomIndex, 0, widths.Length - 1);
+        width = widths[safeIndex];
+        height = heights[safeIndex];
+        y = verticalOffsets[safeIndex];
+    }
+
+    private void GetSunpetalMedallionPotionLayout(int roomIndex, out float width, out float height, out float y)
+    {
+        float[] widths = { 77f, 85f, 48f, 79f };
+        float[] heights = { 110f, 112f, 112f, 108f };
+        float[] verticalOffsets = { 0f, 7f, 0f, 0f };
+        int safeIndex = Mathf.Clamp(roomIndex, 0, widths.Length - 1);
+        width = widths[safeIndex];
+        height = heights[safeIndex];
+        y = verticalOffsets[safeIndex];
+    }
+
+    private void CreateActiveRealmMapBackground()
+    {
+        if (RealmContentCatalog.ActivePrototypeRealmIndex != 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
+        int restoredRoomCount = 0;
+        for (int index = 0; index < rooms.Count; index++)
+        {
+            if (inventory.IsRoomRestored(rooms[index]))
+            {
+                restoredRoomCount++;
+            }
+        }
+
+        string stateAssetName = restoredRoomCount >= rooms.Count
+            ? "restored"
+            : "broken" + Mathf.Clamp(restoredRoomCount, 0, 3);
+        Image background = CreateAnchoredImage(
+            contentRoot,
+            SunpetalRealmBackgroundResourceRoot + stateAssetName,
+            StageWidth,
+            StageHeight,
+            0f,
+            0f);
+        background.name = "Sunpetal realm background " + stateAssetName;
+        background.preserveAspect = false;
+        background.raycastTarget = false;
+        background.transform.SetAsFirstSibling();
     }
 
     private void CreateRealmSelectorRow()
@@ -1643,16 +2122,24 @@ public class BingoPrototype : MonoBehaviour
 
     private void EnterRoom(int roomIndex)
     {
-        RealmContentCatalog.SetActivePrototypeRoom(roomIndex);
-        inventory.RefreshActiveRoomState();
-        ApplySavedManaBetForActiveRoom();
-        TrackPrototypeAnalytics(
-            PrototypeAnalyticsEvents.RoomEntered,
-            PrototypeAnalyticsPayloadFactory.CreateRoomEnteredJson(
-                selectedCardCount,
-                manaBetPerCard,
-                inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom)));
-        BuildLobbyUi();
+        if (!IsRoomUnlocked(roomIndex))
+        {
+            return;
+        }
+
+        BeginLoadingTransition(() =>
+        {
+            RealmContentCatalog.SetActivePrototypeRoom(roomIndex);
+            inventory.RefreshActiveRoomState();
+            ApplySavedManaBetForActiveRoom();
+            TrackPrototypeAnalytics(
+                PrototypeAnalyticsEvents.RoomEntered,
+                PrototypeAnalyticsPayloadFactory.CreateRoomEnteredJson(
+                    selectedCardCount,
+                    manaBetPerCard,
+                    inventory.IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom)));
+            BuildLobbyUi();
+        });
     }
 
     private bool IsRealmUnlocked(int realmIndex)
@@ -1667,8 +2154,7 @@ public class BingoPrototype : MonoBehaviour
             return false;
         }
 
-        IReadOnlyList<RoomDefinition> previousRooms = RealmContentCatalog.AllRealms[realmIndex - 1].Rooms;
-        return previousRooms.Count > 0 && inventory.IsRoomRestored(previousRooms[previousRooms.Count - 1]);
+        return IsRealmComplete(realmIndex - 1);
     }
 
     private bool IsRealmComplete(int realmIndex)
@@ -1781,7 +2267,7 @@ public class BingoPrototype : MonoBehaviour
         BuildLobbyHeader();
 
         Button back = CreateAnchoredButton(contentRoot, "Back", 18, 112, 54, new Color(0.35f, 0.12f, 0.62f), -710f, 382f);
-        back.onClick.AddListener(BuildRealmMapUi);
+        back.onClick.AddListener(() => BeginLoadingTransition(BuildRealmMapUi));
         BuildLobbyClairvoyanceRail();
 
         BuildLobbyRestorePanel();
@@ -1848,9 +2334,29 @@ public class BingoPrototype : MonoBehaviour
     private void BuildLobbyClairvoyanceRail()
     {
         GameObject rail = CreateAnchoredPanel(contentRoot, "LobbyClairvoyanceRail", new Color(0.16f, 0.07f, 0.25f), 150, 132, -710f, -20f);
-        CreateAnchoredText(rail.transform, "EYE", 26, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 120, 36, 0f, 34f);
-        CreateAnchoredText(rail.transform, "Clairvoyance", 13, FontStyle.Bold, Color.white, 130, 22, 0f, 4f);
-        lobbyClairvoyanceStatusText = CreateAnchoredText(rail.transform, inventory.GetClairvoyanceRoomStatusText(), 24, FontStyle.Bold, inventory.HasActiveClairvoyance() ? new Color(0.55f, 1f, 0.85f) : new Color(0.78f, 0.74f, 0.88f), 130, 34, 0f, -34f);
+        Button activate = rail.AddComponent<Button>();
+        activate.targetGraphic = rail.GetComponent<Image>();
+        activate.interactable = inventory.CanActivateClairvoyance() && !inventory.HasActiveClairvoyance();
+        activate.onClick.AddListener(ActivatePrototypeClairvoyance);
+
+        Text title = CreateAnchoredText(rail.transform, "EYE", 26, FontStyle.Bold, new Color(1f, 0.9f, 0.32f), 120, 36, 0f, 34f);
+        Text label = CreateAnchoredText(rail.transform, "Clairvoyance", 13, FontStyle.Bold, Color.white, 130, 22, 0f, 4f);
+        lobbyClairvoyanceStatusText = CreateAnchoredText(rail.transform, GetLobbyClairvoyanceActionText(), 17, FontStyle.Bold, inventory.HasActiveClairvoyance() ? new Color(0.55f, 1f, 0.85f) : new Color(0.78f, 0.74f, 0.88f), 140, 38, 0f, -34f);
+        title.raycastTarget = false;
+        label.raycastTarget = false;
+        lobbyClairvoyanceStatusText.raycastTarget = false;
+    }
+
+    private string GetLobbyClairvoyanceActionText()
+    {
+        if (inventory.HasActiveClairvoyance())
+        {
+            return inventory.GetActiveClairvoyanceTimeText();
+        }
+
+        return inventory.CanActivateClairvoyance()
+            ? "TAP TO ACTIVATE"
+            : $"{inventory.ClairvoyanceMinutes}m / NEED 15m";
     }
 
     private void BuildLobbyHeader()
@@ -8497,7 +9003,10 @@ public class BingoPrototype : MonoBehaviour
         Button albumDebug = CreateAnchoredButton(panel.transform, "Album Debug", 18, 220, 42, new Color(0.2f, 0.16f, 0.42f), 250f, -86f);
         albumDebug.onClick.AddListener(() => BuildAlbumDebugUi(returnToMap));
 
-        CreateAnchoredText(panel.transform, "Fresh New Player resets progression and profile cosmetics while preserving Sound/Notifications and local guest identity. Reset Rooms Only keeps current currency and inventory.", 16, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 680, 78, 0f, -146f);
+        Button sunpetalStates = CreateAnchoredButton(panel.transform, "Sunpetal Mixed QA", 18, 240, 42, new Color(0.12f, 0.42f, 0.24f), 0f, -142f);
+        sunpetalStates.onClick.AddListener(SetSunpetalMixedStateForTesting);
+
+        CreateAnchoredText(panel.transform, "Fresh New Player resets progression and profile cosmetics while preserving preferences. Sunpetal Mixed QA shows restored, unlocked-incomplete, and locked room states together.", 15, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 680, 58, 0f, -194f);
 
         Button close = CreateAnchoredButton(panel.transform, "Close", 20, 180, 46, new Color(0.35f, 0.12f, 0.62f), 0f, -252f);
         close.onClick.AddListener(() =>
@@ -9041,7 +9550,7 @@ public class BingoPrototype : MonoBehaviour
             return $"Each blackout earns 1 wheelspin  |  {roomRules.GetBlackoutCallRuleText(cardCount, manaBetPerCard)}";
         }
 
-        return $"Up to {GetMaxIngredientTypesForCardCount(cardCount)} Ingredients  |  {FormatPercent(GetActiveProgression().IngredientDropChance)} drop";
+        return $"Bingo ingredients guaranteed  |  {FormatPercent(GetActiveProgression().NoBingoIngredientDropChance)} no-bingo bonus";
     }
 
     private string GetCardOptionChanceText(int cardCount)
@@ -9130,6 +9639,7 @@ public class BingoPrototype : MonoBehaviour
         activeStageWidth = width;
         activeStageHeight = height;
         activeStageSafePadding = SafePadding;
+        activeStageFillsViewport = false;
         lastRootSize = Vector2.zero;
 
         foreach (Transform child in transform)
@@ -9198,12 +9708,36 @@ public class BingoPrototype : MonoBehaviour
 
         lastRootSize = rootSize;
 
-        float availableWidth = Mathf.Max(1f, rootSize.x - activeStageSafePadding * 2f);
-        float availableHeight = Mathf.Max(1f, rootSize.y - activeStageSafePadding * 2f);
-        float scale = Mathf.Min(availableWidth / activeStageWidth, availableHeight / activeStageHeight);
+        bool fillsViewport = activeStageFillsViewport || IsSunpetalRealmStage();
+        float safePadding = fillsViewport ? 0f : activeStageSafePadding;
+        float availableWidth = Mathf.Max(1f, rootSize.x - safePadding * 2f);
+        float availableHeight = Mathf.Max(1f, rootSize.y - safePadding * 2f);
+        float widthScale = availableWidth / activeStageWidth;
+        float heightScale = availableHeight / activeStageHeight;
+        float scale = fillsViewport
+            ? Mathf.Max(widthScale, heightScale)
+            : Mathf.Min(widthScale, heightScale);
         scale = Mathf.Clamp(scale, 0.55f, 1.15f);
 
         stageRect.localScale = new Vector3(scale, scale, 1f);
+    }
+
+    private bool IsSunpetalRealmStage()
+    {
+        if (stageRect == null)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < stageRect.childCount; index++)
+        {
+            if (stageRect.GetChild(index).name.StartsWith("Sunpetal realm background "))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private Text CreateText(string label, int size, FontStyle style, Color color, float height)
@@ -9946,7 +10480,7 @@ public class BingoPrototype : MonoBehaviour
 
         if (lobbyClairvoyanceStatusText != null)
         {
-            lobbyClairvoyanceStatusText.text = inventory.GetClairvoyanceRoomStatusText();
+            lobbyClairvoyanceStatusText.text = GetLobbyClairvoyanceActionText();
             lobbyClairvoyanceStatusText.color = inventory.HasActiveClairvoyance() ? new Color(0.55f, 1f, 0.85f) : new Color(0.78f, 0.74f, 0.88f);
         }
 
@@ -10160,6 +10694,7 @@ public class BingoPrototype : MonoBehaviour
         pendingRewardPreview = null;
         lastJackpotEarnedCardIndex = -1;
         StopFinalBallCountdown();
+        BuildCallPool();
         roundFlow.BeginRound();
         rewardPreviewShown = false;
         allCalledVisible = false;
@@ -10174,7 +10709,6 @@ public class BingoPrototype : MonoBehaviour
         powerUps.ClairvoyanceActive = inventory.HasActiveClairvoyance();
         powerUps.ResetRound();
         rewards.ResetRound();
-        BuildCallPool();
         GenerateCards(selectedCardCount);
         cellRewards.GenerateForCards(playerCards, selectedCardCount, manaBetPerCard, GetActiveProgression());
         BeginPrototypeAuthoritativeRoundMirror();
@@ -12071,6 +12605,17 @@ public class BingoPrototype : MonoBehaviour
         ReturnFromDevSettings(returnToMap);
     }
 
+    private void SetSunpetalMixedStateForTesting()
+    {
+        pendingRewardPreview = null;
+        rewardPreviewShown = false;
+        roundFlow.StopRound();
+        rewards.ResetRound();
+        RealmContentCatalog.SetActivePrototypeRoom(0, 1);
+        inventory.SetSunpetalMixedStateForTesting();
+        BuildRealmMapUi();
+    }
+
     private void GrantPrototypeClairvoyance()
     {
         GrantPrototypeClairvoyance(false);
@@ -12895,6 +13440,11 @@ public class BingoPrototype : MonoBehaviour
 
     private void RestoreActiveRoom()
     {
+        if (!IsRoomUnlocked(RealmContentCatalog.ActivePrototypeRoomIndex))
+        {
+            return;
+        }
+
         if (!inventory.TryRestoreActiveRoom())
         {
             return;

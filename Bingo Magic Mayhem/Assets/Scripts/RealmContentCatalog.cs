@@ -60,7 +60,7 @@ public sealed class RoomProgressionProfile
         int minimumJackpotPot,
         float jackpotContributionRate,
         float xpMultiplier,
-        float ingredientDropChance,
+        float noBingoIngredientDropChance,
         float cellRewardChance,
         int restoreManaReward)
     {
@@ -71,7 +71,7 @@ public sealed class RoomProgressionProfile
         MinimumJackpotPot = minimumJackpotPot;
         JackpotContributionRate = jackpotContributionRate;
         XpMultiplier = xpMultiplier;
-        IngredientDropChance = ingredientDropChance;
+        NoBingoIngredientDropChance = noBingoIngredientDropChance;
         CellRewardChance = cellRewardChance;
         RestoreManaReward = restoreManaReward;
     }
@@ -83,7 +83,7 @@ public sealed class RoomProgressionProfile
     public int MinimumJackpotPot { get; private set; }
     public float JackpotContributionRate { get; private set; }
     public float XpMultiplier { get; private set; }
-    public float IngredientDropChance { get; private set; }
+    public float NoBingoIngredientDropChance { get; private set; }
     public float CellRewardChance { get; private set; }
     public int RestoreManaReward { get; private set; }
 
@@ -97,10 +97,12 @@ public sealed class RoomProgressionProfile
         int minimumPot = 250 + ((realmIndex - 1) * 250) + (roomOffset * 125);
         float contribution = 0.10f + (realmIndex * 0.01f) + (special ? 0.03f : 0f);
         float xp = 1f + ((level - 1) * 0.08f);
-        float ingredient = special ? 0.16f : 0.22f;
+        // A Bingo always earns an ingredient. This only controls the rare
+        // consolation ingredient roll for cards that finish without a Bingo.
+        float noBingoIngredient = special ? 0.016f : 0.022f;
         float cellReward = special ? 0.60f : 0.75f;
         int restoreReward = 1000 + ((realmIndex - 1) * 500) + (roomOffset * 250);
-        return new RoomProgressionProfile(level, minBet, maxBet, betStep, minimumPot, contribution, xp, ingredient, cellReward, restoreReward);
+        return new RoomProgressionProfile(level, minBet, maxBet, betStep, minimumPot, contribution, xp, noBingoIngredient, cellReward, restoreReward);
     }
 }
 

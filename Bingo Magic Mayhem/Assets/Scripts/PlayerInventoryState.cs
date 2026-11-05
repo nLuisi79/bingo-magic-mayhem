@@ -142,6 +142,43 @@ public sealed class PlayerInventoryState
         return restoredCount;
     }
 
+    public void ReconcileSequentialRoomRestores()
+    {
+        bool repaired = false;
+        IReadOnlyList<RealmDefinition> realms = RealmContentCatalog.AllRealms;
+        for (int realmIndex = 0; realmIndex < realms.Count; realmIndex++)
+        {
+            IReadOnlyList<RoomDefinition> rooms = realms[realmIndex].Rooms;
+            int furthestRestoredRoom = -1;
+            for (int roomIndex = 0; roomIndex < rooms.Count; roomIndex++)
+            {
+                if (IsRoomRestored(rooms[roomIndex]))
+                {
+                    furthestRestoredRoom = roomIndex;
+                }
+            }
+
+            // Older prototype saves could record a later room without its predecessors.
+            // Preserve that earned progress by completing the missing earlier links.
+            for (int roomIndex = 0; roomIndex < furthestRestoredRoom; roomIndex++)
+            {
+                if (IsRoomRestored(rooms[roomIndex]))
+                {
+                    continue;
+                }
+
+                PlayerPrefs.SetInt(GetRoomRestoreKey(rooms[roomIndex]), 1);
+                repaired = true;
+            }
+        }
+
+        if (repaired)
+        {
+            PlayerPrefs.Save();
+            RefreshActiveRoomState();
+        }
+    }
+
     public int GetManaCauldronHourlyRefillAmount()
     {
         int scaledAmount = BaseManaCauldronRefillAmount + GetRestoredRoomCount() * ManaCauldronRefillPerRestoredRoom;
@@ -304,6 +341,33 @@ public sealed class PlayerInventoryState
         CurrentRoomJackpotPot = ActiveProgression.MinimumJackpotPot;
         ActiveRoomRestored = false;
         Save();
+    }
+
+    public void SetSunpetalMixedStateForTesting()
+    {
+        IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.SunpetalConservatory.Rooms;
+        for (int roomIndex = 0; roomIndex < rooms.Count; roomIndex++)
+        {
+            RoomDefinition room = rooms[roomIndex];
+            PlayerPrefs.DeleteKey(GetRoomRestoreKey(room));
+            IReadOnlyList<IngredientRequirement> requirements = room.Ingredients;
+            for (int requirementIndex = 0; requirementIndex < requirements.Count; requirementIndex++)
+            {
+                PlayerPrefs.DeleteKey(SavePrefix + "Ingredient." + requirements[requirementIndex].Name);
+            }
+        }
+
+        PlayerPrefs.SetInt(GetRoomRestoreKey(rooms[0]), 1);
+        IReadOnlyList<IngredientRequirement> previewRequirements = rooms[1].Ingredients;
+        for (int index = 0; index < previewRequirements.Count; index++)
+        {
+            IngredientRequirement requirement = previewRequirements[index];
+            int previewCount = Mathf.Max(1, requirement.Required / 2);
+            PlayerPrefs.SetInt(SavePrefix + "Ingredient." + requirement.Name, previewCount);
+        }
+
+        PlayerPrefs.Save();
+        RefreshActiveRoomState();
     }
 
     public void UnlockRealmForTesting(int realmIndex)
@@ -898,6 +962,21 @@ public sealed class PlayerInventoryState
         return $"{GetShortIngredientName(requirements[0].Name)} {GetIngredientCountForRoom(requirements[0])}/{requirements[0].Required}\n"
             + $"{GetShortIngredientName(requirements[1].Name)} {GetIngredientCountForRoom(requirements[1])}/{requirements[1].Required}\n"
             + $"{GetShortIngredientName(requirements[2].Name)} {GetIngredientCountForRoom(requirements[2])}/{requirements[2].Required}";
+    }
+
+    public string GetCombinedIngredientProgressText(RoomDefinition room)
+    {
+        int collected = 0;
+        int required = 0;
+        IReadOnlyList<IngredientRequirement> requirements = room.Ingredients;
+        for (int index = 0; index < requirements.Count; index++)
+        {
+            IngredientRequirement requirement = requirements[index];
+            collected += Mathf.Min(GetIngredientCountForRoom(requirement), requirement.Required);
+            required += requirement.Required;
+        }
+
+        return $"{collected}/{required}";
     }
 
     public string GetFullIngredientProgressText()

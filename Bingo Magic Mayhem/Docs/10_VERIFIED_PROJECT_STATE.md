@@ -201,3 +201,61 @@ Source-of-truth order for future work:
 - Multi-card UI effects can become a mobile performance bottleneck if daub animations, particles, and reward overlays rebuild too much static UI.
 - Client-side visuals, animation, sound, and daub feedback should stay decoupled from server-owned gameplay/reward truth.
 - Documentation may drift again unless `CURRENT_PROTOTYPE_STATE.md` and the numbered verified docs are updated after major decisions.
+
+## Verified Supplemental State — 2026-10-06: Sunpetal Asset Handoff
+
+This is a focused asset/documentation update. It does not revalidate the earlier full gameplay/backend audit or promote working preferences into locks.
+
+### Confirmed
+
+- The current project chat supplied five Sunpetal Conservatory background PNGs: `fullBroken.png`, `realm1restore.png`, `realm2restore.png`, `realm3restore.png`, and `st-fullrestore.png`.
+- All five source files are available and measure 1920 x 1080.
+- The user will provide navigation and title graphics after background placement.
+- The saved repository directory is `C:\Users\nLuis\Documents\Bingo Magic Mayhem`; the nested `Bingo Magic Mayhem` directory is the active Unity project.
+- Root `AGENTS.md` and root `00_READ_ME_FIRST.md` exist and were read. The nested `docs/00_READ_ME_FIRST.md` remains absent.
+
+### Strong preferences and observations
+
+The supplied sequence visibly restores the left pavilion, upper-right terrace, lower-right pavilion, and finally the foreground crystal/environment with an active portal. This describes artwork only; exact named-room ownership and triggers are not confirmed. The broad camera composition is consistent; transition registration remains untested.
+
+### Unresolved
+
+Background repository placement, Unity import, runtime keys/state selection, named-room and hotspot mapping, transition behavior, and crop/safe-area testing remain pending. Navigation/title assets are not yet supplied in this handoff. See [the intake record](21_SUNPETAL_BACKGROUND_STATE_INTAKE.md).
+
+### Outdated or replaced documentation statements
+
+The earlier missing-AGENTS claim in `09_OPEN_DECISIONS.md` is obsolete: the file is at repository root. The current prototype entry point already references the numbered audit set. Older source packets and archive exports do not override explicit current asset context; neither do these images override locked gameplay rules.
+
+### Future implementation risks
+
+Intermediate filenames could be mistaken for separate realms; background receipt could be mistaken for completed integration; detail shifts could make transitions jump; retained thorns could read as remaining damage; bright scene detail could reduce overlay readability. These are review risks, not new product decisions.
+
+No game code or gameplay/economy decisions changed in this update.
+
+### Sunpetal Import Follow-Up — 2026-10-06
+
+The five supplied backgrounds have replaced the existing `sunpetal-realm-broken0`, `broken1`, `broken2`, `broken3`, and `restored` PNGs in `Assets/Resources/prototype/ui/realm_home/sunpetal`. Image hashes and preservation of all existing metadata were verified. Existing restoration-count selection and Resources loading already address these files; no code changed. Repository placement and runtime-path discovery are complete, superseding the earlier pending status. Unity editor reimport/on-screen verification and title/navigation overlay review remain pending. See `21_SUNPETAL_BACKGROUND_STATE_INTAKE.md` for the exact mapping.
+
+### Sunpetal Production Asset Supersession — 2026-10-06
+
+The active Sunpetal background slots now contain the newer production-tree set: `sunpetal-realm-broken.png` maps to `broken0`, numbered files `1` through `3` map to `broken1` through `broken3`, and `sunpetal-realm-restored.png` maps to `restored`. Each installed PNG is 1920 x 1080 and hash-identical to its supplied source. Existing `.meta` files are hash-identical to the preserved pre-swap metadata, so GUIDs and importer settings remain stable. The prior installed set is recoverable from `C:\Users\nLuis\Documents\Codex\2026-10-06\i\work\sunpetal-before-prod-assets-import`. Existing Resources loading and restored-room-count selection remain unchanged; no gameplay code or design decisions changed. Unity editor/on-screen verification and navigation/title overlay review are still pending.
+
+### Sunpetal Realm-Home UI Integration — 2026-10-14
+
+Confirmed: the user supplied 31 Sunpetal realm-home UI PNGs comprising two nine-tile frames, four potion/shadow pairs, two arrows, a round medallion frame, a lock image, and a potion-count badge. They are installed under `Assets/Resources/prototype/ui/realm_home/sunpetal/ui`. The re-supplied five-background sequence is also installed in the existing state slots, and every background source/destination hash matches.
+
+Confirmed implementation state: Sunpetal alone now receives the supplied realm header, restoration-state potion row, room labels, medallions, and arrows. Existing room availability, restored-room state, realm gating, and entry callbacks remain authoritative. Other realms retain the generic renderer.
+
+Strong but not fully locked presentation mapping: the supplied `sunpetal-conservatory`, `thorn-tangled`, `pollenspire`, and `solstice-bloom` potion art is associated in that order with the four current Sunpetal room definitions. This is reversible presentation wiring and does not create a gameplay lock.
+
+Verified tooling state: Unity imported the supplied files, generated metadata, and completed its script recompile/domain reload with no compiler errors in `Editor.log`. Unresolved: runtime composition review, safe-area/device scaling, text fit, hit targets, disabled arrow styling, and five-state transition registration. The machine has no standalone .NET SDK, so `dotnet build` could not validate the project independently.
+
+Outdated/replaced: the 2026-10-06 production-tree Sunpetal backgrounds are no longer the active files; the user-re-supplied `fullBroken`, `realm1restore`, `realm2restore`, `realm3restore`, and `st-fullrestore` sequence supersedes them.
+
+Risk: high-resolution tiled UI can increase import time and texture memory, and seams may appear if filtering/compression or runtime scaling differs between tiles. Validate Unity importer settings and assembled edges before treating the presentation as final.
+
+First-pass polish now reuses the existing production world-map resource counters and home button in the Sunpetal top-right navigation. Room-state words are intentionally omitted: full potion, shadow potion, and lock art communicate restored, unfinished-unlocked, and locked states respectively. Unfinished unlocked rooms display combined ingredient progress on the supplied count badge. This presentation mapping does not revise room-state authority.
+
+Measured-layout follow-up: the Sunpetal header, arrows, four room nodes, medallions, labels, progress badge, resource counters, and home button are positioned independently against the supplied 1920 x 1080 full-stack reference rather than distributed by a generic layout. Adjacent nine-tile pieces overlap by two pixels to suppress filtering seams while preserving the original one-third tile steps.
+
+A `Sunpetal Mixed QA` prototype-settings preset is available to stage one restored room, one unlocked incomplete room with partial ingredient progress, and two locked rooms on the broken-one background. Applying it intentionally replaces local Sunpetal room/ingredient progress; it is a QA convenience only and does not change progression rules.
