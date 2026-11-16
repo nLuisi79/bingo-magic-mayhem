@@ -83,10 +83,7 @@ public class BingoPrototype : MonoBehaviour
     private const string WorldMapResourceRoot = "prototype/ui/world_map/unity_files/";
     private const string WorldMapDisplayFontResource = "prototype/fonts/EBGaramond-SemiBold";
     private const string WorldMapProfileFontResource = "prototype/fonts/EBGaramond-ExtraBold";
-    private const string SunpetalRealmBackgroundResourceRoot = "prototype/ui/realm_home/sunpetal/sunpetal-realm-";
-    private const string SunpetalRealmUiResourceRoot = "prototype/ui/realm_home/sunpetal/ui/";
-    private const string SunpetalRealmHeaderResourceRoot = SunpetalRealmUiResourceRoot + "realm_header/";
-    private const string SunpetalRoomLabelResourceRoot = SunpetalRealmUiResourceRoot + "room_label/";
+    private const string RealmHomeBackgroundObjectPrefix = "Realm home background ";
     private const string LoadingScreenBackgroundResource = "prototype/ui/loading/loading";
     private const string WorldMapOpenedSavePrefix = "BingoMagicMayhem.WorldMap.Opened.";
     private const string WorldMapRestoredClosedSavePrefix = "BingoMagicMayhem.WorldMap.RestoredClosed.";
@@ -1777,12 +1774,13 @@ public class BingoPrototype : MonoBehaviour
         VerticalLayoutGroup layout = PrepareStage(StageWidth, StageHeight, new Color(0.1f, 0.22f, 0.17f, 0.98f), 0, 0);
         layout.enabled = false;
         activeStageSafePadding = 0f;
-        activeStageFillsViewport = RealmContentCatalog.ActivePrototypeRealmIndex == 0;
-        CreateActiveRealmMapBackground();
+        RealmHomeLayout realmHome = RealmHomeLayoutCatalog.ForRealm(RealmContentCatalog.ActivePrototypeRealmIndex);
+        activeStageFillsViewport = realmHome != null;
 
-        if (RealmContentCatalog.ActivePrototypeRealmIndex == 0)
+        if (realmHome != null)
         {
-            CreateSunpetalRealmMapUi();
+            CreateRealmHomeBackground(realmHome);
+            CreateRealmHomeMapUi(realmHome);
             ApplyStageScale(true);
             return;
         }
@@ -1810,33 +1808,36 @@ public class BingoPrototype : MonoBehaviour
         ApplyStageScale(true);
     }
 
-    private void CreateSunpetalRealmMapUi()
+    private void CreateRealmHomeMapUi(RealmHomeLayout realmHome)
     {
         IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
-        CreateSunpetalTopNavigation();
+        int realmIndex = RealmContentCatalog.ActivePrototypeRealmIndex;
+        CreateRealmHomeTopNavigation();
 
-        // Positions come from the 1920 x 1080 gridded realm-home mockup, converted to the 1600 x 900 stage (divide by 1.2).
-        Image mapArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-left", 75f, 75f, -751f, 354f);
+        // Shared chrome positions come from the 1920 x 1080 gridded Sunpetal mockup, converted to the
+        // 1600 x 900 stage (divide by 1.2). Per-realm placements live in RealmHomeLayoutCatalog.
+        Image mapArrow = CreateAnchoredImage(contentRoot, realmHome.UiResourceRoot + "nav-left", 75f, 75f, -751f, 354f);
         mapArrow.name = "Return to world map";
         Button mapButton = mapArrow.gameObject.AddComponent<Button>();
         mapButton.targetGraphic = mapArrow;
         mapButton.onClick.AddListener(() => BeginLoadingTransition(BuildWorldMapUi));
 
-        Image nextArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-right", 75f, 75f, -131f, 354f);
+        int nextRealmIndex = realmIndex + 1;
+        Image nextArrow = CreateAnchoredImage(contentRoot, realmHome.UiResourceRoot + "nav-right", 75f, 75f, -131f, 354f);
         nextArrow.name = "Next realm";
         Button nextButton = nextArrow.gameObject.AddComponent<Button>();
         nextButton.targetGraphic = nextArrow;
-        nextButton.interactable = RealmContentCatalog.AllRealms.Count > 1 && IsRealmUnlocked(1);
+        nextButton.interactable = nextRealmIndex < RealmContentCatalog.AllRealms.Count && IsRealmUnlocked(nextRealmIndex);
         ColorBlock nextArrowColors = nextButton.colors;
         // The mockup keeps the arrow solid while the next realm is locked; it just ignores taps.
         nextArrowColors.disabledColor = Color.white;
         nextButton.colors = nextArrowColors;
-        nextButton.onClick.AddListener(() => EnterRealm(1));
+        nextButton.onClick.AddListener(() => EnterRealm(nextRealmIndex));
 
-        GameObject header = CreateSunpetalNineTileFrame(
+        GameObject header = CreateRealmHomeNineTileFrame(
             contentRoot,
-            "Sunpetal realm header",
-            SunpetalRealmHeaderResourceRoot,
+            "Realm home header",
+            realmHome.HeaderResourceRoot,
             578f,
             168f,
             -443f,
@@ -1844,51 +1845,53 @@ public class BingoPrototype : MonoBehaviour
         Text realmTitle = CreateAnchoredText(header.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 38, FontStyle.Normal, new Color(0.05f, 0.16f, 0.07f), 570f, 52f, 6f, -41f);
         ApplyWorldMapDisplayTextTreatment(realmTitle, WorldMapProfileFontResource, new Vector2(1f, -1f));
 
-        float[] potionOffsets = { -147f, -54f, 43f, 149f };
-        for (int roomIndex = 0; roomIndex < rooms.Count && roomIndex < potionOffsets.Length; roomIndex++)
+        const float headerPotionY = 21f;
+        int roomCount = Mathf.Min(rooms.Count, realmHome.Rooms.Count);
+        for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
         {
+            RealmHomeRoomLayout roomLayout = realmHome.Rooms[roomIndex];
             string potionState = inventory.IsRoomRestored(rooms[roomIndex]) ? "potion" : "shadow";
-            GetSunpetalHeaderPotionLayout(roomIndex, out float potionWidth, out float potionHeight, out float potionY);
             Image potion = CreateAnchoredImage(
                 header.transform,
-                GetSunpetalPotionResource(roomIndex, potionState),
-                potionWidth,
-                potionHeight,
-                potionOffsets[roomIndex],
-                potionY);
+                GetRealmHomePotionResource(realmHome, roomLayout, potionState),
+                roomLayout.HeaderPotionSize.x,
+                roomLayout.HeaderPotionSize.y,
+                roomLayout.HeaderPotionOffsetX,
+                headerPotionY);
             // The import rescales these textures to power-of-two sizes, so draw at the art's true proportions instead.
             potion.preserveAspect = false;
             potion.raycastTarget = false;
         }
 
-        CreateSunpetalRoomNode(rooms[0], 0, -616f, 13f);
-        CreateSunpetalRoomNode(rooms[1], 1, 577f, 53f);
-        CreateSunpetalRoomNode(rooms[2], 2, -463f, -312f);
-        CreateSunpetalRoomNode(rooms[3], 3, 519f, -347f);
+        for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
+        {
+            CreateRealmHomeRoomNode(realmHome, rooms[roomIndex], roomIndex);
+        }
     }
 
-    private void CreateSunpetalTopNavigation()
+    private void CreateRealmHomeTopNavigation()
     {
         // The shared world-map counters are laid out in their own frame; scale them down to the mockup's pill size.
-        GameObject counterRoot = CreateAnchoredPanel(contentRoot, "Sunpetal top counters", Color.clear, 1f, 1f, 108f, -4f);
+        GameObject counterRoot = CreateAnchoredPanel(contentRoot, "Realm home top counters", Color.clear, 1f, 1f, 108f, -4f);
         counterRoot.transform.localScale = new Vector3(0.846f, 0.846f, 1f);
         counterRoot.GetComponent<Image>().raycastTarget = false;
         CreateTopCounter(counterRoot.transform, "Mana", "Nav unity ready/profile inventory/nav_profileMana_count", 8f);
         CreateTopCounter(counterRoot.transform, "Crystal", "Nav unity ready/profile inventory/nav_profileCrystal_count", 8f);
         CreateTopCounter(counterRoot.transform, "Power", "Nav unity ready/profile inventory/nav_profilePowerUp_count", 8f);
 
-        Image home = CreateMapImage(contentRoot, "Sunpetal Home", "Nav unity ready/top nav/nav_worldHome_default", 78f, 78f, 738f, 396f);
+        Image home = CreateMapImage(contentRoot, "Realm home Home", "Nav unity ready/top nav/nav_worldHome_default", 78f, 78f, 738f, 396f);
         Button homeButton = home.gameObject.AddComponent<Button>();
         homeButton.targetGraphic = home;
         homeButton.onClick.AddListener(BuildPlayerDenUi);
     }
 
-    private void CreateSunpetalRoomNode(RoomDefinition room, int roomIndex, float x, float y)
+    private void CreateRealmHomeRoomNode(RealmHomeLayout realmHome, RoomDefinition room, int roomIndex)
     {
+        RealmHomeRoomLayout roomLayout = realmHome.Rooms[roomIndex];
         bool available = IsRoomUnlocked(roomIndex);
         // The node is centered on the medallion + label pair; the medallion sits at the node's left.
         const float medallionX = -102f;
-        GameObject node = CreateAnchoredPanel(contentRoot, $"SunpetalRoom_{roomIndex + 1}", Color.clear, 305f, 110f, x, y);
+        GameObject node = CreateAnchoredPanel(contentRoot, $"RealmHomeRoom_{roomIndex + 1}", Color.clear, 305f, 110f, roomLayout.NodePosition.x, roomLayout.NodePosition.y);
         Image nodeImage = node.GetComponent<Image>();
         Button nodeButton = node.AddComponent<Button>();
         nodeButton.targetGraphic = nodeImage;
@@ -1905,15 +1908,15 @@ public class BingoPrototype : MonoBehaviour
         const float titleNaturalWidth = 178f;
         const float titleLeftX = -36f;
         const float titleFitLimit = 165f;
-        string roomName = GetSunpetalRoomDisplayName(roomIndex);
+        string roomName = roomLayout.DisplayName;
         float nameWidth = MeasureWidestTextLine(Resources.Load<Font>(WorldMapDisplayFontResource), roomTitleFontSize, roomName);
-        float fillWidth = GetSunpetalLabelFillWidth(labelNaturalWidth);
+        float fillWidth = GetRealmHomeLabelFillWidth(labelNaturalWidth);
         int fillColumns = nameWidth <= titleFitLimit ? 0 : nameWidth <= titleFitLimit + fillWidth ? 1 : 2;
         float labelGrowth = fillColumns * fillWidth;
         float labelX = 8f + labelGrowth / 2f;
         GameObject label = fillColumns > 0
-            ? CreateSunpetalWideLabelFrame(node.transform, $"Room {roomIndex + 1} label", labelNaturalWidth, 81f, labelX, 0f, fillColumns == 2)
-            : CreateSunpetalNineTileFrame(node.transform, $"Room {roomIndex + 1} label", SunpetalRoomLabelResourceRoot, labelNaturalWidth, 81f, labelX, 0f);
+            ? CreateRealmHomeWideLabelFrame(node.transform, $"Room {roomIndex + 1} label", realmHome.RoomLabelResourceRoot, labelNaturalWidth, 81f, labelX, 0f, fillColumns == 2)
+            : CreateRealmHomeNineTileFrame(node.transform, $"Room {roomIndex + 1} label", realmHome.RoomLabelResourceRoot, labelNaturalWidth, 81f, labelX, 0f);
         float titleWidth = titleNaturalWidth + labelGrowth;
         float titleCenterX = titleLeftX + titleWidth / 2f - labelX;
         Text roomTitle = CreateAnchoredText(label.transform, roomName, roomTitleFontSize, FontStyle.Normal, new Color(1f, 0.86f, 0.3f), titleWidth, 66f, titleCenterX, -1f);
@@ -1927,28 +1930,29 @@ public class BingoPrototype : MonoBehaviour
             roomTitle.lineSpacing = roomTitleLineGap / naturalLineGap;
         }
 
-        Image frame = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "room-frame", 101f, 101f, medallionX, 0f);
+        Image frame = CreateAnchoredImage(node.transform, realmHome.UiResourceRoot + "room-frame", 101f, 101f, medallionX, 0f);
         frame.raycastTarget = false;
         bool restored = inventory.IsRoomRestored(room);
         string medallionResource = restored
-            ? GetSunpetalPotionResource(roomIndex, "potion")
+            ? GetRealmHomePotionResource(realmHome, roomLayout, "potion")
             : available
-                ? GetSunpetalPotionResource(roomIndex, "shadow")
-                : SunpetalRealmUiResourceRoot + "room-lock";
+                ? GetRealmHomePotionResource(realmHome, roomLayout, "shadow")
+                : realmHome.UiResourceRoot + "room-lock";
         float medallionWidth;
         float medallionHeight;
         float medallionY;
         if (restored)
         {
-            GetSunpetalMedallionPotionLayout(roomIndex, out medallionWidth, out medallionHeight, out medallionY);
+            medallionWidth = roomLayout.MedallionPotionSize.x;
+            medallionHeight = roomLayout.MedallionPotionSize.y;
+            medallionY = roomLayout.MedallionPotionY;
         }
         else if (available)
         {
             // The mockup draws the shadow silhouette smaller than the full potion so it sits inside the ring.
             const float shadowScale = 0.76f;
-            GetSunpetalMedallionPotionLayout(roomIndex, out medallionWidth, out medallionHeight, out _);
-            medallionWidth *= shadowScale;
-            medallionHeight *= shadowScale;
+            medallionWidth = roomLayout.MedallionPotionSize.x * shadowScale;
+            medallionHeight = roomLayout.MedallionPotionSize.y * shadowScale;
             medallionY = 11f;
         }
         else
@@ -1969,14 +1973,12 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        float[] badgeOffsets = { 71f, 62f, 63f, 60f };
-        float badgeX = badgeOffsets[Mathf.Clamp(roomIndex, 0, badgeOffsets.Length - 1)];
-        Image countBadge = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "potion-count", 103f, 45f, badgeX, -60f);
+        Image countBadge = CreateAnchoredImage(node.transform, realmHome.UiResourceRoot + "potion-count", 103f, 45f, roomLayout.BadgeOffsetX, -60f);
         countBadge.preserveAspect = false;
         countBadge.raycastTarget = false;
         Text count = CreateAnchoredText(countBadge.transform, inventory.GetCombinedIngredientProgressText(room), 24, FontStyle.Normal, new Color(0.28f, 0.12f, 0.02f), 78f, 36f, 0f, -1f);
         ApplyWorldMapDisplayTextTreatment(count, WorldMapDisplayFontResource, new Vector2(1f, -1f));
-        count.fontSize = GetSunpetalBadgeFontSize(count.font, 78f);
+        count.fontSize = GetRealmHomeBadgeFontSize(count.font, 78f);
         count.horizontalOverflow = HorizontalWrapMode.Overflow;
     }
 
@@ -2007,7 +2009,7 @@ public class BingoPrototype : MonoBehaviour
     }
 
     // Every badge uses one size, chosen so the widest expected count ("99/99") fits with the mockup's side padding.
-    private int GetSunpetalBadgeFontSize(Font font, float maxWidth)
+    private int GetRealmHomeBadgeFontSize(Font font, float maxWidth)
     {
         const string widestCount = "99/99";
         const int maxSize = 24;
@@ -2034,7 +2036,7 @@ public class BingoPrototype : MonoBehaviour
         return Mathf.Max(12, Mathf.FloorToInt(maxSize * maxWidth / width));
     }
 
-    private GameObject CreateSunpetalNineTileFrame(
+    private GameObject CreateRealmHomeNineTileFrame(
         Transform parent,
         string name,
         string resourceRoot,
@@ -2083,17 +2085,17 @@ public class BingoPrototype : MonoBehaviour
     private static readonly float[] LabelFillSourceHeights = { 366f, 459f, 412f };
     private const float LabelFillRow3SourceOffset = 17f;
 
-    private float GetSunpetalLabelFillWidth(float naturalWidth)
+    private float GetRealmHomeLabelFillWidth(float naturalWidth)
     {
         return naturalWidth / 3f * LabelFillSourceWidth / LabelTileSourceWidth;
     }
 
     // Builds a | b | tr | c (or a | tl | b | tr | c for very long names) at natural scale,
     // so a long room name gets a wider plate without stretching any art.
-    private GameObject CreateSunpetalWideLabelFrame(Transform parent, string name, float naturalWidth, float height, float x, float y, bool includeLeftFill)
+    private GameObject CreateRealmHomeWideLabelFrame(Transform parent, string name, string labelResourceRoot, float naturalWidth, float height, float x, float y, bool includeLeftFill)
     {
         float tileStepX = naturalWidth / 3f;
-        float fillWidth = GetSunpetalLabelFillWidth(naturalWidth);
+        float fillWidth = GetRealmHomeLabelFillWidth(naturalWidth);
         float totalWidth = naturalWidth + (includeLeftFill ? 2f : 1f) * fillWidth;
         float tileStepY = height / 3f;
         float sourceToStage = tileStepY / LabelTileSourceHeight;
@@ -2132,7 +2134,7 @@ public class BingoPrototype : MonoBehaviour
 
                 Image tile = CreateAnchoredImage(
                     frame.transform,
-                    SunpetalRoomLabelResourceRoot + columns[column] + (row + 1),
+                    labelResourceRoot + columns[column] + (row + 1),
                     widths[column] + 2f,
                     tileHeight + 2f,
                     centerX,
@@ -2151,60 +2153,13 @@ public class BingoPrototype : MonoBehaviour
         return frame;
     }
 
-    private string GetSunpetalPotionResource(int roomIndex, string state)
+    private string GetRealmHomePotionResource(RealmHomeLayout realmHome, RealmHomeRoomLayout roomLayout, string state)
     {
-        string[] potionNames =
-        {
-            "sunpetal-conservatory",
-            "thorn-tangled",
-            "pollenspire",
-            "solstice-bloom"
-        };
-        int safeIndex = Mathf.Clamp(roomIndex, 0, potionNames.Length - 1);
-        return SunpetalRealmUiResourceRoot + "potions/" + potionNames[safeIndex] + "-" + state;
+        return realmHome.PotionResourceRoot + roomLayout.PotionArtName + "-" + state;
     }
 
-    private string GetSunpetalRoomDisplayName(int roomIndex)
+    private void CreateRealmHomeBackground(RealmHomeLayout realmHome)
     {
-        string[] roomNames =
-        {
-            "Gilded Azalea\nArboretum",
-            "Thorn-Tangled\nTerrace",
-            "Pollenspire\nFountain",
-            "Solstice Bloom\nGlasshouse"
-        };
-        return roomNames[Mathf.Clamp(roomIndex, 0, roomNames.Length - 1)];
-    }
-
-    private void GetSunpetalHeaderPotionLayout(int roomIndex, out float width, out float height, out float y)
-    {
-        float[] widths = { 59f, 64f, 36f, 61f };
-        float[] heights = { 84f, 84f, 84f, 84f };
-        float[] verticalOffsets = { 21f, 21f, 21f, 21f };
-        int safeIndex = Mathf.Clamp(roomIndex, 0, widths.Length - 1);
-        width = widths[safeIndex];
-        height = heights[safeIndex];
-        y = verticalOffsets[safeIndex];
-    }
-
-    private void GetSunpetalMedallionPotionLayout(int roomIndex, out float width, out float height, out float y)
-    {
-        float[] widths = { 81f, 87f, 49f, 84f };
-        float[] heights = { 115f, 115f, 115f, 115f };
-        float[] verticalOffsets = { 16f, 16f, 23f, 15f };
-        int safeIndex = Mathf.Clamp(roomIndex, 0, widths.Length - 1);
-        width = widths[safeIndex];
-        height = heights[safeIndex];
-        y = verticalOffsets[safeIndex];
-    }
-
-    private void CreateActiveRealmMapBackground()
-    {
-        if (RealmContentCatalog.ActivePrototypeRealmIndex != 0)
-        {
-            return;
-        }
-
         IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
         int restoredRoomCount = 0;
         for (int index = 0; index < rooms.Count; index++)
@@ -2220,12 +2175,12 @@ public class BingoPrototype : MonoBehaviour
             : "broken" + Mathf.Clamp(restoredRoomCount, 0, 3);
         Image background = CreateAnchoredImage(
             contentRoot,
-            SunpetalRealmBackgroundResourceRoot + stateAssetName,
+            realmHome.BackgroundResourcePrefix + stateAssetName,
             StageWidth,
             StageHeight,
             0f,
             0f);
-        background.name = "Sunpetal realm background " + stateAssetName;
+        background.name = RealmHomeBackgroundObjectPrefix + stateAssetName;
         background.preserveAspect = false;
         background.raycastTarget = false;
         background.transform.SetAsFirstSibling();
@@ -9895,7 +9850,7 @@ public class BingoPrototype : MonoBehaviour
 
         lastRootSize = rootSize;
 
-        bool fillsViewport = activeStageFillsViewport || IsSunpetalRealmStage();
+        bool fillsViewport = activeStageFillsViewport || IsRealmHomeStage();
         float safePadding = fillsViewport ? 0f : activeStageSafePadding;
         float availableWidth = Mathf.Max(1f, rootSize.x - safePadding * 2f);
         float availableHeight = Mathf.Max(1f, rootSize.y - safePadding * 2f);
@@ -9909,7 +9864,7 @@ public class BingoPrototype : MonoBehaviour
         stageRect.localScale = new Vector3(scale, scale, 1f);
     }
 
-    private bool IsSunpetalRealmStage()
+    private bool IsRealmHomeStage()
     {
         if (stageRect == null)
         {
@@ -9918,7 +9873,7 @@ public class BingoPrototype : MonoBehaviour
 
         for (int index = 0; index < stageRect.childCount; index++)
         {
-            if (stageRect.GetChild(index).name.StartsWith("Sunpetal realm background "))
+            if (stageRect.GetChild(index).name.StartsWith(RealmHomeBackgroundObjectPrefix))
             {
                 return true;
             }
