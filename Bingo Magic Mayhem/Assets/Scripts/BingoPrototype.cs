@@ -1634,7 +1634,7 @@ public class BingoPrototype : MonoBehaviour
         worldMapSlideRoutine = null;
     }
 
-    private void CreateTopCounter(Transform parent, string name, string iconPath)
+    private void CreateTopCounter(Transform parent, string name, string iconPath, float pillRightExtension = 0f)
     {
         float pillLeftX;
         float pillCenterX;
@@ -1697,16 +1697,26 @@ public class BingoPrototype : MonoBehaviour
         }
 
         const float pillY = 474.5f;
-        const float pillCenterWidth = 102f;
+        float pillCenterWidth = 102f;
         const float pillHeight = 59f;
+        float countX = pillCenterX + 10f;
+        if (pillRightExtension > 0f)
+        {
+            // Lengthen the pill past the add button; the center piece overlaps both ends slightly to hide seams.
+            pillCenterX += pillRightExtension / 2f;
+            pillCenterWidth += pillRightExtension + 4f;
+            pillRightX += pillRightExtension;
+        }
         CreateMapImage(parent, name + " pill left", "Nav unity ready/profile inventory/nav_profileInventoryPill_countPillLeft", 47f, pillHeight, pillLeftX, pillY);
         CreateMapImage(parent, name + " pill center", "Nav unity ready/profile inventory/nav_profileInventoryPill_countPillCenter", pillCenterWidth, pillHeight, pillCenterX, pillY);
         CreateMapImage(parent, name + " pill right", "Nav unity ready/profile inventory/nav_profileInventoryPill_countPillRight", pillRightWidth, pillHeight, pillRightX, pillY);
         CreateMapImage(parent, name + " icon background", "Nav unity ready/profile inventory/nav_profileInventory_countBG", 69f, 69f, backgroundX, 473.5f);
         CreateMapImage(parent, name + " icon", iconPath, iconWidth, iconHeight, iconX, iconY);
         int countFontSize = countText.Length >= 6 ? 24 : 28;
-        Text count = CreateAnchoredText(parent, countText, countFontSize, FontStyle.Normal, Color.white, 86f, 46f, pillCenterX + 10f, pillY);
+        Text count = CreateAnchoredText(parent, countText, countFontSize, FontStyle.Normal, Color.white, 86f, 46f, countX, pillY);
         ApplyWorldMapDisplayTextTreatment(count, addShadow: false);
+        // Long balances must not wrap a digit onto a hidden line.
+        count.horizontalOverflow = HorizontalWrapMode.Overflow;
         CreateMapImage(parent, name + " add", "Nav unity ready/profile inventory/nav_profileInventory_countPillAdd", 36f, 36f, addX, 475f);
     }
 
@@ -1805,19 +1815,21 @@ public class BingoPrototype : MonoBehaviour
         IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
         CreateSunpetalTopNavigation();
 
-        Image mapArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-left", 90f, 90f, -753f, 353f);
+        // Positions come from the 1920 x 1080 gridded realm-home mockup, converted to the 1600 x 900 stage (divide by 1.2).
+        Image mapArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-left", 75f, 75f, -751f, 354f);
         mapArrow.name = "Return to world map";
         Button mapButton = mapArrow.gameObject.AddComponent<Button>();
         mapButton.targetGraphic = mapArrow;
         mapButton.onClick.AddListener(() => BeginLoadingTransition(BuildWorldMapUi));
 
-        Image nextArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-right", 90f, 90f, -75f, 353f);
+        Image nextArrow = CreateAnchoredImage(contentRoot, SunpetalRealmUiResourceRoot + "nav-right", 75f, 75f, -131f, 354f);
         nextArrow.name = "Next realm";
         Button nextButton = nextArrow.gameObject.AddComponent<Button>();
         nextButton.targetGraphic = nextArrow;
         nextButton.interactable = RealmContentCatalog.AllRealms.Count > 1 && IsRealmUnlocked(1);
         ColorBlock nextArrowColors = nextButton.colors;
-        nextArrowColors.disabledColor = new Color(1f, 1f, 1f, 0.82f);
+        // The mockup keeps the arrow solid while the next realm is locked; it just ignores taps.
+        nextArrowColors.disabledColor = Color.white;
         nextButton.colors = nextArrowColors;
         nextButton.onClick.AddListener(() => EnterRealm(1));
 
@@ -1825,14 +1837,14 @@ public class BingoPrototype : MonoBehaviour
             contentRoot,
             "Sunpetal realm header",
             SunpetalRealmHeaderResourceRoot,
-            645f,
-            166f,
-            -414f,
-            353f);
-        Text realmTitle = CreateAnchoredText(header.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 41, FontStyle.Normal, new Color(0.31f, 0.12f, 0.04f), 570f, 52f, 0f, -46f);
+            578f,
+            168f,
+            -443f,
+            355f);
+        Text realmTitle = CreateAnchoredText(header.transform, RealmContentCatalog.ActivePrototypeRealm.Name, 38, FontStyle.Normal, new Color(0.05f, 0.16f, 0.07f), 570f, 52f, 6f, -41f);
         ApplyWorldMapDisplayTextTreatment(realmTitle, WorldMapProfileFontResource, new Vector2(1f, -1f));
 
-        float[] potionOffsets = { -150f, -50f, 50f, 150f };
+        float[] potionOffsets = { -147f, -54f, 43f, 149f };
         for (int roomIndex = 0; roomIndex < rooms.Count && roomIndex < potionOffsets.Length; roomIndex++)
         {
             string potionState = inventory.IsRoomRestored(rooms[roomIndex]) ? "potion" : "shadow";
@@ -1844,25 +1856,28 @@ public class BingoPrototype : MonoBehaviour
                 potionHeight,
                 potionOffsets[roomIndex],
                 potionY);
-            potion.preserveAspect = true;
+            // The import rescales these textures to power-of-two sizes, so draw at the art's true proportions instead.
+            potion.preserveAspect = false;
             potion.raycastTarget = false;
         }
 
-        CreateSunpetalRoomNode(rooms[0], 0, -621f, 28f);
-        CreateSunpetalRoomNode(rooms[1], 1, 577f, 65f);
-        CreateSunpetalRoomNode(rooms[2], 2, -463f, -323f);
-        CreateSunpetalRoomNode(rooms[3], 3, 483f, -365f);
+        CreateSunpetalRoomNode(rooms[0], 0, -616f, 13f);
+        CreateSunpetalRoomNode(rooms[1], 1, 577f, 53f);
+        CreateSunpetalRoomNode(rooms[2], 2, -463f, -312f);
+        CreateSunpetalRoomNode(rooms[3], 3, 519f, -347f);
     }
 
     private void CreateSunpetalTopNavigation()
     {
-        GameObject counterRoot = CreateAnchoredPanel(contentRoot, "Sunpetal top counters", Color.clear, 1f, 1f, 15f, -138f);
+        // The shared world-map counters are laid out in their own frame; scale them down to the mockup's pill size.
+        GameObject counterRoot = CreateAnchoredPanel(contentRoot, "Sunpetal top counters", Color.clear, 1f, 1f, 108f, -4f);
+        counterRoot.transform.localScale = new Vector3(0.846f, 0.846f, 1f);
         counterRoot.GetComponent<Image>().raycastTarget = false;
-        CreateTopCounter(counterRoot.transform, "Mana", "Nav unity ready/profile inventory/nav_profileMana_count");
-        CreateTopCounter(counterRoot.transform, "Crystal", "Nav unity ready/profile inventory/nav_profileCrystal_count");
-        CreateTopCounter(counterRoot.transform, "Power", "Nav unity ready/profile inventory/nav_profilePowerUp_count");
+        CreateTopCounter(counterRoot.transform, "Mana", "Nav unity ready/profile inventory/nav_profileMana_count", 8f);
+        CreateTopCounter(counterRoot.transform, "Crystal", "Nav unity ready/profile inventory/nav_profileCrystal_count", 8f);
+        CreateTopCounter(counterRoot.transform, "Power", "Nav unity ready/profile inventory/nav_profilePowerUp_count", 8f);
 
-        Image home = CreateMapImage(contentRoot, "Sunpetal Home", "Nav unity ready/top nav/nav_worldHome_default", 76f, 76f, 755f, 337f);
+        Image home = CreateMapImage(contentRoot, "Sunpetal Home", "Nav unity ready/top nav/nav_worldHome_default", 78f, 78f, 738f, 396f);
         Button homeButton = home.gameObject.AddComponent<Button>();
         homeButton.targetGraphic = home;
         homeButton.onClick.AddListener(BuildPlayerDenUi);
@@ -1871,7 +1886,9 @@ public class BingoPrototype : MonoBehaviour
     private void CreateSunpetalRoomNode(RoomDefinition room, int roomIndex, float x, float y)
     {
         bool available = IsRoomUnlocked(roomIndex);
-        GameObject node = CreateAnchoredPanel(contentRoot, $"SunpetalRoom_{roomIndex + 1}", Color.clear, 360f, 120f, x, y);
+        // The node is centered on the medallion + label pair; the medallion sits at the node's left.
+        const float medallionX = -102f;
+        GameObject node = CreateAnchoredPanel(contentRoot, $"SunpetalRoom_{roomIndex + 1}", Color.clear, 305f, 110f, x, y);
         Image nodeImage = node.GetComponent<Image>();
         Button nodeButton = node.AddComponent<Button>();
         nodeButton.targetGraphic = nodeImage;
@@ -1881,18 +1898,36 @@ public class BingoPrototype : MonoBehaviour
             nodeButton.onClick.AddListener(() => EnterRoom(roomIndex));
         }
 
-        GameObject label = CreateSunpetalNineTileFrame(
-            node.transform,
-            $"Room {roomIndex + 1} label",
-            SunpetalRoomLabelResourceRoot,
-            280f,
-            80f,
-            20f,
-            0f);
-        Text roomTitle = CreateAnchoredText(label.transform, GetSunpetalRoomDisplayName(roomIndex), 24, FontStyle.Normal, new Color(1f, 0.86f, 0.3f), 220f, 66f, 20f, 0f);
+        // Names too wide for the stock plate add the right fill slice; only names too long for that also add the left one.
+        // The left edge stays tucked behind the medallion either way.
+        const int roomTitleFontSize = 25;
+        const float labelNaturalWidth = 288f;
+        const float titleNaturalWidth = 178f;
+        const float titleLeftX = -36f;
+        const float titleFitLimit = 165f;
+        string roomName = GetSunpetalRoomDisplayName(roomIndex);
+        float nameWidth = MeasureWidestTextLine(Resources.Load<Font>(WorldMapDisplayFontResource), roomTitleFontSize, roomName);
+        float fillWidth = GetSunpetalLabelFillWidth(labelNaturalWidth);
+        int fillColumns = nameWidth <= titleFitLimit ? 0 : nameWidth <= titleFitLimit + fillWidth ? 1 : 2;
+        float labelGrowth = fillColumns * fillWidth;
+        float labelX = 8f + labelGrowth / 2f;
+        GameObject label = fillColumns > 0
+            ? CreateSunpetalWideLabelFrame(node.transform, $"Room {roomIndex + 1} label", labelNaturalWidth, 81f, labelX, 0f, fillColumns == 2)
+            : CreateSunpetalNineTileFrame(node.transform, $"Room {roomIndex + 1} label", SunpetalRoomLabelResourceRoot, labelNaturalWidth, 81f, labelX, 0f);
+        float titleWidth = titleNaturalWidth + labelGrowth;
+        float titleCenterX = titleLeftX + titleWidth / 2f - labelX;
+        Text roomTitle = CreateAnchoredText(label.transform, roomName, roomTitleFontSize, FontStyle.Normal, new Color(1f, 0.86f, 0.3f), titleWidth, 66f, titleCenterX, -1f);
         ApplyWorldMapDisplayTextTreatment(roomTitle, WorldMapDisplayFontResource, new Vector2(1f, -1f));
+        roomTitle.alignment = TextAnchor.MiddleLeft;
+        // Two name lines sit 23 stage units apart (tighter than the mockup's 26); derive the multiplier from the font's own line height.
+        const float roomTitleLineGap = 23f;
+        if (roomTitle.font != null && roomTitle.font.lineHeight > 0 && roomTitle.font.fontSize > 0)
+        {
+            float naturalLineGap = roomTitle.font.lineHeight * (float)roomTitle.fontSize / roomTitle.font.fontSize;
+            roomTitle.lineSpacing = roomTitleLineGap / naturalLineGap;
+        }
 
-        Image frame = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "room-frame", 128f, 128f, -125f, 0f);
+        Image frame = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "room-frame", 101f, 101f, medallionX, 0f);
         frame.raycastTarget = false;
         bool restored = inventory.IsRoomRestored(room);
         string medallionResource = restored
@@ -1903,29 +1938,100 @@ public class BingoPrototype : MonoBehaviour
         float medallionWidth;
         float medallionHeight;
         float medallionY;
-        if (restored || available)
+        if (restored)
         {
             GetSunpetalMedallionPotionLayout(roomIndex, out medallionWidth, out medallionHeight, out medallionY);
         }
+        else if (available)
+        {
+            // The mockup draws the shadow silhouette smaller than the full potion so it sits inside the ring.
+            const float shadowScale = 0.76f;
+            GetSunpetalMedallionPotionLayout(roomIndex, out medallionWidth, out medallionHeight, out _);
+            medallionWidth *= shadowScale;
+            medallionHeight *= shadowScale;
+            medallionY = 11f;
+        }
         else
         {
-            medallionWidth = 76f;
-            medallionHeight = 76f;
+            medallionWidth = 60f;
+            medallionHeight = 60f;
             medallionY = 0f;
         }
 
-        Image medallion = CreateAnchoredImage(node.transform, medallionResource, medallionWidth, medallionHeight, -125f, medallionY);
-        medallion.preserveAspect = true;
+        Image medallion = CreateAnchoredImage(node.transform, medallionResource, medallionWidth, medallionHeight, medallionX, medallionY);
+        medallion.preserveAspect = false;
         medallion.raycastTarget = false;
 
-        if (available && !restored)
+        // Unlocked rooms show ingredient progress toward their potion. Restoring spends the requirement,
+        // so a restored room shows the leftover ingredients counting toward its next brew. Locked rooms show no badge.
+        if (!available)
         {
-            Image countBadge = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "potion-count", 61f, 35f, -65f, -46f);
-            countBadge.preserveAspect = false;
-            countBadge.raycastTarget = false;
-            Text count = CreateAnchoredText(countBadge.transform, inventory.GetCombinedIngredientProgressText(room), 16, FontStyle.Normal, new Color(0.28f, 0.12f, 0.02f), 54f, 27f, 0f, -1f);
-            ApplyWorldMapDisplayTextTreatment(count, WorldMapDisplayFontResource, new Vector2(1f, -1f));
+            return;
         }
+
+        float[] badgeOffsets = { 71f, 62f, 63f, 60f };
+        float badgeX = badgeOffsets[Mathf.Clamp(roomIndex, 0, badgeOffsets.Length - 1)];
+        Image countBadge = CreateAnchoredImage(node.transform, SunpetalRealmUiResourceRoot + "potion-count", 103f, 45f, badgeX, -60f);
+        countBadge.preserveAspect = false;
+        countBadge.raycastTarget = false;
+        Text count = CreateAnchoredText(countBadge.transform, inventory.GetCombinedIngredientProgressText(room), 24, FontStyle.Normal, new Color(0.28f, 0.12f, 0.02f), 78f, 36f, 0f, -1f);
+        ApplyWorldMapDisplayTextTreatment(count, WorldMapDisplayFontResource, new Vector2(1f, -1f));
+        count.fontSize = GetSunpetalBadgeFontSize(count.font, 78f);
+        count.horizontalOverflow = HorizontalWrapMode.Overflow;
+    }
+
+    private static float MeasureWidestTextLine(Font font, int fontSize, string text)
+    {
+        if (font == null || string.IsNullOrEmpty(text))
+        {
+            return 0f;
+        }
+
+        font.RequestCharactersInTexture(text, fontSize);
+        float widest = 0f;
+        foreach (string line in text.Split('\n'))
+        {
+            float width = 0f;
+            foreach (char character in line)
+            {
+                if (font.GetCharacterInfo(character, out CharacterInfo info, fontSize))
+                {
+                    width += info.advance;
+                }
+            }
+
+            widest = Mathf.Max(widest, width);
+        }
+
+        return widest;
+    }
+
+    // Every badge uses one size, chosen so the widest expected count ("99/99") fits with the mockup's side padding.
+    private int GetSunpetalBadgeFontSize(Font font, float maxWidth)
+    {
+        const string widestCount = "99/99";
+        const int maxSize = 24;
+        if (font == null)
+        {
+            return maxSize;
+        }
+
+        font.RequestCharactersInTexture(widestCount, maxSize);
+        float width = 0f;
+        foreach (char character in widestCount)
+        {
+            if (font.GetCharacterInfo(character, out CharacterInfo info, maxSize))
+            {
+                width += info.advance;
+            }
+        }
+
+        if (width <= maxWidth)
+        {
+            return maxSize;
+        }
+
+        return Mathf.Max(12, Mathf.FloorToInt(maxSize * maxWidth / width));
     }
 
     private GameObject CreateSunpetalNineTileFrame(
@@ -1958,7 +2064,88 @@ public class BingoPrototype : MonoBehaviour
                     (1 - row) * tileStepY);
                 tile.preserveAspect = false;
                 tile.raycastTarget = false;
+                // Default Repeat wrapping bleeds each tile's opposite edge into the joins, drawing a visible seam line.
+                if (tile.sprite != null)
+                {
+                    tile.sprite.texture.wrapMode = TextureWrapMode.Clamp;
+                }
             }
+        }
+
+        return frame;
+    }
+
+    // Source-pixel geometry of the room-label art: 1623 x 458 tiles, plus 746-wide fill slices that are cropped
+    // to the visible border (row 1 starts at the border, row 3 ends 17 px lower than the tiles' border top).
+    private const float LabelTileSourceWidth = 1623f;
+    private const float LabelTileSourceHeight = 458f;
+    private const float LabelFillSourceWidth = 746f;
+    private static readonly float[] LabelFillSourceHeights = { 366f, 459f, 412f };
+    private const float LabelFillRow3SourceOffset = 17f;
+
+    private float GetSunpetalLabelFillWidth(float naturalWidth)
+    {
+        return naturalWidth / 3f * LabelFillSourceWidth / LabelTileSourceWidth;
+    }
+
+    // Builds a | b | tr | c (or a | tl | b | tr | c for very long names) at natural scale,
+    // so a long room name gets a wider plate without stretching any art.
+    private GameObject CreateSunpetalWideLabelFrame(Transform parent, string name, float naturalWidth, float height, float x, float y, bool includeLeftFill)
+    {
+        float tileStepX = naturalWidth / 3f;
+        float fillWidth = GetSunpetalLabelFillWidth(naturalWidth);
+        float totalWidth = naturalWidth + (includeLeftFill ? 2f : 1f) * fillWidth;
+        float tileStepY = height / 3f;
+        float sourceToStage = tileStepY / LabelTileSourceHeight;
+
+        GameObject frame = CreateAnchoredPanel(parent, name, Color.clear, totalWidth, height, x, y);
+        frame.GetComponent<Image>().raycastTarget = false;
+
+        float left = -totalWidth / 2f;
+        string[] columns = includeLeftFill
+            ? new[] { "tile-a", "fill-tl", "tile-b", "fill-tr", "tile-c" }
+            : new[] { "tile-a", "tile-b", "fill-tr", "tile-c" };
+        float[] widths = includeLeftFill
+            ? new[] { tileStepX, fillWidth, tileStepX, fillWidth, tileStepX }
+            : new[] { tileStepX, tileStepX, fillWidth, tileStepX };
+        for (int column = 0; column < columns.Length; column++)
+        {
+            float centerX = left + widths[column] / 2f;
+            bool isFill = columns[column].StartsWith("fill-");
+            for (int row = 0; row < 3; row++)
+            {
+                float rowTop = height / 2f - row * tileStepY;
+                float tileHeight = tileStepY;
+                float centerY = rowTop - tileStepY / 2f;
+                if (isFill)
+                {
+                    tileHeight = LabelFillSourceHeights[row] * sourceToStage;
+                    if (row == 0)
+                    {
+                        centerY = rowTop - tileStepY + tileHeight / 2f;
+                    }
+                    else if (row == 2)
+                    {
+                        centerY = rowTop - LabelFillRow3SourceOffset * sourceToStage - tileHeight / 2f;
+                    }
+                }
+
+                Image tile = CreateAnchoredImage(
+                    frame.transform,
+                    SunpetalRoomLabelResourceRoot + columns[column] + (row + 1),
+                    widths[column] + 2f,
+                    tileHeight + 2f,
+                    centerX,
+                    centerY);
+                tile.preserveAspect = false;
+                tile.raycastTarget = false;
+                if (tile.sprite != null)
+                {
+                    tile.sprite.texture.wrapMode = TextureWrapMode.Clamp;
+                }
+            }
+
+            left += widths[column];
         }
 
         return frame;
@@ -1991,9 +2178,9 @@ public class BingoPrototype : MonoBehaviour
 
     private void GetSunpetalHeaderPotionLayout(int roomIndex, out float width, out float height, out float y)
     {
-        float[] widths = { 77f, 85f, 48f, 79f };
-        float[] heights = { 110f, 112f, 112f, 108f };
-        float[] verticalOffsets = { 34f, 38f, 34f, 34f };
+        float[] widths = { 59f, 64f, 36f, 61f };
+        float[] heights = { 84f, 84f, 84f, 84f };
+        float[] verticalOffsets = { 21f, 21f, 21f, 21f };
         int safeIndex = Mathf.Clamp(roomIndex, 0, widths.Length - 1);
         width = widths[safeIndex];
         height = heights[safeIndex];
@@ -2002,9 +2189,9 @@ public class BingoPrototype : MonoBehaviour
 
     private void GetSunpetalMedallionPotionLayout(int roomIndex, out float width, out float height, out float y)
     {
-        float[] widths = { 77f, 85f, 48f, 79f };
-        float[] heights = { 110f, 112f, 112f, 108f };
-        float[] verticalOffsets = { 0f, 7f, 0f, 0f };
+        float[] widths = { 81f, 87f, 49f, 84f };
+        float[] heights = { 115f, 115f, 115f, 115f };
+        float[] verticalOffsets = { 16f, 16f, 23f, 15f };
         int safeIndex = Mathf.Clamp(roomIndex, 0, widths.Length - 1);
         width = widths[safeIndex];
         height = heights[safeIndex];
