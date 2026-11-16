@@ -189,67 +189,6 @@ public static class RealmContentCatalog
                     "Blackout",
                     RoomProgressionProfile.Create(1, 4, 3)),
             }),
-        new RealmDefinition("Everbloom Sanctuary",
-            new List<RoomDefinition>
-            {
-                new RoomDefinition(
-                    "Heartbloom petals",
-                    "Blossomveil Awakening Tonic",
-                    new List<IngredientRequirement>
-                    {
-                        new IngredientRequirement("Veilpetal Blossoms", 8, "Common", ""),
-                        new IngredientRequirement("Roselight Essence", 5, "Common", ""),
-                        new IngredientRequirement("Marblemoss Threads", 5, "Common", ""),
-                        new IngredientRequirement("Petalsheen Dust", 7, "Uncommon", ""),
-                        new IngredientRequirement("Heartbloom Petals", 5, "Key Ingredient", ""),
-                    },
-                    BingoRoomMode.Standard,
-                    "Standard",
-                    RoomProgressionProfile.Create(2, 1, 0)),
-                new RoomDefinition(
-                    "Gardener's Grace Yard",
-                    "Gardener’s Grace Mending Balm",
-                    new List<IngredientRequirement>
-                    {
-                        new IngredientRequirement("Graceyard Soil Cakes", 8, "Common", ""),
-                        new IngredientRequirement("Polished Trowel Charms", 6, "Common", ""),
-                        new IngredientRequirement("Terracotta Mender’s Clay", 8, "Common", ""),
-                        new IngredientRequirement("Rootwax Binding Cord", 8, "Uncommon", ""),
-                        new IngredientRequirement("Keepsake Clover", 3, "Key Ingredient", ""),
-                    },
-                    BingoRoomMode.Standard,
-                    "Standard",
-                    RoomProgressionProfile.Create(2, 2, 1)),
-                new RoomDefinition(
-                    "Luminara Fountain",
-                    "Luminara Flow Essence",
-                    new List<IngredientRequirement>
-                    {
-                        new IngredientRequirement("Luminara Waterglass", 7, "Common", ""),
-                        new IngredientRequirement("Silver Basin Coins", 7, "Common", ""),
-                        new IngredientRequirement("Moonlit Ripple Lace", 8, "Common", ""),
-                        new IngredientRequirement("Bluebell Chime Shells", 7, "Uncommon", ""),
-                        new IngredientRequirement("Luminous Springcore", 7, "Key Ingredient", ""),
-                    },
-                    BingoRoomMode.Standard,
-                    "Standard",
-                    RoomProgressionProfile.Create(2, 3, 2)),
-                new RoomDefinition(
-                    "Everbloom Shrine",
-                    "Heartbloom Revival Mist",
-                    new List<IngredientRequirement>
-                    {
-                        new IngredientRequirement("Frosted Petal Plates", 6, "Common", ""),
-                        new IngredientRequirement("Sanctuary Lightwick", 7, "Common", ""),
-                        new IngredientRequirement("Violet Geode Nectar", 7, "Uncommon", ""),
-                        new IngredientRequirement("Halofern Ribbons", 7, "Uncommon", ""),
-                        new IngredientRequirement("Gilded Bloom Sigils", 7, "Uncommon", ""),
-                        new IngredientRequirement("Everheart Bud", 7, "Key Ingredient", ""),
-                    },
-                    BingoRoomMode.Special,
-                    "Blackout",
-                    RoomProgressionProfile.Create(2, 4, 3)),
-            }),
         new RealmDefinition("Floating Lotus Lagoon",
             new List<RoomDefinition>
             {
@@ -267,7 +206,7 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Standard,
                     "Standard",
-                    RoomProgressionProfile.Create(3, 1, 0)),
+                    RoomProgressionProfile.Create(2, 1, 0)),
                 new RoomDefinition(
                     "Waterlily Canal",
                     "Waterlily Flow Draught",
@@ -282,7 +221,7 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Standard,
                     "Standard",
-                    RoomProgressionProfile.Create(3, 2, 1)),
+                    RoomProgressionProfile.Create(2, 2, 1)),
                 new RoomDefinition(
                     "Opalwater Glasswalk",
                     "Opalwater Clarity Potion",
@@ -298,7 +237,7 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Standard,
                     "Standard",
-                    RoomProgressionProfile.Create(3, 3, 2)),
+                    RoomProgressionProfile.Create(2, 3, 2)),
                 new RoomDefinition(
                     "Glasswater Grotto",
                     "Grotto Glow Elixir",
@@ -311,6 +250,67 @@ public static class RealmContentCatalog
                         new IngredientRequirement("Floating Lotus Bloom", 6, "Uncommon", ""),
                         new IngredientRequirement("Stillwater Teardrop", 6, "Rare", ""),
                         new IngredientRequirement("Pearlglow Shard", 4, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Special,
+                    "Blackout",
+                    RoomProgressionProfile.Create(2, 4, 3)),
+            }),
+        new RealmDefinition("Everbloom Sanctuary",
+            new List<RoomDefinition>
+            {
+                new RoomDefinition(
+                    "Heartbloom petals",
+                    "Blossomveil Awakening Tonic",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Veilpetal Blossoms", 8, "Common", ""),
+                        new IngredientRequirement("Roselight Essence", 5, "Common", ""),
+                        new IngredientRequirement("Marblemoss Threads", 5, "Common", ""),
+                        new IngredientRequirement("Petalsheen Dust", 7, "Uncommon", ""),
+                        new IngredientRequirement("Heartbloom Petals", 5, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Standard,
+                    "Standard",
+                    RoomProgressionProfile.Create(3, 1, 0)),
+                new RoomDefinition(
+                    "Gardener's Grace Yard",
+                    "Gardener’s Grace Mending Balm",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Graceyard Soil Cakes", 8, "Common", ""),
+                        new IngredientRequirement("Polished Trowel Charms", 6, "Common", ""),
+                        new IngredientRequirement("Terracotta Mender’s Clay", 8, "Common", ""),
+                        new IngredientRequirement("Rootwax Binding Cord", 8, "Uncommon", ""),
+                        new IngredientRequirement("Keepsake Clover", 3, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Standard,
+                    "Standard",
+                    RoomProgressionProfile.Create(3, 2, 1)),
+                new RoomDefinition(
+                    "Luminara Fountain",
+                    "Luminara Flow Essence",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Luminara Waterglass", 7, "Common", ""),
+                        new IngredientRequirement("Silver Basin Coins", 7, "Common", ""),
+                        new IngredientRequirement("Moonlit Ripple Lace", 8, "Common", ""),
+                        new IngredientRequirement("Bluebell Chime Shells", 7, "Uncommon", ""),
+                        new IngredientRequirement("Luminous Springcore", 7, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Standard,
+                    "Standard",
+                    RoomProgressionProfile.Create(3, 3, 2)),
+                new RoomDefinition(
+                    "Everbloom Shrine",
+                    "Heartbloom Revival Mist",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Frosted Petal Plates", 6, "Common", ""),
+                        new IngredientRequirement("Sanctuary Lightwick", 7, "Common", ""),
+                        new IngredientRequirement("Violet Geode Nectar", 7, "Uncommon", ""),
+                        new IngredientRequirement("Halofern Ribbons", 7, "Uncommon", ""),
+                        new IngredientRequirement("Gilded Bloom Sigils", 7, "Uncommon", ""),
+                        new IngredientRequirement("Everheart Bud", 7, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -710,7 +710,80 @@ public static class RealmContentCatalog
                     "Blackout",
                     RoomProgressionProfile.Create(9, 4, 3)),
             }),
-        new RealmDefinition("Everfrost Vale",
+        // Realm 10 per the BMM Potions sheet. TODO(product): ingredient amounts are the sheet's raw values and rarities follow
+        // the Everfrost Vale pattern; neither has been tuned like the earlier realms. See Docs/09_OPEN_DECISIONS.md.
+        new RealmDefinition("Crystalline Chanterelle Colony",
+            new List<RoomDefinition>
+            {
+                new RoomDefinition(
+                    "Sparkleborough Settlement",
+                    "Spore-Spine Awakening Brew",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Lumenroot Extract", 14, "Common", ""),
+                        new IngredientRequirement("Phosphor-Spore Dust", 13, "Common", ""),
+                        new IngredientRequirement("Shardneedle Sliver", 13, "Common", ""),
+                        new IngredientRequirement("Stiff-Stalk Elm Sap", 12, "Common", ""),
+                        new IngredientRequirement("Spore-Cap Pebble", 12, "Uncommon", ""),
+                        new IngredientRequirement("Mycelium Pod", 11, "Uncommon", ""),
+                        new IngredientRequirement("Glint-Shell Snail Horn", 11, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Standard,
+                    "Standard",
+                    RoomProgressionProfile.Create(10, 1, 0)),
+                new RoomDefinition(
+                    "Lostleaf Library",
+                    "Shard-Sparked Arid Serum",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Arid-Bloom Petal", 14, "Common", ""),
+                        new IngredientRequirement("Sun-Baked Ink Stone", 14, "Common", ""),
+                        new IngredientRequirement("Royal Papyrus Shred", 13, "Common", ""),
+                        new IngredientRequirement("Memoryglass Quill Tip", 13, "Common", ""),
+                        new IngredientRequirement("Crown-Shard Cluster", 12, "Uncommon", ""),
+                        new IngredientRequirement("Salt-Crust Conch", 12, "Uncommon", ""),
+                        new IngredientRequirement("Dried Reed Ring", 11, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Standard,
+                    "Standard",
+                    RoomProgressionProfile.Create(10, 2, 1)),
+                new RoomDefinition(
+                    "Milkweed Municipal Hall",
+                    "Withering Strand Spritz",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Emerald Chameleon Venom", 15, "Common", ""),
+                        new IngredientRequirement("Silk-Core Milkweed Pod", 14, "Common", ""),
+                        new IngredientRequirement("Starlight Tendril Spool", 14, "Common", ""),
+                        new IngredientRequirement("Gryphon-Nest Twig", 13, "Common", ""),
+                        new IngredientRequirement("Dew-Locked Amber Drop", 13, "Uncommon", ""),
+                        new IngredientRequirement("Weaver-Spider Egg Casing", 12, "Uncommon", ""),
+                        new IngredientRequirement("Braid-Root Crown", 12, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Standard,
+                    "Standard",
+                    RoomProgressionProfile.Create(10, 3, 2)),
+                new RoomDefinition(
+                    "Luminous Loopwater Lagoon",
+                    "Infinity Cascade Catalyst",
+                    new List<IngredientRequirement>
+                    {
+                        new IngredientRequirement("Upcurrent Droplet", 15, "Common", ""),
+                        new IngredientRequirement("Whispering Lagoon Dew", 15, "Common", ""),
+                        new IngredientRequirement("Prism Polarity Beads", 14, "Uncommon", ""),
+                        new IngredientRequirement("Cloud-Silk Cocoon", 14, "Uncommon", ""),
+                        new IngredientRequirement("Fountain-Core Seed", 13, "Uncommon", ""),
+                        new IngredientRequirement("Reverse-Tide Mist", 13, "Rare", ""),
+                        new IngredientRequirement("Echoing Ripple Orb", 12, "Key Ingredient", ""),
+                    },
+                    BingoRoomMode.Special,
+                    "Blackout",
+                    RoomProgressionProfile.Create(10, 4, 3)),
+            }),
+    };
+
+    // Everfrost Vale is the 11th realm in the BMM Potions sheet, outside the current ten-realm set. Kept for when it is added.
+    public static readonly RealmDefinition EverfrostVale = new RealmDefinition("Everfrost Vale",
             new List<RoomDefinition>
             {
                 new RoomDefinition(
@@ -728,7 +801,7 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Standard,
                     "Standard",
-                    RoomProgressionProfile.Create(10, 1, 0)),
+                    RoomProgressionProfile.Create(11, 1, 0)),
                 new RoomDefinition(
                     "Crystalline Creatures Carousel",
                     "Crystalline Frostform Catalyst",
@@ -744,7 +817,7 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Standard,
                     "Standard",
-                    RoomProgressionProfile.Create(10, 2, 1)),
+                    RoomProgressionProfile.Create(11, 2, 1)),
                 new RoomDefinition(
                     "Grand Glacial Bigtop",
                     "Showstopper Stabilizing Salve",
@@ -760,7 +833,7 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Standard,
                     "Standard",
-                    RoomProgressionProfile.Create(10, 3, 2)),
+                    RoomProgressionProfile.Create(11, 3, 2)),
                 new RoomDefinition(
                     "Alabaster Wonder Garden",
                     "Frosted Formweave Reagent",
@@ -776,9 +849,8 @@ public static class RealmContentCatalog
                     },
                     BingoRoomMode.Special,
                     "Blackout",
-                    RoomProgressionProfile.Create(10, 4, 3)),
-            }),
-    };
+                    RoomProgressionProfile.Create(11, 4, 3)),
+            });
 
     public static readonly RealmDefinition SunpetalConservatory = AllRealms[0];
 

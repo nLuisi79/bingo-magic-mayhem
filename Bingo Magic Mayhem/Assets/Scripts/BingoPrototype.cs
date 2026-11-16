@@ -1851,9 +1851,15 @@ public class BingoPrototype : MonoBehaviour
         {
             RealmHomeRoomLayout roomLayout = realmHome.Rooms[roomIndex];
             string potionState = inventory.IsRoomRestored(rooms[roomIndex]) ? "potion" : "shadow";
+            string potionResource = GetRealmHomePotionResource(realmHome, roomLayout, potionState);
+            if (!RealmHomeArtExists(potionResource))
+            {
+                continue;
+            }
+
             Image potion = CreateAnchoredImage(
                 header.transform,
-                GetRealmHomePotionResource(realmHome, roomLayout, potionState),
+                potionResource,
                 roomLayout.HeaderPotionSize.x,
                 roomLayout.HeaderPotionSize.y,
                 roomLayout.HeaderPotionOffsetX,
@@ -1962,9 +1968,13 @@ public class BingoPrototype : MonoBehaviour
             medallionY = 0f;
         }
 
-        Image medallion = CreateAnchoredImage(node.transform, medallionResource, medallionWidth, medallionHeight, medallionX, medallionY);
-        medallion.preserveAspect = false;
-        medallion.raycastTarget = false;
+        // Realms whose potion art isn't delivered yet show an empty ring rather than a placeholder block.
+        if (RealmHomeArtExists(medallionResource))
+        {
+            Image medallion = CreateAnchoredImage(node.transform, medallionResource, medallionWidth, medallionHeight, medallionX, medallionY);
+            medallion.preserveAspect = false;
+            medallion.raycastTarget = false;
+        }
 
         // Unlocked rooms show ingredient progress toward their potion. Restoring spends the requirement,
         // so a restored room shows the leftover ingredients counting toward its next brew. Locked rooms show no badge.
@@ -2158,6 +2168,11 @@ public class BingoPrototype : MonoBehaviour
         return realmHome.PotionResourceRoot + roomLayout.PotionArtName + "-" + state;
     }
 
+    private static bool RealmHomeArtExists(string resourcePath)
+    {
+        return Resources.Load<Texture2D>(resourcePath) != null;
+    }
+
     private void CreateRealmHomeBackground(RealmHomeLayout realmHome)
     {
         IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
@@ -2173,9 +2188,19 @@ public class BingoPrototype : MonoBehaviour
         string stateAssetName = restoredRoomCount >= rooms.Count
             ? "restored"
             : "broken" + Mathf.Clamp(restoredRoomCount, 0, 3);
+        string backgroundResource = realmHome.BackgroundResourcePrefix + stateAssetName;
+        if (!RealmHomeArtExists(backgroundResource))
+        {
+            // No background delivered for this realm/state yet: keep the stage's plain backdrop.
+            GameObject placeholder = CreateAnchoredPanel(contentRoot, RealmHomeBackgroundObjectPrefix + stateAssetName, Color.clear, StageWidth, StageHeight, 0f, 0f);
+            placeholder.GetComponent<Image>().raycastTarget = false;
+            placeholder.transform.SetAsFirstSibling();
+            return;
+        }
+
         Image background = CreateAnchoredImage(
             contentRoot,
-            realmHome.BackgroundResourcePrefix + stateAssetName,
+            backgroundResource,
             StageWidth,
             StageHeight,
             0f,
