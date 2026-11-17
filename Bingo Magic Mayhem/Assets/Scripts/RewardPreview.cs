@@ -199,27 +199,28 @@ public sealed class RewardPreview
 
     private float GetIngredientRarityWeight(string rarity)
     {
+        EconomyTuning.IngredientDropSettings weights = EconomyTuning.Current.IngredientDrops;
         if (rarity == "Common")
         {
-            return 0.75f;
+            return weights.CommonWeight;
         }
 
         if (rarity == "Uncommon")
         {
-            return 0.32f;
+            return weights.UncommonWeight;
         }
 
         if (rarity == "Rare")
         {
-            return 0.18f;
+            return weights.RareWeight;
         }
 
         if (rarity == "Key Ingredient")
         {
-            return 0.10f;
+            return weights.KeyIngredientWeight;
         }
 
-        return 0.5f;
+        return weights.OtherWeight;
     }
 
     private void AddIngredientDrop(string name, int quantity)

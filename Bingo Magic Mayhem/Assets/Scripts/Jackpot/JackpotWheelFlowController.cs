@@ -150,11 +150,32 @@ namespace BingoMagicMayhem.Jackpot
     /// </summary>
     public static class JackpotWheelRules
     {
-        private static readonly float[] StandardMultipliers = { 0.2f, 0.3f, 0.4f, 0.6f, 0.8f, 1f, 1.25f, 1.5f };
+        private const int StandardSegmentCount = 8;
+        private const int SegmentCount = 11;
+        private static readonly EconomyTuning.JackpotWheelSettings Defaults = new EconomyTuning.JackpotWheelSettings();
+
+        // Odds and payouts come from EconomyTuning; a config with the wrong number of entries falls back to defaults.
+        private static int[] SegmentWeights
+        {
+            get
+            {
+                int[] weights = EconomyTuning.Current.JackpotWheel.SegmentWeights;
+                return weights != null && weights.Length == SegmentCount ? weights : Defaults.SegmentWeights;
+            }
+        }
+
+        private static float[] StandardMultipliers
+        {
+            get
+            {
+                float[] multipliers = EconomyTuning.Current.JackpotWheel.StandardMultipliers;
+                return multipliers != null && multipliers.Length == StandardSegmentCount ? multipliers : Defaults.StandardMultipliers;
+            }
+        }
 
         public static int GetSegmentCount()
         {
-            return 11;
+            return SegmentCount;
         }
 
         public static float GetRestingRotation(int targetSegment)
@@ -170,59 +191,33 @@ namespace BingoMagicMayhem.Jackpot
             return Mathf.Repeat(targetMod - currentMod, 360f);
         }
 
+        // roll is 0-99; it is mapped onto the segment weights' total, so weights need not sum to 100.
         public static int GetSegmentForRoll(int roll)
         {
-            if (roll < 18)
+            int[] weights = SegmentWeights;
+            int total = 0;
+            for (int index = 0; index < weights.Length; index++)
+            {
+                total += Mathf.Max(0, weights[index]);
+            }
+
+            if (total <= 0)
             {
                 return 0;
             }
 
-            if (roll < 32)
+            float target = Mathf.Clamp(roll, 0, 99) * total / 100f;
+            int cumulative = 0;
+            for (int index = 0; index < weights.Length; index++)
             {
-                return 1;
+                cumulative += Mathf.Max(0, weights[index]);
+                if (target < cumulative)
+                {
+                    return index;
+                }
             }
 
-            if (roll < 46)
-            {
-                return 2;
-            }
-
-            if (roll < 58)
-            {
-                return 3;
-            }
-
-            if (roll < 69)
-            {
-                return 4;
-            }
-
-            if (roll < 79)
-            {
-                return 5;
-            }
-
-            if (roll < 87)
-            {
-                return 6;
-            }
-
-            if (roll < 94)
-            {
-                return 7;
-            }
-
-            if (roll < 97)
-            {
-                return 8;
-            }
-
-            if (roll < 99)
-            {
-                return 9;
-            }
-
-            return 10;
+            return weights.Length - 1;
         }
 
         public static JackpotWheelSpinResult ResolveSpinResult(
@@ -283,7 +278,8 @@ namespace BingoMagicMayhem.Jackpot
                 throw new ArgumentNullException(nameof(standardValueResolver));
             }
 
-            float multiplier = StandardMultipliers[Mathf.Clamp(segmentIndex, 0, StandardMultipliers.Length - 1)];
+            float[] multipliers = StandardMultipliers;
+            float multiplier = multipliers[Mathf.Clamp(segmentIndex, 0, multipliers.Length - 1)];
             return standardValueResolver(multiplier);
         }
     }

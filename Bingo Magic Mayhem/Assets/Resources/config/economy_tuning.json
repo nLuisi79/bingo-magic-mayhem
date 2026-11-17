@@ -1,0 +1,94 @@
+{
+    "StartingInventory": {
+        "Mana": 5420,
+        "Crystals": 50,
+        "ClairvoyanceMinutes": 0,
+        "SingleSigils": 3,
+        "MultiSigils": 1,
+        "PandoraSigils": 1
+    },
+    "ManaCauldron": {
+        "StartingAmount": 80,
+        "Capacity": 120,
+        "BaseRefill": 40,
+        "RefillPerRestoredRoom": 20,
+        "RefillSeconds": 3600
+    },
+    "DailyBonus": {
+        "BaseMana": 300,
+        "ManaPerRestoredRoom": 25,
+        "StreakSaveCrystalCosts": [0, 50, 100, 200, 300],
+        "Days": [
+            { "AddScaledMana": true, "Mana": 0, "Crystals": 0, "ItemName": "", "ItemQuantity": 0, "Label": "Mana" },
+            { "AddScaledMana": false, "Mana": 0, "Crystals": 20, "ItemName": "", "ItemQuantity": 0, "Label": "Crystals" },
+            { "AddScaledMana": false, "Mana": 0, "Crystals": 0, "ItemName": "Single Sigil", "ItemQuantity": 1, "Label": "Power-Up" },
+            { "AddScaledMana": false, "Mana": 0, "Crystals": 0, "ItemName": "Clairvoyance", "ItemQuantity": 15, "Label": "Timed Boost" },
+            { "AddScaledMana": false, "Mana": 0, "Crystals": 0, "ItemName": "Regular Card", "ItemQuantity": 1, "Label": "Card" },
+            { "AddScaledMana": false, "Mana": 0, "Crystals": 0, "ItemName": "Pandora Sigil", "ItemQuantity": 1, "Label": "Curiosity" },
+            { "AddScaledMana": true, "Mana": 250, "Crystals": 25, "ItemName": "Pandora Sigil", "ItemQuantity": 1, "Label": "Daily Chest" }
+        ]
+    },
+    "DailySpinRewards": [
+        { "Mana": 25, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 30, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 35, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 45, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 50, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 60, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 70, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 75, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 80, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 90, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 100, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 120, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 150, "Crystals": 0, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 0, "Crystals": 5, "ItemName": "", "ItemQuantity": 0 },
+        { "Mana": 0, "Crystals": 0, "ItemName": "Single Sigil", "ItemQuantity": 1 },
+        { "Mana": 0, "Crystals": 0, "ItemName": "Multi Sigil", "ItemQuantity": 1 }
+    ],
+    "JackpotWheel": {
+        "SegmentWeights": [18, 14, 14, 12, 11, 10, 8, 7, 3, 2, 1],
+        "StandardMultipliers": [0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.25, 1.5]
+    },
+    "IngredientDrops": {
+        "CommonWeight": 0.75,
+        "UncommonWeight": 0.32,
+        "RareWeight": 0.18,
+        "KeyIngredientWeight": 0.1,
+        "OtherWeight": 0.5
+    },
+    "RoomProgression": {
+        "MinBetBase": 25,
+        "MinBetPerRealm": 25,
+        "StandardMaxBetMultiplier": 6,
+        "SpecialMaxBetMultiplier": 8,
+        "BetStep": 25,
+        "LargeBetStep": 50,
+        "LargeBetStepFromRealm": 4,
+        "MinimumPotBase": 250,
+        "MinimumPotPerRealm": 250,
+        "MinimumPotPerRoom": 125,
+        "JackpotContributionBase": 0.1,
+        "JackpotContributionPerRealm": 0.01,
+        "JackpotContributionSpecialBonus": 0.03,
+        "XpMultiplierPerLevel": 0.08,
+        "StandardNoBingoIngredientChance": 0.022,
+        "SpecialNoBingoIngredientChance": 0.016,
+        "StandardCellRewardChance": 0.75,
+        "SpecialCellRewardChance": 0.6,
+        "RestoreManaBase": 1000,
+        "RestoreManaPerRealm": 500,
+        "RestoreManaPerRoom": 250
+    },
+    "Social": {
+        "DailyHelpRequestLimit": 7,
+        "FriendManaAmount": 10,
+        "FriendDailyManaLimit": 3,
+        "FreebieExpirationDays": 14
+    },
+    "PowerUps": {
+        "CrystalCost": 10,
+        "WildSigilOfferChance": 0.06666667,
+        "ClairvoyanceActivationMinutes": 15
+    }
+}

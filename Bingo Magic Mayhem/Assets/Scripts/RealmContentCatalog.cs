@@ -87,21 +87,23 @@ public sealed class RoomProgressionProfile
     public float CellRewardChance { get; private set; }
     public int RestoreManaReward { get; private set; }
 
+    // realmIndex is the 1-based realm number; constants come from EconomyTuning.RoomProgression.
     public static RoomProgressionProfile Create(int realmIndex, int roomIndex, int roomOffset)
     {
+        EconomyTuning.RoomProgressionSettings tuning = EconomyTuning.Current.RoomProgression;
         int level = ((realmIndex - 1) * 4) + roomIndex;
         bool special = roomIndex == 4;
-        int minBet = 25 + ((realmIndex - 1) * 25);
-        int maxBet = minBet * (special ? 8 : 6);
-        int betStep = realmIndex >= 4 ? 50 : 25;
-        int minimumPot = 250 + ((realmIndex - 1) * 250) + (roomOffset * 125);
-        float contribution = 0.10f + (realmIndex * 0.01f) + (special ? 0.03f : 0f);
-        float xp = 1f + ((level - 1) * 0.08f);
+        int minBet = tuning.MinBetBase + ((realmIndex - 1) * tuning.MinBetPerRealm);
+        int maxBet = minBet * (special ? tuning.SpecialMaxBetMultiplier : tuning.StandardMaxBetMultiplier);
+        int betStep = realmIndex >= tuning.LargeBetStepFromRealm ? tuning.LargeBetStep : tuning.BetStep;
+        int minimumPot = tuning.MinimumPotBase + ((realmIndex - 1) * tuning.MinimumPotPerRealm) + (roomOffset * tuning.MinimumPotPerRoom);
+        float contribution = tuning.JackpotContributionBase + (realmIndex * tuning.JackpotContributionPerRealm) + (special ? tuning.JackpotContributionSpecialBonus : 0f);
+        float xp = 1f + ((level - 1) * tuning.XpMultiplierPerLevel);
         // A Bingo always earns an ingredient. This only controls the rare
         // consolation ingredient roll for cards that finish without a Bingo.
-        float noBingoIngredient = special ? 0.016f : 0.022f;
-        float cellReward = special ? 0.60f : 0.75f;
-        int restoreReward = 1000 + ((realmIndex - 1) * 500) + (roomOffset * 250);
+        float noBingoIngredient = special ? tuning.SpecialNoBingoIngredientChance : tuning.StandardNoBingoIngredientChance;
+        float cellReward = special ? tuning.SpecialCellRewardChance : tuning.StandardCellRewardChance;
+        int restoreReward = tuning.RestoreManaBase + ((realmIndex - 1) * tuning.RestoreManaPerRealm) + (roomOffset * tuning.RestoreManaPerRoom);
         return new RoomProgressionProfile(level, minBet, maxBet, betStep, minimumPot, contribution, xp, noBingoIngredient, cellReward, restoreReward);
     }
 }

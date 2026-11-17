@@ -7,47 +7,29 @@ public sealed class PlayerInventoryState
 {
     private const string SavePrefix = "BMM.Inventory.";
     private const string FreebieCodeRedeemedPrefix = SavePrefix + "FreebieCodeRedeemed.";
-    private const int DefaultMana = 5420;
-    private const int DefaultCrystals = 50;
-    private const int DefaultClairvoyanceMinutes = 0;
-    private const int DefaultSingleSigils = 3;
-    private const int DefaultMultiSigils = 1;
-    private const int DefaultPandoraSigils = 1;
-    private const int DefaultManaCauldronAmount = 80;
-    private const int DefaultManaCauldronCapacity = 120;
-    private const int BaseManaCauldronRefillAmount = 40;
-    private const int ManaCauldronRefillPerRestoredRoom = 20;
-    private const int ManaCauldronRefillSeconds = 3600;
-    private const int ClairvoyanceActivationMinutes = 15;
+    // Tunable values come from EconomyTuning (Resources/config/economy_tuning.json); defaults match the old constants.
+    private static int DefaultMana => EconomyTuning.Current.StartingInventory.Mana;
+    private static int DefaultCrystals => EconomyTuning.Current.StartingInventory.Crystals;
+    private static int DefaultClairvoyanceMinutes => EconomyTuning.Current.StartingInventory.ClairvoyanceMinutes;
+    private static int DefaultSingleSigils => EconomyTuning.Current.StartingInventory.SingleSigils;
+    private static int DefaultMultiSigils => EconomyTuning.Current.StartingInventory.MultiSigils;
+    private static int DefaultPandoraSigils => EconomyTuning.Current.StartingInventory.PandoraSigils;
+    private static int DefaultManaCauldronAmount => EconomyTuning.Current.ManaCauldron.StartingAmount;
+    private static int DefaultManaCauldronCapacity => EconomyTuning.Current.ManaCauldron.Capacity;
+    private static int BaseManaCauldronRefillAmount => EconomyTuning.Current.ManaCauldron.BaseRefill;
+    private static int ManaCauldronRefillPerRestoredRoom => EconomyTuning.Current.ManaCauldron.RefillPerRestoredRoom;
+    private static int ManaCauldronRefillSeconds => EconomyTuning.Current.ManaCauldron.RefillSeconds;
+    private static int ClairvoyanceActivationMinutes => EconomyTuning.Current.PowerUps.ClairvoyanceActivationMinutes;
+    // Season lengths are locked product rules (Docs/LOCKED_DECISIONS.md), not tuning.
     private const int AlbumSeasonDays = 90;
     private const int BookOfShadowsSetDays = 30;
-    private const int DailyBonusBaseMana = 300;
-    private const int DailyBonusManaPerStreak = 50;
-    private const int DailyBonusManaPerRestoredRoom = 25;
-    private const int DailyBonusBaseCrystals = 5;
-    private const int PrototypeDailyHelpRequestLimit = 7;
-    private static readonly int[] DailyBonusStreakSaveCosts = { 0, 50, 100, 200, 300 };
-    private static readonly PrototypeRewardGrant[] DailySpinPrototypeRewards =
-    {
-        new PrototypeRewardGrant("Daily Spin", 25, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 30, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 35, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 45, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 50, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 60, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 70, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 75, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 80, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 90, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 100, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 120, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 150, 0, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 0, 5, 0, 0, new List<PrototypeRewardItem>()),
-        new PrototypeRewardGrant("Daily Spin", 0, 0, 0, 0, new List<PrototypeRewardItem> { new PrototypeRewardItem("Single Sigil", 1) }),
-        new PrototypeRewardGrant("Daily Spin", 0, 0, 0, 0, new List<PrototypeRewardItem> { new PrototypeRewardItem("Multi Sigil", 1) })
-    };
+    private static int DailyBonusBaseMana => EconomyTuning.Current.DailyBonus.BaseMana;
+    private static int DailyBonusManaPerRestoredRoom => EconomyTuning.Current.DailyBonus.ManaPerRestoredRoom;
+    private static int PrototypeDailyHelpRequestLimit => EconomyTuning.Current.Social.DailyHelpRequestLimit;
+    private static int[] DailyBonusStreakSaveCosts => EconomyTuning.Current.DailyBonus.StreakSaveCrystalCosts;
+    private static PrototypeRewardGrant[] DailySpinPrototypeRewards => BuildDailySpinRewards();
     private static readonly DateTime PrototypeGlobalAlbumSeasonStartUtc = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-    public const int GameplayPowerUpCrystalCost = 10;
+    public static int GameplayPowerUpCrystalCost => EconomyTuning.Current.PowerUps.CrystalCost;
     public static readonly GameplayPowerUpTuning[] GameplayPowerUps =
     {
         new GameplayPowerUpTuning("Single Sigil", 1, 0, 1, 16, true),
@@ -567,24 +549,35 @@ public sealed class PlayerInventoryState
     public DailyBonusRewardDefinition GetDailyBonusRewardForDay(int day)
     {
         int restoredRooms = GetRestoredRoomCount();
-        int mana = DailyBonusBaseMana + restoredRooms * DailyBonusManaPerRestoredRoom;
-        switch (Mathf.Clamp(day, 1, 7))
+        int scaledMana = DailyBonusBaseMana + restoredRooms * DailyBonusManaPerRestoredRoom;
+        EconomyTuning.DailyBonusDayEntry[] days = EconomyTuning.Current.DailyBonus.Days;
+        if (days == null || days.Length == 0)
         {
-            case 1:
-                return new DailyBonusRewardDefinition(day, mana, 0, "", 0, "Mana");
-            case 2:
-                return new DailyBonusRewardDefinition(day, 0, 20, "", 0, "Crystals");
-            case 3:
-                return new DailyBonusRewardDefinition(day, 0, 0, "Single Sigil", 1, "Power-Up");
-            case 4:
-                return new DailyBonusRewardDefinition(day, 0, 0, "Clairvoyance", 15, "Timed Boost");
-            case 5:
-                return new DailyBonusRewardDefinition(day, 0, 0, "Regular Card", 1, "Card");
-            case 6:
-                return new DailyBonusRewardDefinition(day, 0, 0, "Pandora Sigil", 1, "Curiosity");
-            default:
-                return new DailyBonusRewardDefinition(day, mana + 250, DailyBonusBaseCrystals + 20, "Pandora Sigil", 1, "Daily Chest");
+            return DailyBonusRewardDefinition.Empty;
         }
+
+        EconomyTuning.DailyBonusDayEntry entry = days[Mathf.Clamp(day, 1, days.Length) - 1];
+        int mana = entry.Mana + (entry.AddScaledMana ? scaledMana : 0);
+        return new DailyBonusRewardDefinition(day, mana, entry.Crystals, entry.ItemName ?? "", entry.ItemQuantity, entry.Label ?? "");
+    }
+
+    private static PrototypeRewardGrant[] BuildDailySpinRewards()
+    {
+        EconomyTuning.DailySpinRewardEntry[] entries = EconomyTuning.Current.DailySpinRewards ?? Array.Empty<EconomyTuning.DailySpinRewardEntry>();
+        PrototypeRewardGrant[] grants = new PrototypeRewardGrant[entries.Length];
+        for (int index = 0; index < entries.Length; index++)
+        {
+            EconomyTuning.DailySpinRewardEntry entry = entries[index];
+            List<PrototypeRewardItem> items = new List<PrototypeRewardItem>();
+            if (!string.IsNullOrEmpty(entry.ItemName) && entry.ItemQuantity > 0)
+            {
+                items.Add(new PrototypeRewardItem(entry.ItemName, entry.ItemQuantity));
+            }
+
+            grants[index] = new PrototypeRewardGrant("Daily Spin", entry.Mana, entry.Crystals, 0, 0, items);
+        }
+
+        return grants;
     }
 
     public DailyBonusRewardDefinition GetNextDailyBonusReward()
