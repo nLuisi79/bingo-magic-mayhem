@@ -52,7 +52,6 @@ public class BingoPrototype : MonoBehaviour
     private static int SocialFreebieExpirationDays => EconomyTuning.Current.Social.FreebieExpirationDays;
     private static int PrototypeFriendManaAmount => EconomyTuning.Current.Social.FriendManaAmount;
     private static int PrototypeFriendDailyManaLimit => EconomyTuning.Current.Social.FriendDailyManaLimit;
-    private const string PrototypeFriendsSavePrefix = "BMM.Prototype.Friends.";
     private const char PrototypeFriendSaveSeparator = '|';
     private const string PrototypeCovenDiscoverySaveKey = "BMM.Prototype.CovenDiscovery.Requests";
     private const string PrototypeTrailRewardsSaveKey = "BMM.Prototype.EnchantedTrail.ClaimedRewards";
@@ -218,13 +217,7 @@ public class BingoPrototype : MonoBehaviour
     private string lastInfrastructureDiagnosticsExport = "";
     private readonly HashSet<int> prototypeClaimedTrailRewards = new HashSet<int>();
     private readonly HashSet<int> prototypeOracleSelectedCards = new HashSet<int>();
-    private readonly HashSet<string> prototypeFriends = new HashSet<string> { "Luna", "Eldric", "Mira" };
-    private readonly HashSet<string> prototypeIncomingFriendRequests = new HashSet<string> { "Aster", "Rowan" };
-    private readonly HashSet<string> prototypeSentFriendRequests = new HashSet<string> { "Juniper" };
-    private readonly HashSet<string> prototypeFriendsSentManaToday = new HashSet<string>();
-    private readonly HashSet<string> prototypeFriendsReceivedManaToday = new HashSet<string>();
-    private readonly HashSet<string> prototypeBlockedFriends = new HashSet<string>();
-    private readonly HashSet<string> prototypeReportedFriends = new HashSet<string>();
+    private readonly FriendsState friendsState = new FriendsState();
     private readonly HashSet<string> prototypeRequestedCovenNames = new HashSet<string>();
     private int prototypeCardGiftsSentToday;
     private int prototypeCardGiftsReceivedToday;
@@ -323,7 +316,7 @@ public class BingoPrototype : MonoBehaviour
         inventory.Load();
         inventory.ReconcileSequentialRoomRestores();
         coven.Load();
-        LoadPrototypeFriendsState();
+        friendsState.Load();
         LoadPrototypeCovenDiscoveryState();
         LoadPrototypeTrailState();
         Application.deepLinkActivated += HandlePrototypeDeepLink;
@@ -2759,7 +2752,7 @@ public class BingoPrototype : MonoBehaviour
         PlayerDenActionTileView friends = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
         {
             TitleText = "Friends",
-            SubtitleText = $"{prototypeFriends.Count} friends"
+            SubtitleText = $"{friendsState.Friends.Count} friends"
         }, -440f);
         friends.Selected += BuildFriendsUi;
         PlayerDenActionTileView leaders = CreateDenBottomButton(new PlayerDenActionTileDisplayModel
@@ -3971,7 +3964,7 @@ public class BingoPrototype : MonoBehaviour
 
     private void BuildFriendsUi()
     {
-        RefreshPrototypeFriendDailyManaState();
+        friendsState.RefreshDailyMana();
         RemoveFriendsModal();
         GameObject panel = CreateModalShell("FriendsModal", 1080, 640, new Color(0.055f, 0.028f, 0.085f, 0.985f));
         Color gold = new Color(1f, 0.9f, 0.32f);
@@ -3996,7 +3989,7 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject listPanel = CreateModalSectionPanel(panel.transform, "FriendsList", 330, 358, -346f, 18f);
         Text listPanelTitleText = CreateModalSectionHeader(listPanel.transform, "FRIEND LIST", gold, 290, 0f, 142f);
-        List<string> friends = new List<string>(prototypeFriends);
+        List<string> friends = new List<string>(friendsState.Friends);
         friends.Sort();
         FriendsSectionPanelView listPanelView = listPanel.GetComponent<FriendsSectionPanelView>();
         if (listPanelView == null)
@@ -4015,7 +4008,7 @@ public class BingoPrototype : MonoBehaviour
 
         GameObject incomingPanel = CreateModalSectionPanel(panel.transform, "FriendIncoming", 330, 358, 0f, 18f, new Color(0.12f, 0.055f, 0.16f));
         Text incomingTitleText = CreateModalSectionHeader(incomingPanel.transform, "REQUESTS", gold, 290, 0f, 142f);
-        List<string> incoming = new List<string>(prototypeIncomingFriendRequests);
+        List<string> incoming = new List<string>(friendsState.IncomingRequests);
         incoming.Sort();
         Text incomingEmptyStateText = null;
         if (incoming.Count == 0)
@@ -4044,7 +4037,7 @@ public class BingoPrototype : MonoBehaviour
         Button sendTest = CreateAnchoredButton(addPanel.transform, "Send Test Request", 16, 230, 42, violet, 0f, 28f);
         sendTest.onClick.AddListener(SendPrototypeFriendRequest);
         CreateModalSectionHeader(addPanel.transform, "Sent Requests", gold, 260, 0f, -30f, 18, 28f);
-        List<string> sent = new List<string>(prototypeSentFriendRequests);
+        List<string> sent = new List<string>(friendsState.SentRequests);
         sent.Sort();
         Text sentEmptyStateText = null;
         if (sent.Count == 0)
@@ -4084,19 +4077,19 @@ public class BingoPrototype : MonoBehaviour
 
     private void CreateFriendListRow(Transform parent, string friendName, string status, float y)
     {
-        bool blocked = prototypeBlockedFriends.Contains(friendName);
+        bool blocked = friendsState.IsBlocked(friendName);
         GameObject row = CreateAnchoredPanel(parent, $"Friend_{friendName}", blocked ? new Color(0.32f, 0.27f, 0.32f) : new Color(0.96f, 0.86f, 0.62f), 276, 66, 0f, y);
         Color textColor = blocked ? new Color(0.82f, 0.78f, 0.84f) : new Color(0.18f, 0.08f, 0.32f);
         Color subTextColor = blocked ? new Color(0.66f, 0.62f, 0.7f) : new Color(0.28f, 0.18f, 0.32f);
         Text friendNameText = CreateAnchoredText(row.transform, friendName, 15, FontStyle.Bold, textColor, 104, 22, -76f, 16f);
         Text statusText = CreateAnchoredText(row.transform, blocked ? "Blocked" : status, 10, FontStyle.Bold, subTextColor, 104, 16, -76f, -4f);
-        Text reportStatusText = CreateAnchoredText(row.transform, prototypeReportedFriends.Contains(friendName) ? "Reported" : "", 9, FontStyle.Bold, new Color(0.55f, 0.09f, 0.09f), 104, 14, -76f, -22f);
+        Text reportStatusText = CreateAnchoredText(row.transform, friendsState.IsReported(friendName) ? "Reported" : "", 9, FontStyle.Bold, new Color(0.55f, 0.09f, 0.09f), 104, 14, -76f, -22f);
 
-        Button send = CreateAnchoredButton(row.transform, prototypeFriendsSentManaToday.Contains(friendName) ? "Sent" : "Give 10", 9, 58, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.12f, 0.55f, 0.08f), -2f, 15f);
-        bool canSend = !blocked && !prototypeFriendsSentManaToday.Contains(friendName) && prototypeFriendsSentManaToday.Count < PrototypeFriendDailyManaLimit;
+        Button send = CreateAnchoredButton(row.transform, friendsState.HasSentManaTo(friendName) ? "Sent" : "Give 10", 9, 58, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.12f, 0.55f, 0.08f), -2f, 15f);
+        bool canSend = friendsState.CanSendManaTo(friendName);
         send.interactable = canSend;
-        Button receive = CreateAnchoredButton(row.transform, prototypeFriendsReceivedManaToday.Contains(friendName) ? "Got" : "Claim", 9, 54, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.12f, 0.55f, 0.08f), 60f, 15f);
-        bool canReceive = !blocked && !prototypeFriendsReceivedManaToday.Contains(friendName) && prototypeFriendsReceivedManaToday.Count < PrototypeFriendDailyManaLimit;
+        Button receive = CreateAnchoredButton(row.transform, friendsState.HasReceivedManaFrom(friendName) ? "Got" : "Claim", 9, 54, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.12f, 0.55f, 0.08f), 60f, 15f);
+        bool canReceive = friendsState.CanReceiveManaFrom(friendName);
         receive.interactable = canReceive;
         Button message = CreateAnchoredButton(row.transform, "Msg", 9, 48, 22, blocked ? new Color(0.34f, 0.32f, 0.38f) : new Color(0.35f, 0.12f, 0.62f), 116f, 15f);
         bool canMessage = !blocked;
@@ -4104,8 +4097,8 @@ public class BingoPrototype : MonoBehaviour
         Button block = CreateAnchoredButton(row.transform, blocked ? "Blocked" : "Block", 9, 62, 22, new Color(0.34f, 0.32f, 0.38f), 28f, -16f);
         bool canBlock = !blocked;
         block.interactable = canBlock;
-        Button report = CreateAnchoredButton(row.transform, prototypeReportedFriends.Contains(friendName) ? "Filed" : "Report", 9, 62, 22, new Color(0.55f, 0.09f, 0.09f), 96f, -16f);
-        bool canReport = !prototypeReportedFriends.Contains(friendName);
+        Button report = CreateAnchoredButton(row.transform, friendsState.IsReported(friendName) ? "Filed" : "Report", 9, 62, 22, new Color(0.55f, 0.09f, 0.09f), 96f, -16f);
+        bool canReport = !friendsState.IsReported(friendName);
         report.interactable = canReport;
 
         FriendListRowView rowView = row.GetComponent<FriendListRowView>();
@@ -4124,12 +4117,12 @@ public class BingoPrototype : MonoBehaviour
         rowView.Apply(new FriendListRowDisplayModel(
             friendName,
             blocked ? "Blocked" : status,
-            prototypeReportedFriends.Contains(friendName) ? "Reported" : string.Empty,
-            prototypeFriendsSentManaToday.Contains(friendName) ? "Sent" : "Give 10",
-            prototypeFriendsReceivedManaToday.Contains(friendName) ? "Got" : "Claim",
+            friendsState.IsReported(friendName) ? "Reported" : string.Empty,
+            friendsState.HasSentManaTo(friendName) ? "Sent" : "Give 10",
+            friendsState.HasReceivedManaFrom(friendName) ? "Got" : "Claim",
             "Msg",
             blocked ? "Blocked" : "Block",
-            prototypeReportedFriends.Contains(friendName) ? "Filed" : "Report",
+            friendsState.IsReported(friendName) ? "Filed" : "Report",
             canSend,
             canReceive,
             canMessage,
@@ -4139,8 +4132,8 @@ public class BingoPrototype : MonoBehaviour
 
     private string BuildPrototypeFriendManaSummaryText()
     {
-        int sendRemaining = Mathf.Max(0, PrototypeFriendDailyManaLimit - prototypeFriendsSentManaToday.Count);
-        int receiveRemaining = Mathf.Max(0, PrototypeFriendDailyManaLimit - prototypeFriendsReceivedManaToday.Count);
+        int sendRemaining = Mathf.Max(0, PrototypeFriendDailyManaLimit - friendsState.SentManaTodayCount);
+        int receiveRemaining = Mathf.Max(0, PrototypeFriendDailyManaLimit - friendsState.ReceivedManaTodayCount);
         return $"Daily mana: give {PrototypeFriendManaAmount} to {sendRemaining} more friend(s), claim from {receiveRemaining} more friend(s). Current cap {PrototypeFriendDailyManaLimit}/day each way is a temporary Aura-rank placeholder.";
     }
 
@@ -4183,229 +4176,103 @@ public class BingoPrototype : MonoBehaviour
         rowView.Apply(new SentFriendRequestRowDisplayModel(friendName, "Cancel"));
     }
 
-    private void LoadPrototypeFriendsState()
-    {
-        LoadPrototypeFriendSet("Friends", prototypeFriends);
-        LoadPrototypeFriendSet("IncomingRequests", prototypeIncomingFriendRequests);
-        LoadPrototypeFriendSet("SentRequests", prototypeSentFriendRequests);
-        LoadPrototypeFriendSet("Blocked", prototypeBlockedFriends);
-        LoadPrototypeFriendSet("Reported", prototypeReportedFriends);
-
-        string today = GetPrototypeFriendsTodayKey();
-        string savedDailyDate = DurablePrefs.GetString(PrototypeFriendsSavePrefix + "DailyManaDate", "");
-        if (savedDailyDate == today)
-        {
-            LoadPrototypeFriendSet("SentManaToday", prototypeFriendsSentManaToday);
-            LoadPrototypeFriendSet("ReceivedManaToday", prototypeFriendsReceivedManaToday);
-        }
-        else
-        {
-            prototypeFriendsSentManaToday.Clear();
-            prototypeFriendsReceivedManaToday.Clear();
-            DurablePrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
-            SavePrototypeFriendsState();
-        }
-    }
-
-    private void SavePrototypeFriendsState()
-    {
-        DurablePrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", GetPrototypeFriendsTodayKey());
-        SavePrototypeFriendSet("Friends", prototypeFriends);
-        SavePrototypeFriendSet("IncomingRequests", prototypeIncomingFriendRequests);
-        SavePrototypeFriendSet("SentRequests", prototypeSentFriendRequests);
-        SavePrototypeFriendSet("SentManaToday", prototypeFriendsSentManaToday);
-        SavePrototypeFriendSet("ReceivedManaToday", prototypeFriendsReceivedManaToday);
-        SavePrototypeFriendSet("Blocked", prototypeBlockedFriends);
-        SavePrototypeFriendSet("Reported", prototypeReportedFriends);
-        DurablePrefs.Save();
-    }
-
-    private void RefreshPrototypeFriendDailyManaState()
-    {
-        string today = GetPrototypeFriendsTodayKey();
-        string savedDailyDate = DurablePrefs.GetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
-        if (savedDailyDate == today)
-        {
-            return;
-        }
-
-        prototypeFriendsSentManaToday.Clear();
-        prototypeFriendsReceivedManaToday.Clear();
-        DurablePrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
-        SavePrototypeFriendsState();
-    }
-
-    private void LoadPrototypeFriendSet(string key, HashSet<string> target)
-    {
-        string fullKey = PrototypeFriendsSavePrefix + key;
-        if (!DurablePrefs.HasKey(fullKey))
-        {
-            return;
-        }
-
-        target.Clear();
-        string saved = DurablePrefs.GetString(fullKey, "");
-        if (string.IsNullOrWhiteSpace(saved))
-        {
-            return;
-        }
-
-        string[] values = saved.Split(PrototypeFriendSaveSeparator);
-        for (int index = 0; index < values.Length; index++)
-        {
-            string value = values[index].Trim();
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                target.Add(value);
-            }
-        }
-    }
-
-    private void SavePrototypeFriendSet(string key, HashSet<string> values)
-    {
-        List<string> sorted = new List<string>(values);
-        sorted.Sort();
-        DurablePrefs.SetString(PrototypeFriendsSavePrefix + key, string.Join(PrototypeFriendSaveSeparator.ToString(), sorted));
-    }
-
+    // Friends data and rules live in FriendsState; these handlers add the status text, analytics and UI refresh.
     private void ResetPrototypeFriendsState()
     {
-        prototypeFriends.Clear();
-        prototypeFriends.Add("Luna");
-        prototypeFriends.Add("Eldric");
-        prototypeFriends.Add("Mira");
-        prototypeIncomingFriendRequests.Clear();
-        prototypeIncomingFriendRequests.Add("Aster");
-        prototypeIncomingFriendRequests.Add("Rowan");
-        prototypeSentFriendRequests.Clear();
-        prototypeSentFriendRequests.Add("Juniper");
-        prototypeFriendsSentManaToday.Clear();
-        prototypeFriendsReceivedManaToday.Clear();
-        prototypeBlockedFriends.Clear();
-        prototypeReportedFriends.Clear();
+        friendsState.ResetToPrototypeDefaults();
         lastFriendStatusSummary = "";
-        SavePrototypeFriendsState();
-    }
-
-    private string GetPrototypeFriendsTodayKey()
-    {
-        return System.DateTime.UtcNow.Date.ToString("yyyy-MM-dd");
     }
 
     private void SendPrototypeFriendRequest()
     {
-        string[] candidates = { "Selene", "Ivy", "Marisol" };
-        for (int index = 0; index < candidates.Length; index++)
-        {
-            string candidate = candidates[index];
-            if (!prototypeFriends.Contains(candidate) && !prototypeIncomingFriendRequests.Contains(candidate) && !prototypeSentFriendRequests.Contains(candidate))
-            {
-                prototypeSentFriendRequests.Add(candidate);
-                lastFriendStatusSummary = $"Sent a prototype friend request to {candidate}.";
-                SavePrototypeFriendsState();
-                BuildFriendsUi();
-                return;
-            }
-        }
-
-        lastFriendStatusSummary = "All prototype friend request candidates are already in use.";
+        string candidate = friendsState.SendRequestToNextCandidate();
+        lastFriendStatusSummary = candidate != null
+            ? $"Sent a prototype friend request to {candidate}."
+            : "All prototype friend request candidates are already in use.";
         BuildFriendsUi();
     }
 
     private void AcceptPrototypeFriendRequest(string friendName)
     {
-        prototypeIncomingFriendRequests.Remove(friendName);
-        prototypeFriends.Add(friendName);
+        friendsState.AcceptRequest(friendName);
         lastFriendStatusSummary = $"Accepted {friendName}'s friend request.";
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void DeclinePrototypeFriendRequest(string friendName)
     {
-        prototypeIncomingFriendRequests.Remove(friendName);
+        friendsState.DeclineRequest(friendName);
         lastFriendStatusSummary = $"Declined {friendName}'s friend request.";
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void CancelPrototypeFriendRequest(string friendName)
     {
-        prototypeSentFriendRequests.Remove(friendName);
+        friendsState.CancelSentRequest(friendName);
         lastFriendStatusSummary = $"Canceled friend request to {friendName}.";
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void RemovePrototypeFriend(string friendName)
     {
-        prototypeFriends.Remove(friendName);
+        friendsState.RemoveFriend(friendName);
         lastFriendStatusSummary = $"Removed {friendName} from friends.";
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void SendPrototypeFriendMana(string friendName)
     {
-        if (prototypeBlockedFriends.Contains(friendName))
+        switch (friendsState.TrySendMana(friendName))
         {
-            lastFriendStatusSummary = $"{friendName} is blocked.";
-            BuildFriendsUi();
-            return;
+            case FriendManaResult.Blocked:
+                lastFriendStatusSummary = $"{friendName} is blocked.";
+                break;
+            case FriendManaResult.LimitReached:
+                lastFriendStatusSummary = "Daily friend mana send limit reached for this prototype.";
+                break;
+            default:
+                lastFriendStatusSummary = $"Sent {PrototypeFriendManaAmount} mana to {friendName}. Prototype does not deduct player mana yet.";
+                TrackPrototypeAnalytics(
+                    PrototypeAnalyticsEvents.FriendManaSent,
+                    PrototypeAnalyticsPayloadFactory.CreateFriendManaJson(
+                        "friends_ui",
+                        PrototypeFriendManaAmount,
+                        friendsState.SentManaTodayCount,
+                        PrototypeFriendDailyManaLimit));
+                break;
         }
 
-        if (prototypeFriendsSentManaToday.Count >= PrototypeFriendDailyManaLimit || prototypeFriendsSentManaToday.Contains(friendName))
-        {
-            lastFriendStatusSummary = "Daily friend mana send limit reached for this prototype.";
-            BuildFriendsUi();
-            return;
-        }
-
-        prototypeFriendsSentManaToday.Add(friendName);
-        lastFriendStatusSummary = $"Sent {PrototypeFriendManaAmount} mana to {friendName}. Prototype does not deduct player mana yet.";
-        TrackPrototypeAnalytics(
-            PrototypeAnalyticsEvents.FriendManaSent,
-            PrototypeAnalyticsPayloadFactory.CreateFriendManaJson(
-                "friends_ui",
-                PrototypeFriendManaAmount,
-                prototypeFriendsSentManaToday.Count,
-                PrototypeFriendDailyManaLimit));
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void ReceivePrototypeFriendMana(string friendName)
     {
-        if (prototypeBlockedFriends.Contains(friendName))
+        switch (friendsState.TryReceiveMana(friendName))
         {
-            lastFriendStatusSummary = $"{friendName} is blocked.";
-            BuildFriendsUi();
-            return;
+            case FriendManaResult.Blocked:
+                lastFriendStatusSummary = $"{friendName} is blocked.";
+                break;
+            case FriendManaResult.LimitReached:
+                lastFriendStatusSummary = "Daily friend mana receive limit reached for this prototype.";
+                break;
+            default:
+                lastFriendStatusSummary = $"Received {PrototypeFriendManaAmount} mana from {friendName}. Inventory grant waits for Aura-rank limits to be locked.";
+                TrackPrototypeAnalytics(
+                    PrototypeAnalyticsEvents.FriendManaReceived,
+                    PrototypeAnalyticsPayloadFactory.CreateFriendManaJson(
+                        "friends_ui",
+                        PrototypeFriendManaAmount,
+                        friendsState.ReceivedManaTodayCount,
+                        PrototypeFriendDailyManaLimit));
+                break;
         }
 
-        if (prototypeFriendsReceivedManaToday.Count >= PrototypeFriendDailyManaLimit || prototypeFriendsReceivedManaToday.Contains(friendName))
-        {
-            lastFriendStatusSummary = "Daily friend mana receive limit reached for this prototype.";
-            BuildFriendsUi();
-            return;
-        }
-
-        prototypeFriendsReceivedManaToday.Add(friendName);
-        lastFriendStatusSummary = $"Received {PrototypeFriendManaAmount} mana from {friendName}. Inventory grant waits for Aura-rank limits to be locked.";
-        TrackPrototypeAnalytics(
-            PrototypeAnalyticsEvents.FriendManaReceived,
-            PrototypeAnalyticsPayloadFactory.CreateFriendManaJson(
-                "friends_ui",
-                PrototypeFriendManaAmount,
-                prototypeFriendsReceivedManaToday.Count,
-                PrototypeFriendDailyManaLimit));
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void SendPrototypeFriendMessage(string friendName)
     {
-        if (prototypeBlockedFriends.Contains(friendName))
+        if (friendsState.IsBlocked(friendName))
         {
             lastFriendStatusSummary = $"{friendName} is blocked.";
             BuildFriendsUi();
@@ -4499,17 +4366,15 @@ public class BingoPrototype : MonoBehaviour
 
     private void BlockPrototypeFriend(string friendName)
     {
-        prototypeBlockedFriends.Add(friendName);
+        friendsState.Block(friendName);
         lastFriendStatusSummary = $"Blocked {friendName}. Prototype blocks friend mana and messaging actions.";
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
     private void ReportPrototypeFriend(string friendName)
     {
-        prototypeReportedFriends.Add(friendName);
+        friendsState.Report(friendName);
         lastFriendStatusSummary = $"Report filed for {friendName}. Moderation workflow is placeholder-only.";
-        SavePrototypeFriendsState();
         BuildFriendsUi();
     }
 
@@ -6090,7 +5955,7 @@ public class BingoPrototype : MonoBehaviour
         Text footnoteText = CreateAnchoredText(panel.transform, "Messages live in Inbox until cleared.", 14, FontStyle.Bold, muted, 560, 24, 0f, -78f);
 
         Button back = CreateAnchoredButton(panel.transform, "Back", 18, 150, 42, new Color(0.18f, 0.16f, 0.22f), -178f, -142f);
-        bool canReply = TryGetFriendNameFromInboxMessage(message, out string friendName) && !prototypeBlockedFriends.Contains(friendName);
+        bool canReply = TryGetFriendNameFromInboxMessage(message, out string friendName) && !friendsState.IsBlocked(friendName);
         Button reply = canReply
             ? CreateAnchoredButton(panel.transform, "Reply", 18, 150, 42, violet, 0f, -142f)
             : null;
@@ -6152,7 +6017,7 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        if (prototypeBlockedFriends.Contains(friendName))
+        if (friendsState.IsBlocked(friendName))
         {
             lastInboxClaimSummary = $"{friendName} is blocked. Unblock before messaging.";
             BuildInboxUi();
@@ -12934,9 +12799,7 @@ public class BingoPrototype : MonoBehaviour
 
     private void ResetSocialDailyLimitsForTesting()
     {
-        prototypeFriendsSentManaToday.Clear();
-        prototypeFriendsReceivedManaToday.Clear();
-        SavePrototypeFriendsState();
+        friendsState.ResetDailyMana();
         prototypeCardGiftsSentToday = 0;
         prototypeCardGiftsReceivedToday = 0;
         inventory.DevResetSocialHelpRequests();
