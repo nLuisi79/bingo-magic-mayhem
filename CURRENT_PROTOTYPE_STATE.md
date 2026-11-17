@@ -1,6 +1,6 @@
 # Bingo Magic Mayhem - Current Prototype State
 
-Last updated: 2026-07-10
+Last updated: 2026-11-17 (see "Unity 6.6 Upgrade And Realm-Home Template" at the end)
 
 Use this as the short entry point for fresh Codex threads. The detailed rules are split into the docs below.
 
@@ -40,20 +40,22 @@ Use this as the short entry point for fresh Codex threads. The detailed rules ar
 
 ## Project Layout
 
-- Unity project: `Bingo Magic Mayhem`
+- Unity project: `Bingo Magic Mayhem` — editor **Unity 6000.6.8f1** (6.6); the game runs from `Assets/Scenes/SampleScene.unity`
+- Version control: git (`main` on GitHub). Keep Project Settings > Version Control on "Visible Meta Files"; do not check in through the Unity Version Control (Plastic) window
 - Main prototype script: `Bingo Magic Mayhem/Assets/Scripts/BingoPrototype.cs`
+- Realm-home (realm map) layouts per realm: `Bingo Magic Mayhem/Assets/Scripts/RealmHomeLayoutCatalog.cs`
 - Inventory/profile state: `Bingo Magic Mayhem/Assets/Scripts/PlayerInventoryState.cs`
 - Realm/room data: `Bingo Magic Mayhem/Assets/Scripts/RealmContentCatalog.cs`
 - Album/card data: `Bingo Magic Mayhem/Assets/Scripts/CardAlbumCatalog.cs`
 - Coven state: `Bingo Magic Mayhem/Assets/Scripts/CovenState.cs`
 
-Build check:
+Build check: this machine has no standalone .NET SDK, so `dotnet build` is unavailable. Verify with Unity itself — with the editor closed, run the EditMode suite headless:
 
 ```powershell
-dotnet build "Bingo Magic Mayhem.sln" -v:quiet -clp:ErrorsOnly
+& "C:\Program Files\Unity\Hub\Editor\6000.6.8f1\Editor\Unity.exe" -batchmode -nographics -projectPath "Bingo Magic Mayhem" -runTests -testPlatform EditMode -testResults results.xml -logFile tests.log
 ```
 
-Most recent result: build succeeded with 0 errors and 2 warnings.
+Most recent result (2026-11-17, Unity 6000.6.8f1): 183/183 EditMode tests passed. A test run quits immediately if the editor still has the project open (`Temp/UnityLockfile` held).
 
 ## Beta Direction
 
@@ -137,3 +139,18 @@ The five supplied backgrounds have replaced the existing `sunpetal-realm-broken0
 ### Sunpetal Production Asset Supersession — 2026-10-06
 
 The newer production-tree set from `prod assets/UnityFiles/rooms unity ready/01_sunpetal/world/final` now supersedes the earlier imported artwork in the same five runtime slots. The installed sequence is `sunpetal-realm-broken.png`, `sunpetal-realm-1.png`, `sunpetal-realm-2.png`, `sunpetal-realm-3.png`, and `sunpetal-realm-restored.png`, mapped to `broken0`, `broken1`, `broken2`, `broken3`, and `restored`. All five installed hashes match the new sources, all images remain 1920 x 1080, and existing Unity metadata remains unchanged. The displaced set is backed up at `C:\Users\nLuis\Documents\Codex\2026-10-06\i\work\sunpetal-before-prod-assets-import`. No game code or progression logic changed. Unity editor refresh, on-screen state review, overlay contrast, and transition-registration checks remain pending.
+
+
+## Unity 6.6 Upgrade And Realm-Home Template — 2026-11-17
+
+Engine
+- Upgraded Unity 6000.4.10f1 → 6000.6.8f1, the 6.6 release patched for Unity's eMudhra (CVE-2026-111943) and Brotli (CVE-2026-111497) advisory. 6.4 does not receive the patch. Game code does not use Brotli; no builds have shipped.
+- Removed unused packages `com.unity.ai.assistant` (named in the advisory), `com.unity.ai.inference` and `com.unity.visualscripting`, plus their compile defines. Editor-applied package updates include UGUI 2.6.0 and URP 17.6.0.
+- The built-in LegacyRuntime font measures identically in 6.4 and 6.6. Text overlaps found in the post-upgrade play test (Apothecary, Mana Cauldron) were pre-existing layout bugs and are fixed; other Den modals use the same fixed-height text boxes and may hide similar issues.
+
+Realm order (source: BMM Potions Google Sheet, matches the World Map and the art tree)
+1 Sunpetal Conservatory, 2 Floating Lotus Lagoon, 3 Everbloom Sanctuary, 4 Glimmerwisp Forest, 5 Cerulean Moon Monastery, 6 Emberglass Grove, 7 Howling Hollows Manor, 8 Crimson Moon Canyon, 9 Arcane Aerie Heights, 10 Crystalline Chanterelle Colony. Everfrost Vale is the sheet's 11th realm and is kept as an unused definition. Chanterelle ingredient amounts/rarities are untuned. Several existing realms' room names and amounts differ from the sheet and were intentionally not changed.
+
+Realm-home screen
+- Sunpetal matches the gridded 1920x1080 mockup (stage = mockup px / 1.2). Shared chrome (header and label nine-tiles, label fill slices, arrows, ring, lock, badge) lives in `Resources/prototype/ui/realm_home/shared`; realm folders hold only backgrounds and potions.
+- Every realm renders the illustrated screen. Realms without a measured mockup reuse Sunpetal's room placements and skip missing backgrounds/potions. Ready to import next: complete background sets for Floating Lotus and Everbloom. Each further realm needs its backgrounds, potions and a gridded mockup.
