@@ -160,6 +160,9 @@ public class BingoPrototype : MonoBehaviour
     private Font uiFont;
     private Transform contentRoot;
     private RectTransform stageRect;
+    // Dimmed, cover-scaled copy of a full-bleed screen's background that fills the bands left on non-16:9 screens.
+    private RectTransform stageAmbientBackdrop;
+    private Rect lastSafeArea;
     private float activeStageSafePadding = SafePadding;
     private RectTransform worldMapContentRect;
     private int worldMapPreviewRealmIndex = -1;
@@ -2209,6 +2212,16 @@ public class BingoPrototype : MonoBehaviour
         background.preserveAspect = false;
         background.raycastTarget = false;
         background.transform.SetAsFirstSibling();
+
+        // On screens wider or taller than 16:9 the stage is fit (so rooms stay aligned with the art); a dimmed,
+        // enlarged copy of the same art fills the leftover bands instead of plain bars. Sized in ApplyStageScale.
+        Image ambient = CreateAnchoredImage(transform, backgroundResource, StageWidth, StageHeight, 0f, 0f);
+        ambient.name = "Realm home ambient backdrop";
+        ambient.preserveAspect = false;
+        ambient.raycastTarget = false;
+        ambient.color = new Color(0.45f, 0.45f, 0.5f, 1f);
+        ambient.transform.SetAsFirstSibling();
+        stageAmbientBackdrop = ambient.rectTransform;
     }
 
     private void CreateRealmSelectorRow()
@@ -9810,6 +9823,7 @@ public class BingoPrototype : MonoBehaviour
         activeStageSafePadding = SafePadding;
         activeStageFillsViewport = false;
         lastRootSize = Vector2.zero;
+        stageAmbientBackdrop = null;
 
         foreach (Transform child in transform)
         {
@@ -9870,25 +9884,53 @@ public class BingoPrototype : MonoBehaviour
 
         RectTransform rootRect = EnsureRootRectTransform();
         Vector2 rootSize = rootRect.rect.size;
-        if (!force && rootSize == lastRootSize)
+        Rect safeArea = Screen.safeArea;
+        if (!force && rootSize == lastRootSize && safeArea == lastSafeArea)
         {
             return;
         }
 
         lastRootSize = rootSize;
+        lastSafeArea = safeArea;
 
+        // Keep every screen inside the device safe area (notches, rounded corners, home indicator).
+        GetSafeAreaInsets(rootSize, safeArea, out float insetLeft, out float insetRight, out float insetBottom, out float insetTop);
         bool fillsViewport = activeStageFillsViewport || IsRealmHomeStage();
         float safePadding = fillsViewport ? 0f : activeStageSafePadding;
-        float availableWidth = Mathf.Max(1f, rootSize.x - safePadding * 2f);
-        float availableHeight = Mathf.Max(1f, rootSize.y - safePadding * 2f);
+        float availableWidth = Mathf.Max(1f, rootSize.x - insetLeft - insetRight - safePadding * 2f);
+        float availableHeight = Mathf.Max(1f, rootSize.y - insetBottom - insetTop - safePadding * 2f);
         float widthScale = availableWidth / activeStageWidth;
         float heightScale = availableHeight / activeStageHeight;
-        float scale = fillsViewport
-            ? Mathf.Max(widthScale, heightScale)
-            : Mathf.Min(widthScale, heightScale);
-        scale = Mathf.Clamp(scale, 0.55f, 1.15f);
+
+        // Full-bleed screens fit the whole stage so artwork-anchored UI (room medallions) stays visible and aligned;
+        // the ambient backdrop covers any leftover bands. Other screens keep the original size limits.
+        float scale = Mathf.Min(widthScale, heightScale);
+        scale = fillsViewport ? Mathf.Max(0.55f, scale) : Mathf.Clamp(scale, 0.55f, 1.15f);
 
         stageRect.localScale = new Vector3(scale, scale, 1f);
+        stageRect.anchoredPosition = new Vector2((insetLeft - insetRight) * 0.5f, (insetBottom - insetTop) * 0.5f);
+
+        if (stageAmbientBackdrop != null)
+        {
+            float coverScale = Mathf.Max(rootSize.x / activeStageWidth, rootSize.y / activeStageHeight);
+            stageAmbientBackdrop.sizeDelta = new Vector2(activeStageWidth, activeStageHeight) * coverScale;
+        }
+    }
+
+    private static void GetSafeAreaInsets(Vector2 rootSize, Rect safeArea, out float left, out float right, out float bottom, out float top)
+    {
+        left = right = bottom = top = 0f;
+        if (Screen.width <= 0 || Screen.height <= 0 || safeArea.width <= 0f || safeArea.height <= 0f)
+        {
+            return;
+        }
+
+        float toCanvasX = rootSize.x / Screen.width;
+        float toCanvasY = rootSize.y / Screen.height;
+        left = Mathf.Max(0f, safeArea.xMin) * toCanvasX;
+        right = Mathf.Max(0f, Screen.width - safeArea.xMax) * toCanvasX;
+        bottom = Mathf.Max(0f, safeArea.yMin) * toCanvasY;
+        top = Mathf.Max(0f, Screen.height - safeArea.yMax) * toCanvasY;
     }
 
     private bool IsRealmHomeStage()
