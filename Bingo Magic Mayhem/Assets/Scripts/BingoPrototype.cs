@@ -3647,24 +3647,25 @@ public class BingoPrototype : MonoBehaviour
         CreateApothecarySection(panel.transform, "Active Potion", -344f, 82f, 360, 252, new Color(0.11f, 0.07f, 0.16f));
         CreateAnchoredText(panel.transform, room.PotionName, 26, FontStyle.Bold, gold, 310, 64, -344f, 126f);
         CreateAnchoredText(panel.transform, room.Name, 16, FontStyle.Bold, muted, 300, 24, -344f, 74f);
-        CreateAnchoredText(panel.transform, inventory.GetRestoreStatusText(), 24, FontStyle.Bold, inventory.CanRestoreActiveRoom() ? new Color(0.46f, 0.9f, 0.34f) : Color.white, 300, 32, -344f, 28f);
-        CreateAnchoredText(panel.transform, inventory.GetFullIngredientProgressText(), 17, FontStyle.Bold, muted, 300, 110, -344f, -48f);
+        // The full ingredient list lives in the Potion Ingredients panel; repeating it here overflowed into the row below.
+        CreateAnchoredText(panel.transform, inventory.GetRestoreStatusText(), 24, FontStyle.Bold, inventory.CanRestoreActiveRoom() ? new Color(0.46f, 0.9f, 0.34f) : Color.white, 300, 32, -344f, 18f);
 
         CreateApothecarySection(panel.transform, "Potion Ingredients", 84f, 82f, 568, 252, new Color(0.1f, 0.055f, 0.13f));
-        CreateAnchoredText(panel.transform, inventory.GetFullIngredientProgressText(), 19, FontStyle.Bold, Color.white, 500, 156, 84f, 58f);
-        CreateAnchoredText(panel.transform, "Ingredient collection still comes from room play and ingredient detail flows.", 14, FontStyle.Bold, muted, 500, 42, 84f, -62f);
+        CreateAnchoredText(panel.transform, inventory.GetFullIngredientProgressText(), 19, FontStyle.Bold, Color.white, 500, 156, 84f, 64f);
+        CreateAnchoredText(panel.transform, "Ingredient collection still comes from room play and ingredient detail flows.", 14, FontStyle.Bold, muted, 500, 36, 84f, -20f);
 
-        CreateApothecarySection(panel.transform, "Completion Reward", -280f, -178f, 430, 190, new Color(0.13f, 0.075f, 0.11f));
-        CreateAnchoredText(panel.transform, inventory.GetRestoreRewardText(), 28, FontStyle.Bold, gold, 360, 76, -280f, -158f);
-        CreateAnchoredText(panel.transform, "Reward values remain prototype placeholders until potion rewards are approved.", 14, FontStyle.Bold, muted, 380, 48, -280f, -224f);
+        // The lower row stops above the shared Back button (y -286), leaving a band for the footer note.
+        CreateApothecarySection(panel.transform, "Completion Reward", -280f, -145f, 430, 170, new Color(0.13f, 0.075f, 0.11f));
+        CreateAnchoredText(panel.transform, inventory.GetRestoreRewardText(), 28, FontStyle.Bold, gold, 360, 76, -280f, -135f);
+        CreateAnchoredText(panel.transform, "Reward values remain prototype placeholders until potion rewards are approved.", 14, FontStyle.Bold, muted, 380, 40, -280f, -200f);
 
-        CreateApothecarySection(panel.transform, "Potion Workbench", 292f, -178f, 430, 190, new Color(0.11f, 0.07f, 0.14f));
-        CreateApothecaryWorkbenchSlot(panel.transform, "Recipe", "Locked", 166f, -178f);
-        CreateApothecaryWorkbenchSlot(panel.transform, "Ingredient", "Later", 292f, -178f);
-        CreateApothecaryWorkbenchSlot(panel.transform, "Output", "Later", 418f, -178f);
-        CreateAnchoredText(panel.transform, "Mixing and crafting stay configurable until potion rules are approved.", 14, FontStyle.Bold, muted, 380, 36, 292f, -248f);
+        CreateApothecarySection(panel.transform, "Potion Workbench", 292f, -145f, 430, 170, new Color(0.11f, 0.07f, 0.14f));
+        CreateApothecaryWorkbenchSlot(panel.transform, "Recipe", "Locked", 166f, -140f);
+        CreateApothecaryWorkbenchSlot(panel.transform, "Ingredient", "Later", 292f, -140f);
+        CreateApothecaryWorkbenchSlot(panel.transform, "Output", "Later", 418f, -140f);
+        CreateAnchoredText(panel.transform, "Mixing and crafting stay configurable until potion rules are approved.", 14, FontStyle.Bold, muted, 380, 36, 292f, -208f);
 
-        CreateAnchoredText(panel.transform, "Sigils, Clairvoyance, Pandora, and other boost inventory stay in Cabinet of Curiosities.", 15, FontStyle.Bold, muted, 900, 34, 0f, -278f);
+        CreateAnchoredText(panel.transform, "Sigils, Clairvoyance, Pandora, and other boost inventory stay in Cabinet of Curiosities.", 14, FontStyle.Bold, muted, 900, 24, 0f, -246f);
     }
 
     private void CreateApothecarySection(Transform parent, string title, float x, float y, float width, float height, Color color)
@@ -6492,11 +6493,12 @@ public class BingoPrototype : MonoBehaviour
         GameObject modal = CreateAnchoredPanel(contentRoot, "ManaCauldronModal", new Color(0.12f, 0.04f, 0.18f, 0.98f), 1040, 570, 0f, -12f);
         Text headerText = CreateAnchoredText(modal.transform, string.Empty, 54, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), 940, 70, 0f, 226f);
         CreateAnchoredPanel(modal.transform, "CauldronBowl", new Color(0.22f, 0.08f, 0.28f), 350, 230, -250f, 38f);
-        CreateAnchoredText(modal.transform, "*\n*\n*", 54, FontStyle.Bold, gold, 240, 160, -250f, 62f);
+        // Three lines at size 54 measure 184 units in the built-in font; a shorter box silently drops the last line.
+        CreateAnchoredText(modal.transform, "*\n*\n*", 54, FontStyle.Bold, gold, 240, 190, -250f, 38f);
         cauldronAmountText = CreateAnchoredText(modal.transform, string.Empty, 72, FontStyle.Bold, Color.white, 370, 90, 248f, 72f);
         Text resourceLabelText = CreateAnchoredText(modal.transform, string.Empty, 38, FontStyle.Bold, gold, 360, 54, 248f, 8f);
         cauldronStatusText = CreateAnchoredText(modal.transform, string.Empty, 25, FontStyle.Bold, cream, 360, 96, 248f, -76f);
-        Text refillNoteText = CreateAnchoredText(modal.transform, string.Empty, 18, FontStyle.Bold, cream, 780, 42, 0f, -178f);
+        Text refillNoteText = CreateAnchoredText(modal.transform, string.Empty, 18, FontStyle.Bold, cream, 780, 42, 0f, -228f);
 
         cauldronCollectButton = CreateAnchoredButton(modal.transform, string.Empty, 28, 330, 58, profile.ManaCauldronAmount > 0 ? new Color(0.12f, 0.55f, 0.08f) : new Color(0.34f, 0.32f, 0.38f), 218f, -154f);
         cauldronCollectButton.interactable = profile.ManaCauldronAmount > 0;
