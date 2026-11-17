@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System;
+using BingoMagicMayhem.Infrastructure;
 using UnityEngine;
 
 public sealed class PlayerInventoryState
@@ -125,7 +126,7 @@ public sealed class PlayerInventoryState
 
     public bool IsRoomRestored(RoomDefinition room)
     {
-        return PlayerPrefs.GetInt(GetRoomRestoreKey(room), 0) == 1;
+        return DurablePrefs.GetInt(GetRoomRestoreKey(room), 0) == 1;
     }
 
     public int GetRestoredRoomCount()
@@ -167,14 +168,14 @@ public sealed class PlayerInventoryState
                     continue;
                 }
 
-                PlayerPrefs.SetInt(GetRoomRestoreKey(rooms[roomIndex]), 1);
+                DurablePrefs.SetInt(GetRoomRestoreKey(rooms[roomIndex]), 1);
                 repaired = true;
             }
         }
 
         if (repaired)
         {
-            PlayerPrefs.Save();
+            DurablePrefs.Save();
             RefreshActiveRoomState();
         }
     }
@@ -187,7 +188,7 @@ public sealed class PlayerInventoryState
 
     public int GetSavedManaBetForRoom(RoomDefinition room)
     {
-        int savedBet = PlayerPrefs.GetInt(GetRoomManaBetKey(room), room.Progression.MinManaBet);
+        int savedBet = DurablePrefs.GetInt(GetRoomManaBetKey(room), room.Progression.MinManaBet);
         return Mathf.Clamp(savedBet, room.Progression.MinManaBet, room.Progression.MaxManaBet);
     }
 
@@ -200,27 +201,27 @@ public sealed class PlayerInventoryState
     {
         RoomDefinition room = RealmContentCatalog.ActivePrototypeRoom;
         int clampedBet = Mathf.Clamp(manaBetPerCard, room.Progression.MinManaBet, room.Progression.MaxManaBet);
-        PlayerPrefs.SetInt(GetRoomManaBetKey(room), clampedBet);
-        PlayerPrefs.Save();
+        DurablePrefs.SetInt(GetRoomManaBetKey(room), clampedBet);
+        DurablePrefs.Save();
     }
 
     public void Load()
     {
-        Mana = PlayerPrefs.GetInt(SavePrefix + "Mana", Mana);
-        Crystals = PlayerPrefs.GetInt(SavePrefix + "Crystals", Crystals);
-        ClairvoyanceMinutes = PlayerPrefs.GetInt(SavePrefix + "ClairvoyanceMinutes", ClairvoyanceMinutes);
-        ActiveClairvoyanceSeconds = PlayerPrefs.GetFloat(SavePrefix + "ActiveClairvoyanceSeconds", ActiveClairvoyanceSeconds);
-        if (!long.TryParse(PlayerPrefs.GetString(SavePrefix + "ActiveClairvoyanceExpiresAtTicks", "0"), out long savedExpiryTicks))
+        Mana = DurablePrefs.GetInt(SavePrefix + "Mana", Mana);
+        Crystals = DurablePrefs.GetInt(SavePrefix + "Crystals", Crystals);
+        ClairvoyanceMinutes = DurablePrefs.GetInt(SavePrefix + "ClairvoyanceMinutes", ClairvoyanceMinutes);
+        ActiveClairvoyanceSeconds = DurablePrefs.GetFloat(SavePrefix + "ActiveClairvoyanceSeconds", ActiveClairvoyanceSeconds);
+        if (!long.TryParse(DurablePrefs.GetString(SavePrefix + "ActiveClairvoyanceExpiresAtTicks", "0"), out long savedExpiryTicks))
         {
             savedExpiryTicks = 0L;
         }
 
         ActiveClairvoyanceExpiresAtTicks = savedExpiryTicks;
         SyncTimedPowerUpsFromClock();
-        PendingJackpotSpins = PlayerPrefs.GetInt(SavePrefix + "PendingJackpotSpins", PendingJackpotSpins);
-        ManaCauldronCapacity = Mathf.Max(DefaultManaCauldronCapacity, PlayerPrefs.GetInt(SavePrefix + "ManaCauldronCapacity", ManaCauldronCapacity));
-        ManaCauldronAmount = Mathf.Clamp(PlayerPrefs.GetInt(SavePrefix + "ManaCauldronAmount", ManaCauldronAmount), 0, ManaCauldronCapacity);
-        if (!long.TryParse(PlayerPrefs.GetString(SavePrefix + "ManaCauldronNextFillAtTicks", "0"), out long cauldronTicks))
+        PendingJackpotSpins = DurablePrefs.GetInt(SavePrefix + "PendingJackpotSpins", PendingJackpotSpins);
+        ManaCauldronCapacity = Mathf.Max(DefaultManaCauldronCapacity, DurablePrefs.GetInt(SavePrefix + "ManaCauldronCapacity", ManaCauldronCapacity));
+        ManaCauldronAmount = Mathf.Clamp(DurablePrefs.GetInt(SavePrefix + "ManaCauldronAmount", ManaCauldronAmount), 0, ManaCauldronCapacity);
+        if (!long.TryParse(DurablePrefs.GetString(SavePrefix + "ManaCauldronNextFillAtTicks", "0"), out long cauldronTicks))
         {
             cauldronTicks = 0L;
         }
@@ -228,16 +229,16 @@ public sealed class PlayerInventoryState
         ManaCauldronNextFillAtTicks = cauldronTicks;
         SyncManaCauldronFromClock();
         AlbumSeasonStartedAtTicks = PrototypeGlobalAlbumSeasonStartUtc.Ticks;
-        BookOfShadowsPurchased = PlayerPrefs.GetInt(SavePrefix + "BookOfShadowsPurchased", BookOfShadowsPurchased ? 1 : 0) == 1;
-        JokerWildCards = PlayerPrefs.GetInt(SavePrefix + "JokerWildCards", JokerWildCards);
-        DailyBonusStreak = PlayerPrefs.GetInt(SavePrefix + "DailyBonusStreak", DailyBonusStreak);
-        LastDailyBonusClaimDate = PlayerPrefs.GetString(SavePrefix + "LastDailyBonusClaimDate", LastDailyBonusClaimDate);
-        DailyBonusStreakSaveUses = PlayerPrefs.GetInt(SavePrefix + "DailyBonusStreakSaveUses", DailyBonusStreakSaveUses);
-        LastDailySpinClaimDate = PlayerPrefs.GetString(SavePrefix + "LastDailySpinClaimDate", LastDailySpinClaimDate);
-        LastSocialHelpRequestDate = PlayerPrefs.GetString(SavePrefix + "LastSocialHelpRequestDate", LastSocialHelpRequestDate);
-        SocialHelpRequestsUsedToday = PlayerPrefs.GetInt(SavePrefix + "SocialHelpRequestsUsedToday", SocialHelpRequestsUsedToday);
+        BookOfShadowsPurchased = DurablePrefs.GetInt(SavePrefix + "BookOfShadowsPurchased", BookOfShadowsPurchased ? 1 : 0) == 1;
+        JokerWildCards = DurablePrefs.GetInt(SavePrefix + "JokerWildCards", JokerWildCards);
+        DailyBonusStreak = DurablePrefs.GetInt(SavePrefix + "DailyBonusStreak", DailyBonusStreak);
+        LastDailyBonusClaimDate = DurablePrefs.GetString(SavePrefix + "LastDailyBonusClaimDate", LastDailyBonusClaimDate);
+        DailyBonusStreakSaveUses = DurablePrefs.GetInt(SavePrefix + "DailyBonusStreakSaveUses", DailyBonusStreakSaveUses);
+        LastDailySpinClaimDate = DurablePrefs.GetString(SavePrefix + "LastDailySpinClaimDate", LastDailySpinClaimDate);
+        LastSocialHelpRequestDate = DurablePrefs.GetString(SavePrefix + "LastSocialHelpRequestDate", LastSocialHelpRequestDate);
+        SocialHelpRequestsUsedToday = DurablePrefs.GetInt(SavePrefix + "SocialHelpRequestsUsedToday", SocialHelpRequestsUsedToday);
         SyncSocialHelpRequestDate();
-        AutoDropPowerUps = PlayerPrefs.GetInt(SavePrefix + "AutoDropPowerUps", AutoDropPowerUps ? 1 : 0) == 1;
+        AutoDropPowerUps = DurablePrefs.GetInt(SavePrefix + "AutoDropPowerUps", AutoDropPowerUps ? 1 : 0) == 1;
         LoadActiveRoomJackpotPot();
         ActiveRoomRestored = IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom);
 
@@ -256,33 +257,33 @@ public sealed class PlayerInventoryState
 
     public void Save()
     {
-        PlayerPrefs.SetInt(SavePrefix + "Mana", Mana);
-        PlayerPrefs.SetInt(SavePrefix + "Crystals", Crystals);
-        PlayerPrefs.SetInt(SavePrefix + "ClairvoyanceMinutes", ClairvoyanceMinutes);
-        PlayerPrefs.SetFloat(SavePrefix + "ActiveClairvoyanceSeconds", ActiveClairvoyanceSeconds);
-        PlayerPrefs.SetString(SavePrefix + "ActiveClairvoyanceExpiresAtTicks", ActiveClairvoyanceExpiresAtTicks.ToString());
-        PlayerPrefs.SetInt(SavePrefix + "PendingJackpotSpins", PendingJackpotSpins);
-        PlayerPrefs.SetInt(SavePrefix + "ManaCauldronAmount", ManaCauldronAmount);
-        PlayerPrefs.SetInt(SavePrefix + "ManaCauldronCapacity", ManaCauldronCapacity);
-        PlayerPrefs.SetString(SavePrefix + "ManaCauldronNextFillAtTicks", ManaCauldronNextFillAtTicks.ToString());
-        PlayerPrefs.SetInt(SavePrefix + "BookOfShadowsPurchased", BookOfShadowsPurchased ? 1 : 0);
-        PlayerPrefs.SetInt(SavePrefix + "JokerWildCards", JokerWildCards);
-        PlayerPrefs.SetInt(SavePrefix + "DailyBonusStreak", DailyBonusStreak);
-        PlayerPrefs.SetString(SavePrefix + "LastDailyBonusClaimDate", LastDailyBonusClaimDate);
-        PlayerPrefs.SetInt(SavePrefix + "DailyBonusStreakSaveUses", DailyBonusStreakSaveUses);
-        PlayerPrefs.SetString(SavePrefix + "LastDailySpinClaimDate", LastDailySpinClaimDate);
-        PlayerPrefs.SetString(SavePrefix + "LastSocialHelpRequestDate", LastSocialHelpRequestDate);
-        PlayerPrefs.SetInt(SavePrefix + "SocialHelpRequestsUsedToday", SocialHelpRequestsUsedToday);
-        PlayerPrefs.SetInt(SavePrefix + "AutoDropPowerUps", AutoDropPowerUps ? 1 : 0);
-        PlayerPrefs.SetInt(GetRoomJackpotPotKey(RealmContentCatalog.ActivePrototypeRoom), Mathf.Max(ActiveProgression.MinimumJackpotPot, CurrentRoomJackpotPot));
-        PlayerPrefs.SetInt(GetRoomRestoreKey(RealmContentCatalog.ActivePrototypeRoom), ActiveRoomRestored ? 1 : 0);
+        DurablePrefs.SetInt(SavePrefix + "Mana", Mana);
+        DurablePrefs.SetInt(SavePrefix + "Crystals", Crystals);
+        DurablePrefs.SetInt(SavePrefix + "ClairvoyanceMinutes", ClairvoyanceMinutes);
+        DurablePrefs.SetFloat(SavePrefix + "ActiveClairvoyanceSeconds", ActiveClairvoyanceSeconds);
+        DurablePrefs.SetString(SavePrefix + "ActiveClairvoyanceExpiresAtTicks", ActiveClairvoyanceExpiresAtTicks.ToString());
+        DurablePrefs.SetInt(SavePrefix + "PendingJackpotSpins", PendingJackpotSpins);
+        DurablePrefs.SetInt(SavePrefix + "ManaCauldronAmount", ManaCauldronAmount);
+        DurablePrefs.SetInt(SavePrefix + "ManaCauldronCapacity", ManaCauldronCapacity);
+        DurablePrefs.SetString(SavePrefix + "ManaCauldronNextFillAtTicks", ManaCauldronNextFillAtTicks.ToString());
+        DurablePrefs.SetInt(SavePrefix + "BookOfShadowsPurchased", BookOfShadowsPurchased ? 1 : 0);
+        DurablePrefs.SetInt(SavePrefix + "JokerWildCards", JokerWildCards);
+        DurablePrefs.SetInt(SavePrefix + "DailyBonusStreak", DailyBonusStreak);
+        DurablePrefs.SetString(SavePrefix + "LastDailyBonusClaimDate", LastDailyBonusClaimDate);
+        DurablePrefs.SetInt(SavePrefix + "DailyBonusStreakSaveUses", DailyBonusStreakSaveUses);
+        DurablePrefs.SetString(SavePrefix + "LastDailySpinClaimDate", LastDailySpinClaimDate);
+        DurablePrefs.SetString(SavePrefix + "LastSocialHelpRequestDate", LastSocialHelpRequestDate);
+        DurablePrefs.SetInt(SavePrefix + "SocialHelpRequestsUsedToday", SocialHelpRequestsUsedToday);
+        DurablePrefs.SetInt(SavePrefix + "AutoDropPowerUps", AutoDropPowerUps ? 1 : 0);
+        DurablePrefs.SetInt(GetRoomJackpotPotKey(RealmContentCatalog.ActivePrototypeRoom), Mathf.Max(ActiveProgression.MinimumJackpotPot, CurrentRoomJackpotPot));
+        DurablePrefs.SetInt(GetRoomRestoreKey(RealmContentCatalog.ActivePrototypeRoom), ActiveRoomRestored ? 1 : 0);
 
         SaveRoomIngredients();
 
         SaveCellRewards();
         SaveAlbumCards();
 
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
     }
 
     public void ResetToDefaults()
@@ -349,24 +350,24 @@ public sealed class PlayerInventoryState
         for (int roomIndex = 0; roomIndex < rooms.Count; roomIndex++)
         {
             RoomDefinition room = rooms[roomIndex];
-            PlayerPrefs.DeleteKey(GetRoomRestoreKey(room));
+            DurablePrefs.DeleteKey(GetRoomRestoreKey(room));
             IReadOnlyList<IngredientRequirement> requirements = room.Ingredients;
             for (int requirementIndex = 0; requirementIndex < requirements.Count; requirementIndex++)
             {
-                PlayerPrefs.DeleteKey(SavePrefix + "Ingredient." + requirements[requirementIndex].Name);
+                DurablePrefs.DeleteKey(SavePrefix + "Ingredient." + requirements[requirementIndex].Name);
             }
         }
 
-        PlayerPrefs.SetInt(GetRoomRestoreKey(rooms[0]), 1);
+        DurablePrefs.SetInt(GetRoomRestoreKey(rooms[0]), 1);
         IReadOnlyList<IngredientRequirement> previewRequirements = rooms[1].Ingredients;
         for (int index = 0; index < previewRequirements.Count; index++)
         {
             IngredientRequirement requirement = previewRequirements[index];
             int previewCount = Mathf.Max(1, requirement.Required / 2);
-            PlayerPrefs.SetInt(SavePrefix + "Ingredient." + requirement.Name, previewCount);
+            DurablePrefs.SetInt(SavePrefix + "Ingredient." + requirement.Name, previewCount);
         }
 
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
         RefreshActiveRoomState();
     }
 
@@ -383,9 +384,9 @@ public sealed class PlayerInventoryState
             return;
         }
 
-        PlayerPrefs.SetInt(GetRoomRestoreKey(previousRooms[previousRooms.Count - 1]), 1);
+        DurablePrefs.SetInt(GetRoomRestoreKey(previousRooms[previousRooms.Count - 1]), 1);
         ActiveRoomRestored = IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom);
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
     }
 
     public bool TrySpendMana(int amount)
@@ -637,8 +638,8 @@ public sealed class PlayerInventoryState
     public void DevResetDailySpinClaim()
     {
         LastDailySpinClaimDate = "";
-        PlayerPrefs.DeleteKey(SavePrefix + "LastDailySpinClaimDate");
-        PlayerPrefs.Save();
+        DurablePrefs.DeleteKey(SavePrefix + "LastDailySpinClaimDate");
+        DurablePrefs.Save();
     }
 
     public string GetManaCauldronCountdownText()
@@ -1062,7 +1063,7 @@ public sealed class PlayerInventoryState
         }
 
         ActiveRoomRestored = true;
-        PlayerPrefs.SetInt(GetRoomRestoreKey(RealmContentCatalog.ActivePrototypeRoom), 1);
+        DurablePrefs.SetInt(GetRoomRestoreKey(RealmContentCatalog.ActivePrototypeRoom), 1);
         AddMana(ActiveProgression.RestoreManaReward);
         AddCellRewardCount("Regular Card", 1);
         Save();
@@ -1161,7 +1162,7 @@ public sealed class PlayerInventoryState
 
     public bool IsGrimoireCardUnseen(string cardId)
     {
-        return PlayerPrefs.GetInt(GetGrimoireCardUnseenKey(cardId), 0) == 1;
+        return DurablePrefs.GetInt(GetGrimoireCardUnseenKey(cardId), 0) == 1;
     }
 
     public bool HasUnseenGrimoireEntryCards(GrimoireEntryDefinition entry)
@@ -1181,10 +1182,10 @@ public sealed class PlayerInventoryState
     {
         for (int index = 0; index < entry.Cards.Count; index++)
         {
-            PlayerPrefs.DeleteKey(GetGrimoireCardUnseenKey(entry.Cards[index].Id));
+            DurablePrefs.DeleteKey(GetGrimoireCardUnseenKey(entry.Cards[index].Id));
         }
 
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
     }
 
     public bool IsGrimoireEntryComplete(GrimoireEntryDefinition entry)
@@ -1199,7 +1200,7 @@ public sealed class PlayerInventoryState
 
     public bool IsGrimoireEntryRewardClaimed(GrimoireEntryDefinition entry)
     {
-        return PlayerPrefs.GetInt(GetGrimoireEntryRewardClaimedKey(entry), 0) == 1;
+        return DurablePrefs.GetInt(GetGrimoireEntryRewardClaimedKey(entry), 0) == 1;
     }
 
     public bool CanClaimGrimoireEntryReward(GrimoireEntryDefinition entry)
@@ -1215,14 +1216,14 @@ public sealed class PlayerInventoryState
         }
 
         ApplyAlbumReward(entry.Reward);
-        PlayerPrefs.SetInt(GetGrimoireEntryRewardClaimedKey(entry), 1);
+        DurablePrefs.SetInt(GetGrimoireEntryRewardClaimedKey(entry), 1);
         Save();
         return true;
     }
 
     public bool IsGrimoireCompletionRewardClaimed()
     {
-        return PlayerPrefs.GetInt(GetGrimoireCompletionRewardClaimedKey(), 0) == 1;
+        return DurablePrefs.GetInt(GetGrimoireCompletionRewardClaimedKey(), 0) == 1;
     }
 
     public bool CanClaimGrimoireCompletionReward()
@@ -1239,7 +1240,7 @@ public sealed class PlayerInventoryState
 
         ApplyAlbumReward(CardAlbumCatalog.GrimoireOneCompletionReward);
         ConvertGrimoireDuplicatesToJokerWilds();
-        PlayerPrefs.SetInt(GetGrimoireCompletionRewardClaimedKey(), 1);
+        DurablePrefs.SetInt(GetGrimoireCompletionRewardClaimedKey(), 1);
         Save();
         return true;
     }
@@ -1303,7 +1304,7 @@ public sealed class PlayerInventoryState
 
     public bool IsBookOfShadowsCardUnseen(string cardId)
     {
-        return PlayerPrefs.GetInt(GetBookOfShadowsCardUnseenKey(cardId), 0) == 1;
+        return DurablePrefs.GetInt(GetBookOfShadowsCardUnseenKey(cardId), 0) == 1;
     }
 
     public bool HasUnseenBookOfShadowsEntryCards(BookOfShadowsEntryDefinition entry)
@@ -1323,10 +1324,10 @@ public sealed class PlayerInventoryState
     {
         for (int index = 0; index < entry.Cards.Count; index++)
         {
-            PlayerPrefs.DeleteKey(GetBookOfShadowsCardUnseenKey(entry.Cards[index].Id));
+            DurablePrefs.DeleteKey(GetBookOfShadowsCardUnseenKey(entry.Cards[index].Id));
         }
 
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
     }
 
     public bool IsBookOfShadowsEntryComplete(BookOfShadowsEntryDefinition entry)
@@ -1341,7 +1342,7 @@ public sealed class PlayerInventoryState
 
     public bool IsBookOfShadowsEntryRewardClaimed(BookOfShadowsEntryDefinition entry)
     {
-        return PlayerPrefs.GetInt(GetBookOfShadowsEntryRewardClaimedKey(entry), 0) == 1;
+        return DurablePrefs.GetInt(GetBookOfShadowsEntryRewardClaimedKey(entry), 0) == 1;
     }
 
     public bool CanClaimBookOfShadowsEntryReward(BookOfShadowsEntryDefinition entry)
@@ -1357,14 +1358,14 @@ public sealed class PlayerInventoryState
         }
 
         ApplyAlbumReward(entry.Reward);
-        PlayerPrefs.SetInt(GetBookOfShadowsEntryRewardClaimedKey(entry), 1);
+        DurablePrefs.SetInt(GetBookOfShadowsEntryRewardClaimedKey(entry), 1);
         Save();
         return true;
     }
 
     public bool IsBookOfShadowsCompletionRewardClaimed()
     {
-        return PlayerPrefs.GetInt(GetBookOfShadowsCompletionRewardClaimedKey(), 0) == 1;
+        return DurablePrefs.GetInt(GetBookOfShadowsCompletionRewardClaimedKey(), 0) == 1;
     }
 
     public bool CanClaimBookOfShadowsCompletionReward()
@@ -1394,7 +1395,7 @@ public sealed class PlayerInventoryState
         }
 
         ApplyAlbumReward(CardAlbumCatalog.BookOfShadowsCompletionReward);
-        PlayerPrefs.SetInt(GetBookOfShadowsCompletionRewardClaimedKey(), 1);
+        DurablePrefs.SetInt(GetBookOfShadowsCompletionRewardClaimedKey(), 1);
         Save();
         return true;
     }
@@ -1486,7 +1487,7 @@ public sealed class PlayerInventoryState
         grimoireCardCopies[cardId] = previousCopies + 1;
         if (previousCopies == 0)
         {
-            PlayerPrefs.SetInt(GetGrimoireCardUnseenKey(cardId), 1);
+            DurablePrefs.SetInt(GetGrimoireCardUnseenKey(cardId), 1);
         }
 
         Save();
@@ -1738,15 +1739,15 @@ public sealed class PlayerInventoryState
         }
 
         string redeemedKey = FreebieCodeRedeemedPrefix + normalizedCode;
-        if (PlayerPrefs.GetInt(redeemedKey, 0) == 1)
+        if (DurablePrefs.GetInt(redeemedKey, 0) == 1)
         {
             resultMessage = "This social freebie link was already redeemed.";
             return false;
         }
 
         ApplyRewardGrant(reward);
-        PlayerPrefs.SetInt(redeemedKey, 1);
-        PlayerPrefs.Save();
+        DurablePrefs.SetInt(redeemedKey, 1);
+        DurablePrefs.Save();
         resultMessage = "Social freebie redeemed.";
         return true;
     }
@@ -1976,7 +1977,7 @@ public sealed class PlayerInventoryState
         grimoireCardCopies[cardId] = previousCopies + 1;
         if (previousCopies == 0)
         {
-            PlayerPrefs.SetInt(GetGrimoireCardUnseenKey(cardId), 1);
+            DurablePrefs.SetInt(GetGrimoireCardUnseenKey(cardId), 1);
         }
     }
 
@@ -2013,7 +2014,7 @@ public sealed class PlayerInventoryState
         bool isNew = previousCopies == 0;
         if (isNew)
         {
-            PlayerPrefs.SetInt(GetGrimoireCardUnseenKey(awarded.Id), 1);
+            DurablePrefs.SetInt(GetGrimoireCardUnseenKey(awarded.Id), 1);
         }
 
         lastAwardedAlbumCards.Add(AwardedAlbumCardRecord.FromGrimoire(awarded, isNew, grimoireCardCopies[awarded.Id]));
@@ -2054,7 +2055,7 @@ public sealed class PlayerInventoryState
         bool isNew = previousCopies == 0;
         if (isNew)
         {
-            PlayerPrefs.SetInt(GetBookOfShadowsCardUnseenKey(awarded.Id), 1);
+            DurablePrefs.SetInt(GetBookOfShadowsCardUnseenKey(awarded.Id), 1);
         }
 
         lastAwardedAlbumCards.Add(AwardedAlbumCardRecord.FromBookOfShadows(awarded, isNew, bookOfShadowsCardCopies[awarded.Id]));
@@ -2082,7 +2083,7 @@ public sealed class PlayerInventoryState
 
     private int GetIngredientCountForRoom(IngredientRequirement requirement)
     {
-        return PlayerPrefs.GetInt(SavePrefix + "Ingredient." + requirement.Name, GetIngredientCount(requirement.Name));
+        return DurablePrefs.GetInt(SavePrefix + "Ingredient." + requirement.Name, GetIngredientCount(requirement.Name));
     }
 
     private int GetCellRewardCount(string name)
@@ -2092,7 +2093,7 @@ public sealed class PlayerInventoryState
 
     private void LoadIngredient(string name)
     {
-        ingredients[name] = PlayerPrefs.GetInt(SavePrefix + "Ingredient." + name, GetIngredientCount(name));
+        ingredients[name] = DurablePrefs.GetInt(SavePrefix + "Ingredient." + name, GetIngredientCount(name));
     }
 
     private void LoadRoomIngredients()
@@ -2106,7 +2107,7 @@ public sealed class PlayerInventoryState
 
     private void SaveIngredient(string name)
     {
-        PlayerPrefs.SetInt(SavePrefix + "Ingredient." + name, GetIngredientCount(name));
+        DurablePrefs.SetInt(SavePrefix + "Ingredient." + name, GetIngredientCount(name));
     }
 
     private void SaveRoomIngredients()
@@ -2128,9 +2129,9 @@ public sealed class PlayerInventoryState
 
     private void LoadCellReward(string name)
     {
-        if (PlayerPrefs.HasKey(SavePrefix + "CellReward." + name))
+        if (DurablePrefs.HasKey(SavePrefix + "CellReward." + name))
         {
-            cellRewards[name] = PlayerPrefs.GetInt(SavePrefix + "CellReward." + name, 0);
+            cellRewards[name] = DurablePrefs.GetInt(SavePrefix + "CellReward." + name, 0);
         }
     }
 
@@ -2144,7 +2145,7 @@ public sealed class PlayerInventoryState
 
     private void SaveCellReward(string name)
     {
-        PlayerPrefs.SetInt(SavePrefix + "CellReward." + name, GetCellRewardCount(name));
+        DurablePrefs.SetInt(SavePrefix + "CellReward." + name, GetCellRewardCount(name));
     }
 
     private void LoadAlbumCards()
@@ -2154,7 +2155,7 @@ public sealed class PlayerInventoryState
         for (int index = 0; index < grimoireCards.Count; index++)
         {
             string cardId = grimoireCards[index].Id;
-            int copies = PlayerPrefs.GetInt(GetGrimoireCardKey(cardId), 0);
+            int copies = DurablePrefs.GetInt(GetGrimoireCardKey(cardId), 0);
             if (copies > 0)
             {
                 grimoireCardCopies[cardId] = copies;
@@ -2166,7 +2167,7 @@ public sealed class PlayerInventoryState
         for (int index = 0; index < shadowsCards.Count; index++)
         {
             string cardId = shadowsCards[index].Id;
-            int copies = PlayerPrefs.GetInt(GetBookOfShadowsCardKey(cardId), 0);
+            int copies = DurablePrefs.GetInt(GetBookOfShadowsCardKey(cardId), 0);
             if (copies > 0)
             {
                 bookOfShadowsCardCopies[cardId] = copies;
@@ -2180,39 +2181,39 @@ public sealed class PlayerInventoryState
         for (int index = 0; index < grimoireCards.Count; index++)
         {
             string cardId = grimoireCards[index].Id;
-            PlayerPrefs.SetInt(GetGrimoireCardKey(cardId), GetGrimoireCardCopies(cardId));
+            DurablePrefs.SetInt(GetGrimoireCardKey(cardId), GetGrimoireCardCopies(cardId));
         }
 
         IReadOnlyList<BookOfShadowsCardDefinition> shadowsCards = CardAlbumCatalog.AllBookOfShadowsCards;
         for (int index = 0; index < shadowsCards.Count; index++)
         {
             string cardId = shadowsCards[index].Id;
-            PlayerPrefs.SetInt(GetBookOfShadowsCardKey(cardId), GetBookOfShadowsCardCopies(cardId));
+            DurablePrefs.SetInt(GetBookOfShadowsCardKey(cardId), GetBookOfShadowsCardCopies(cardId));
         }
     }
 
     private void ClearSavedKeys()
     {
-        PlayerPrefs.DeleteKey(SavePrefix + "Mana");
-        PlayerPrefs.DeleteKey(SavePrefix + "Crystals");
-        PlayerPrefs.DeleteKey(SavePrefix + "ActivePowerUps");
-        PlayerPrefs.DeleteKey(SavePrefix + "ClairvoyanceMinutes");
-        PlayerPrefs.DeleteKey(SavePrefix + "ActiveClairvoyanceSeconds");
-        PlayerPrefs.DeleteKey(SavePrefix + "ActiveClairvoyanceExpiresAtTicks");
-        PlayerPrefs.DeleteKey(SavePrefix + "PendingJackpotSpins");
-        PlayerPrefs.DeleteKey(SavePrefix + "ManaCauldronAmount");
-        PlayerPrefs.DeleteKey(SavePrefix + "ManaCauldronCapacity");
-        PlayerPrefs.DeleteKey(SavePrefix + "ManaCauldronNextFillAtTicks");
-        PlayerPrefs.DeleteKey(SavePrefix + "BookOfShadowsPurchased");
-        PlayerPrefs.DeleteKey(SavePrefix + "JokerWildCards");
-        PlayerPrefs.DeleteKey(SavePrefix + "DailyBonusStreak");
-        PlayerPrefs.DeleteKey(SavePrefix + "LastDailyBonusClaimDate");
-        PlayerPrefs.DeleteKey(SavePrefix + "DailyBonusStreakSaveUses");
-        PlayerPrefs.DeleteKey(SavePrefix + "LastDailySpinClaimDate");
-        PlayerPrefs.DeleteKey(SavePrefix + "LastSocialHelpRequestDate");
-        PlayerPrefs.DeleteKey(SavePrefix + "SocialHelpRequestsUsedToday");
-        PlayerPrefs.DeleteKey(SavePrefix + "AutoDropPowerUps");
-        PlayerPrefs.DeleteKey(SavePrefix + "RoomJackpotPot");
+        DurablePrefs.DeleteKey(SavePrefix + "Mana");
+        DurablePrefs.DeleteKey(SavePrefix + "Crystals");
+        DurablePrefs.DeleteKey(SavePrefix + "ActivePowerUps");
+        DurablePrefs.DeleteKey(SavePrefix + "ClairvoyanceMinutes");
+        DurablePrefs.DeleteKey(SavePrefix + "ActiveClairvoyanceSeconds");
+        DurablePrefs.DeleteKey(SavePrefix + "ActiveClairvoyanceExpiresAtTicks");
+        DurablePrefs.DeleteKey(SavePrefix + "PendingJackpotSpins");
+        DurablePrefs.DeleteKey(SavePrefix + "ManaCauldronAmount");
+        DurablePrefs.DeleteKey(SavePrefix + "ManaCauldronCapacity");
+        DurablePrefs.DeleteKey(SavePrefix + "ManaCauldronNextFillAtTicks");
+        DurablePrefs.DeleteKey(SavePrefix + "BookOfShadowsPurchased");
+        DurablePrefs.DeleteKey(SavePrefix + "JokerWildCards");
+        DurablePrefs.DeleteKey(SavePrefix + "DailyBonusStreak");
+        DurablePrefs.DeleteKey(SavePrefix + "LastDailyBonusClaimDate");
+        DurablePrefs.DeleteKey(SavePrefix + "DailyBonusStreakSaveUses");
+        DurablePrefs.DeleteKey(SavePrefix + "LastDailySpinClaimDate");
+        DurablePrefs.DeleteKey(SavePrefix + "LastSocialHelpRequestDate");
+        DurablePrefs.DeleteKey(SavePrefix + "SocialHelpRequestsUsedToday");
+        DurablePrefs.DeleteKey(SavePrefix + "AutoDropPowerUps");
+        DurablePrefs.DeleteKey(SavePrefix + "RoomJackpotPot");
         ClearRoomJackpotPotKeys();
         ClearRoomRestoreKeys();
         ClearRoomManaBetKeys();
@@ -2229,15 +2230,15 @@ public sealed class PlayerInventoryState
         IReadOnlyList<AlbumCardDefinition> grimoireCards = CardAlbumCatalog.AllCards;
         for (int index = 0; index < grimoireCards.Count; index++)
         {
-            PlayerPrefs.DeleteKey(GetGrimoireCardKey(grimoireCards[index].Id));
-            PlayerPrefs.DeleteKey(GetGrimoireCardUnseenKey(grimoireCards[index].Id));
+            DurablePrefs.DeleteKey(GetGrimoireCardKey(grimoireCards[index].Id));
+            DurablePrefs.DeleteKey(GetGrimoireCardUnseenKey(grimoireCards[index].Id));
         }
 
         IReadOnlyList<BookOfShadowsCardDefinition> shadowsCards = CardAlbumCatalog.AllBookOfShadowsCards;
         for (int index = 0; index < shadowsCards.Count; index++)
         {
-            PlayerPrefs.DeleteKey(GetBookOfShadowsCardKey(shadowsCards[index].Id));
-            PlayerPrefs.DeleteKey(GetBookOfShadowsCardUnseenKey(shadowsCards[index].Id));
+            DurablePrefs.DeleteKey(GetBookOfShadowsCardKey(shadowsCards[index].Id));
+            DurablePrefs.DeleteKey(GetBookOfShadowsCardUnseenKey(shadowsCards[index].Id));
         }
     }
 
@@ -2246,10 +2247,10 @@ public sealed class PlayerInventoryState
         IReadOnlyList<GrimoireEntryDefinition> grimoireEntries = CardAlbumCatalog.GrimoireOneEntries;
         for (int index = 0; index < grimoireEntries.Count; index++)
         {
-            PlayerPrefs.DeleteKey(GetGrimoireEntryRewardClaimedKey(grimoireEntries[index]));
+            DurablePrefs.DeleteKey(GetGrimoireEntryRewardClaimedKey(grimoireEntries[index]));
         }
 
-        PlayerPrefs.DeleteKey(GetGrimoireCompletionRewardClaimedKey());
+        DurablePrefs.DeleteKey(GetGrimoireCompletionRewardClaimedKey());
 
         IReadOnlyList<BookOfShadowsSetDefinition> shadowSets = CardAlbumCatalog.BookOfShadowsSets;
         for (int setIndex = 0; setIndex < shadowSets.Count; setIndex++)
@@ -2257,11 +2258,11 @@ public sealed class PlayerInventoryState
             IReadOnlyList<BookOfShadowsEntryDefinition> entries = shadowSets[setIndex].Entries;
             for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
             {
-                PlayerPrefs.DeleteKey(GetBookOfShadowsEntryRewardClaimedKey(entries[entryIndex]));
+                DurablePrefs.DeleteKey(GetBookOfShadowsEntryRewardClaimedKey(entries[entryIndex]));
             }
         }
 
-        PlayerPrefs.DeleteKey(GetBookOfShadowsCompletionRewardClaimedKey());
+        DurablePrefs.DeleteKey(GetBookOfShadowsCompletionRewardClaimedKey());
     }
 
     private static string GetGrimoireCardKey(string cardId)
@@ -2311,19 +2312,19 @@ public sealed class PlayerInventoryState
             IReadOnlyList<IngredientRequirement> requirements = room.Ingredients;
             for (int index = 0; index < requirements.Count; index++)
             {
-                PlayerPrefs.DeleteKey(SavePrefix + "Ingredient." + requirements[index].Name);
+                DurablePrefs.DeleteKey(SavePrefix + "Ingredient." + requirements[index].Name);
             }
         }
     }
 
     private void ClearCellRewardKeys()
     {
-        PlayerPrefs.DeleteKey(SavePrefix + "CellReward.Card");
-        PlayerPrefs.DeleteKey(SavePrefix + "CellReward.Double Prize");
-        PlayerPrefs.DeleteKey(SavePrefix + "CellReward.Chest");
+        DurablePrefs.DeleteKey(SavePrefix + "CellReward.Card");
+        DurablePrefs.DeleteKey(SavePrefix + "CellReward.Double Prize");
+        DurablePrefs.DeleteKey(SavePrefix + "CellReward.Chest");
         for (int index = 0; index < CellReward.InventoryRewardNames.Count; index++)
         {
-            PlayerPrefs.DeleteKey(SavePrefix + "CellReward." + CellReward.InventoryRewardNames[index]);
+            DurablePrefs.DeleteKey(SavePrefix + "CellReward." + CellReward.InventoryRewardNames[index]);
         }
     }
 
@@ -2331,7 +2332,7 @@ public sealed class PlayerInventoryState
     {
         foreach (RoomDefinition room in RealmContentCatalog.AllRooms)
         {
-            PlayerPrefs.DeleteKey(GetRoomRestoreKey(room));
+            DurablePrefs.DeleteKey(GetRoomRestoreKey(room));
         }
     }
 
@@ -2339,7 +2340,7 @@ public sealed class PlayerInventoryState
     {
         foreach (RoomDefinition room in RealmContentCatalog.AllRooms)
         {
-            PlayerPrefs.DeleteKey(GetRoomJackpotPotKey(room));
+            DurablePrefs.DeleteKey(GetRoomJackpotPotKey(room));
         }
     }
 
@@ -2347,14 +2348,14 @@ public sealed class PlayerInventoryState
     {
         foreach (RoomDefinition room in RealmContentCatalog.AllRooms)
         {
-            PlayerPrefs.DeleteKey(GetRoomManaBetKey(room));
+            DurablePrefs.DeleteKey(GetRoomManaBetKey(room));
         }
     }
 
     private void LoadActiveRoomJackpotPot()
     {
         int minimumPot = ActiveProgression.MinimumJackpotPot;
-        CurrentRoomJackpotPot = Mathf.Max(minimumPot, PlayerPrefs.GetInt(GetRoomJackpotPotKey(RealmContentCatalog.ActivePrototypeRoom), minimumPot));
+        CurrentRoomJackpotPot = Mathf.Max(minimumPot, DurablePrefs.GetInt(GetRoomJackpotPotKey(RealmContentCatalog.ActivePrototypeRoom), minimumPot));
     }
 
     private static string GetShortIngredientName(string name)

@@ -1,3 +1,4 @@
+using BingoMagicMayhem.Infrastructure;
 using UnityEngine;
 
 public sealed class BingoRewardTracker
@@ -22,14 +23,14 @@ public sealed class BingoRewardTracker
 
     public void Load()
     {
-        PlayerXp = PlayerPrefs.GetInt(PlayerXpKey, PlayerXp);
+        PlayerXp = DurablePrefs.GetInt(PlayerXpKey, PlayerXp);
         RoundStartLevel = CurrentLevel;
     }
 
     public void Save()
     {
-        PlayerPrefs.SetInt(PlayerXpKey, PlayerXp);
-        PlayerPrefs.Save();
+        DurablePrefs.SetInt(PlayerXpKey, PlayerXp);
+        DurablePrefs.Save();
     }
 
     public void ResetSavedXp()
@@ -37,8 +38,8 @@ public sealed class BingoRewardTracker
         PlayerXp = 0;
         RoundXp = 0;
         RoundStartLevel = 1;
-        PlayerPrefs.DeleteKey(PlayerXpKey);
-        PlayerPrefs.Save();
+        DurablePrefs.DeleteKey(PlayerXpKey);
+        DurablePrefs.Save();
     }
 
     public void ResetRound()

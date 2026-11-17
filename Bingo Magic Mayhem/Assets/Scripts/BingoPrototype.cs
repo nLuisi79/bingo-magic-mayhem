@@ -431,18 +431,18 @@ public class BingoPrototype : MonoBehaviour
 
     private bool IsWorldMapRealmRestoredClosed(int realmIndex)
     {
-        return PlayerPrefs.GetInt(WorldMapRestoredClosedSavePrefix + realmIndex, 0) == 1;
+        return DurablePrefs.GetInt(WorldMapRestoredClosedSavePrefix + realmIndex, 0) == 1;
     }
 
     private bool HasWorldMapRealmBeenOpened(int realmIndex)
     {
-        return PlayerPrefs.GetInt(WorldMapOpenedSavePrefix + realmIndex, 0) == 1;
+        return DurablePrefs.GetInt(WorldMapOpenedSavePrefix + realmIndex, 0) == 1;
     }
 
     private void MarkWorldMapRealmOpened(int realmIndex)
     {
-        PlayerPrefs.SetInt(WorldMapOpenedSavePrefix + realmIndex, 1);
-        PlayerPrefs.Save();
+        DurablePrefs.SetInt(WorldMapOpenedSavePrefix + realmIndex, 1);
+        DurablePrefs.Save();
     }
 
     private void MarkPreviousRealmRestoredClosedAfterRoundStart()
@@ -454,8 +454,8 @@ public class BingoPrototype : MonoBehaviour
             return;
         }
 
-        PlayerPrefs.SetInt(WorldMapRestoredClosedSavePrefix + previousRealmIndex, 1);
-        PlayerPrefs.Save();
+        DurablePrefs.SetInt(WorldMapRestoredClosedSavePrefix + previousRealmIndex, 1);
+        DurablePrefs.Save();
     }
 
     private IEnumerator CompleteWorldMapRestoreTransition(int realmIndex)
@@ -3884,7 +3884,7 @@ public class BingoPrototype : MonoBehaviour
     private void LoadPrototypeTrailState()
     {
         prototypeClaimedTrailRewards.Clear();
-        string saved = PlayerPrefs.GetString(PrototypeTrailRewardsSaveKey, "");
+        string saved = DurablePrefs.GetString(PrototypeTrailRewardsSaveKey, "");
         if (string.IsNullOrWhiteSpace(saved))
         {
             return;
@@ -3910,8 +3910,8 @@ public class BingoPrototype : MonoBehaviour
             serialized.Add(steps[index].ToString());
         }
 
-        PlayerPrefs.SetString(PrototypeTrailRewardsSaveKey, string.Join(PrototypeFriendSaveSeparator.ToString(), serialized));
-        PlayerPrefs.Save();
+        DurablePrefs.SetString(PrototypeTrailRewardsSaveKey, string.Join(PrototypeFriendSaveSeparator.ToString(), serialized));
+        DurablePrefs.Save();
     }
 
     private void ResetPrototypeTrailState()
@@ -4179,7 +4179,7 @@ public class BingoPrototype : MonoBehaviour
         LoadPrototypeFriendSet("Reported", prototypeReportedFriends);
 
         string today = GetPrototypeFriendsTodayKey();
-        string savedDailyDate = PlayerPrefs.GetString(PrototypeFriendsSavePrefix + "DailyManaDate", "");
+        string savedDailyDate = DurablePrefs.GetString(PrototypeFriendsSavePrefix + "DailyManaDate", "");
         if (savedDailyDate == today)
         {
             LoadPrototypeFriendSet("SentManaToday", prototypeFriendsSentManaToday);
@@ -4189,14 +4189,14 @@ public class BingoPrototype : MonoBehaviour
         {
             prototypeFriendsSentManaToday.Clear();
             prototypeFriendsReceivedManaToday.Clear();
-            PlayerPrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
+            DurablePrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
             SavePrototypeFriendsState();
         }
     }
 
     private void SavePrototypeFriendsState()
     {
-        PlayerPrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", GetPrototypeFriendsTodayKey());
+        DurablePrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", GetPrototypeFriendsTodayKey());
         SavePrototypeFriendSet("Friends", prototypeFriends);
         SavePrototypeFriendSet("IncomingRequests", prototypeIncomingFriendRequests);
         SavePrototypeFriendSet("SentRequests", prototypeSentFriendRequests);
@@ -4204,13 +4204,13 @@ public class BingoPrototype : MonoBehaviour
         SavePrototypeFriendSet("ReceivedManaToday", prototypeFriendsReceivedManaToday);
         SavePrototypeFriendSet("Blocked", prototypeBlockedFriends);
         SavePrototypeFriendSet("Reported", prototypeReportedFriends);
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
     }
 
     private void RefreshPrototypeFriendDailyManaState()
     {
         string today = GetPrototypeFriendsTodayKey();
-        string savedDailyDate = PlayerPrefs.GetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
+        string savedDailyDate = DurablePrefs.GetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
         if (savedDailyDate == today)
         {
             return;
@@ -4218,20 +4218,20 @@ public class BingoPrototype : MonoBehaviour
 
         prototypeFriendsSentManaToday.Clear();
         prototypeFriendsReceivedManaToday.Clear();
-        PlayerPrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
+        DurablePrefs.SetString(PrototypeFriendsSavePrefix + "DailyManaDate", today);
         SavePrototypeFriendsState();
     }
 
     private void LoadPrototypeFriendSet(string key, HashSet<string> target)
     {
         string fullKey = PrototypeFriendsSavePrefix + key;
-        if (!PlayerPrefs.HasKey(fullKey))
+        if (!DurablePrefs.HasKey(fullKey))
         {
             return;
         }
 
         target.Clear();
-        string saved = PlayerPrefs.GetString(fullKey, "");
+        string saved = DurablePrefs.GetString(fullKey, "");
         if (string.IsNullOrWhiteSpace(saved))
         {
             return;
@@ -4252,7 +4252,7 @@ public class BingoPrototype : MonoBehaviour
     {
         List<string> sorted = new List<string>(values);
         sorted.Sort();
-        PlayerPrefs.SetString(PrototypeFriendsSavePrefix + key, string.Join(PrototypeFriendSaveSeparator.ToString(), sorted));
+        DurablePrefs.SetString(PrototypeFriendsSavePrefix + key, string.Join(PrototypeFriendSaveSeparator.ToString(), sorted));
     }
 
     private void ResetPrototypeFriendsState()
@@ -7445,7 +7445,7 @@ public class BingoPrototype : MonoBehaviour
     private void LoadPrototypeCovenDiscoveryState()
     {
         prototypeRequestedCovenNames.Clear();
-        string saved = PlayerPrefs.GetString(PrototypeCovenDiscoverySaveKey, "");
+        string saved = DurablePrefs.GetString(PrototypeCovenDiscoverySaveKey, "");
         if (string.IsNullOrWhiteSpace(saved))
         {
             return;
@@ -7466,8 +7466,8 @@ public class BingoPrototype : MonoBehaviour
     {
         List<string> names = new List<string>(prototypeRequestedCovenNames);
         names.Sort();
-        PlayerPrefs.SetString(PrototypeCovenDiscoverySaveKey, string.Join(PrototypeFriendSaveSeparator.ToString(), names));
-        PlayerPrefs.Save();
+        DurablePrefs.SetString(PrototypeCovenDiscoverySaveKey, string.Join(PrototypeFriendSaveSeparator.ToString(), names));
+        DurablePrefs.Save();
     }
 
     private string GetCovenContributionButtonText(int clubOrbs)
@@ -13630,8 +13630,8 @@ public class BingoPrototype : MonoBehaviour
         if (IsRealmComplete(restoredRealmIndex))
         {
             // A newly completed realm always begins at the restored-open state.
-            PlayerPrefs.DeleteKey(WorldMapRestoredClosedSavePrefix + restoredRealmIndex);
-            PlayerPrefs.Save();
+            DurablePrefs.DeleteKey(WorldMapRestoredClosedSavePrefix + restoredRealmIndex);
+            DurablePrefs.Save();
             worldMapRestoringRealmIndex = restoredRealmIndex;
             BuildWorldMapUi();
             return;

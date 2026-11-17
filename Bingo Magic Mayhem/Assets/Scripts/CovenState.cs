@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System;
+using BingoMagicMayhem.Infrastructure;
 using UnityEngine;
 
 public sealed class CovenState
@@ -43,14 +44,14 @@ public sealed class CovenState
 
     public void Load()
     {
-        IsJoined = PlayerPrefs.GetInt(SavePrefix + "IsJoined", IsJoined ? 1 : 0) == 1;
-        CovenName = PlayerPrefs.GetString(SavePrefix + "CovenName", DefaultCovenName);
-        LeaderTitle = PlayerPrefs.GetString(SavePrefix + "LeaderTitle", DefaultLeaderTitle);
-        LeaderName = PlayerPrefs.GetString(SavePrefix + "LeaderName", DefaultLeaderName);
-        WeeklyOrbGoal = Mathf.Max(1, PlayerPrefs.GetInt(SavePrefix + "WeeklyOrbGoal", DefaultWeeklyOrbGoal));
-        TeamOrbProgress = Mathf.Clamp(PlayerPrefs.GetInt(SavePrefix + "TeamOrbProgress", DefaultTeamOrbProgress), 0, WeeklyOrbGoal);
-        WeeklyRank = Mathf.Max(0, PlayerPrefs.GetInt(SavePrefix + "WeeklyRank", DefaultWeeklyRank));
-        WeeklyPoints = Mathf.Max(0, PlayerPrefs.GetInt(SavePrefix + "WeeklyPoints", DefaultWeeklyPoints));
+        IsJoined = DurablePrefs.GetInt(SavePrefix + "IsJoined", IsJoined ? 1 : 0) == 1;
+        CovenName = DurablePrefs.GetString(SavePrefix + "CovenName", DefaultCovenName);
+        LeaderTitle = DurablePrefs.GetString(SavePrefix + "LeaderTitle", DefaultLeaderTitle);
+        LeaderName = DurablePrefs.GetString(SavePrefix + "LeaderName", DefaultLeaderName);
+        WeeklyOrbGoal = Mathf.Max(1, DurablePrefs.GetInt(SavePrefix + "WeeklyOrbGoal", DefaultWeeklyOrbGoal));
+        TeamOrbProgress = Mathf.Clamp(DurablePrefs.GetInt(SavePrefix + "TeamOrbProgress", DefaultTeamOrbProgress), 0, WeeklyOrbGoal);
+        WeeklyRank = Mathf.Max(0, DurablePrefs.GetInt(SavePrefix + "WeeklyRank", DefaultWeeklyRank));
+        WeeklyPoints = Mathf.Max(0, DurablePrefs.GetInt(SavePrefix + "WeeklyPoints", DefaultWeeklyPoints));
         SeedPrototypeMembers();
         SeedPrototypeJoinRequests();
         SeedPrototypeChat();
@@ -376,15 +377,15 @@ public sealed class CovenState
 
     public void Save()
     {
-        PlayerPrefs.SetInt(SavePrefix + "IsJoined", IsJoined ? 1 : 0);
-        PlayerPrefs.SetString(SavePrefix + "CovenName", CovenName);
-        PlayerPrefs.SetString(SavePrefix + "LeaderTitle", LeaderTitle);
-        PlayerPrefs.SetString(SavePrefix + "LeaderName", LeaderName);
-        PlayerPrefs.SetInt(SavePrefix + "WeeklyOrbGoal", WeeklyOrbGoal);
-        PlayerPrefs.SetInt(SavePrefix + "TeamOrbProgress", TeamOrbProgress);
-        PlayerPrefs.SetInt(SavePrefix + "WeeklyRank", WeeklyRank);
-        PlayerPrefs.SetInt(SavePrefix + "WeeklyPoints", WeeklyPoints);
-        PlayerPrefs.Save();
+        DurablePrefs.SetInt(SavePrefix + "IsJoined", IsJoined ? 1 : 0);
+        DurablePrefs.SetString(SavePrefix + "CovenName", CovenName);
+        DurablePrefs.SetString(SavePrefix + "LeaderTitle", LeaderTitle);
+        DurablePrefs.SetString(SavePrefix + "LeaderName", LeaderName);
+        DurablePrefs.SetInt(SavePrefix + "WeeklyOrbGoal", WeeklyOrbGoal);
+        DurablePrefs.SetInt(SavePrefix + "TeamOrbProgress", TeamOrbProgress);
+        DurablePrefs.SetInt(SavePrefix + "WeeklyRank", WeeklyRank);
+        DurablePrefs.SetInt(SavePrefix + "WeeklyPoints", WeeklyPoints);
+        DurablePrefs.Save();
     }
 
     private void SeedPrototypeMembers()
@@ -441,7 +442,7 @@ public sealed class CovenState
 
     private void SeedPrototypePlayerInbox()
     {
-        if (PlayerPrefs.GetInt(InboxInitializedKey, 0) == 1)
+        if (DurablePrefs.GetInt(InboxInitializedKey, 0) == 1)
         {
             SyncLegacyPlayerInboxGifts();
             return;
@@ -449,15 +450,15 @@ public sealed class CovenState
 
         EnqueueCovenGiftForPlayer(new CovenInboxGiftInfo("You", "Ingredient", "Sunwarm Dewdrops", 1), "Juniper");
         EnqueueCovenGiftForPlayer(new CovenInboxGiftInfo("You", "Regular Card", "Pack 01 Card 02", 1), "Mira");
-        PlayerPrefs.SetInt(InboxInitializedKey, 1);
+        DurablePrefs.SetInt(InboxInitializedKey, 1);
         SavePlayerInboxItems();
-        PlayerPrefs.Save();
+        DurablePrefs.Save();
     }
 
     private void LoadPlayerInboxItems()
     {
         playerInboxItems.Clear();
-        string json = PlayerPrefs.GetString(InboxItemsJsonKey, "");
+        string json = DurablePrefs.GetString(InboxItemsJsonKey, "");
         if (string.IsNullOrWhiteSpace(json))
         {
             SyncLegacyPlayerInboxGifts();
@@ -493,8 +494,8 @@ public sealed class CovenState
             data.Items.Add(PrototypeInboxSavedItem.FromInboxItem(playerInboxItems[index]));
         }
 
-        PlayerPrefs.SetString(InboxItemsJsonKey, JsonUtility.ToJson(data));
-        PlayerPrefs.Save();
+        DurablePrefs.SetString(InboxItemsJsonKey, JsonUtility.ToJson(data));
+        DurablePrefs.Save();
     }
 
     private int CountUnreadPlayerInboxItems()
