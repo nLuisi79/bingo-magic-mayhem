@@ -10596,6 +10596,11 @@ public class BingoPrototype : MonoBehaviour
 
     private void TickInventoryPowerUps()
     {
+        if (!inventory.IsLoaded)
+        {
+            return;
+        }
+
         bool wasActive = inventory.HasActiveClairvoyance();
         bool ticking = inventory.TickPowerUps(Time.deltaTime);
         bool cauldronVisible = denManaCauldronText != null || cauldronStatusText != null || cauldronAmountText != null;

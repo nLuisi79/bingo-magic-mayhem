@@ -205,8 +205,12 @@ public sealed class PlayerInventoryState
         DurablePrefs.Save();
     }
 
+    // False until Load() runs. Save() is refused before then so default values can never overwrite saved progress.
+    public bool IsLoaded { get; private set; }
+
     public void Load()
     {
+        IsLoaded = true;
         Mana = DurablePrefs.GetInt(SavePrefix + "Mana", Mana);
         Crystals = DurablePrefs.GetInt(SavePrefix + "Crystals", Crystals);
         ClairvoyanceMinutes = DurablePrefs.GetInt(SavePrefix + "ClairvoyanceMinutes", ClairvoyanceMinutes);
@@ -257,6 +261,13 @@ public sealed class PlayerInventoryState
 
     public void Save()
     {
+        if (!IsLoaded)
+        {
+            // Startup loads after an await; the per-frame power-up tick used to save defaults over real progress here.
+            Debug.LogWarning("Skipped inventory save before the saved inventory was loaded.");
+            return;
+        }
+
         DurablePrefs.SetInt(SavePrefix + "Mana", Mana);
         DurablePrefs.SetInt(SavePrefix + "Crystals", Crystals);
         DurablePrefs.SetInt(SavePrefix + "ClairvoyanceMinutes", ClairvoyanceMinutes);
