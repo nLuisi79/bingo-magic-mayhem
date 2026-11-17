@@ -68,7 +68,7 @@ public sealed class DurablePrefsTests
         string key = LegacyKey("Imported");
         PlayerPrefs.SetInt(key, 42);
         PlayerPrefs.Save();
-        DurablePrefs.ResetForTests(root);
+        DurablePrefs.ResetForTests(root, readLegacyPlayerPrefs: true);
 
         Assert.IsTrue(DurablePrefs.HasKey(key));
         Assert.AreEqual(42, DurablePrefs.GetInt(key));
@@ -76,7 +76,7 @@ public sealed class DurablePrefsTests
         DurablePrefs.Save();
 
         PlayerPrefs.DeleteKey(key);
-        DurablePrefs.ResetForTests(root);
+        DurablePrefs.ResetForTests(root, readLegacyPlayerPrefs: true);
         Assert.AreEqual(42, DurablePrefs.GetInt(key), "Imported values must survive without the legacy copy.");
     }
 
@@ -87,7 +87,7 @@ public sealed class DurablePrefsTests
         string key = LegacyKey("Stale");
         PlayerPrefs.SetString(key, "old");
         PlayerPrefs.Save();
-        DurablePrefs.ResetForTests(root);
+        DurablePrefs.ResetForTests(root, readLegacyPlayerPrefs: true);
 
         DurablePrefs.SetString(key, "new");
 
@@ -101,12 +101,12 @@ public sealed class DurablePrefsTests
         string key = LegacyKey("Deleted");
         PlayerPrefs.SetInt(key, 5);
         PlayerPrefs.Save();
-        DurablePrefs.ResetForTests(root);
+        DurablePrefs.ResetForTests(root, readLegacyPlayerPrefs: true);
         Assert.AreEqual(5, DurablePrefs.GetInt(key));
 
         DurablePrefs.DeleteKey(key);
         DurablePrefs.Save();
-        DurablePrefs.ResetForTests(root);
+        DurablePrefs.ResetForTests(root, readLegacyPlayerPrefs: true);
 
         Assert.IsFalse(DurablePrefs.HasKey(key));
         Assert.IsFalse(PlayerPrefs.HasKey(key));

@@ -59,6 +59,8 @@ namespace BingoMagicMayhem.Infrastructure
         private static bool loaded;
         private static bool dirty;
         private static bool lifecycleHooked;
+        // Tests turn this off so they never read or delete the real editor's PlayerPrefs.
+        private static bool legacyReadThrough = true;
 
         public static int ImportedLegacyKeyCount { get; private set; }
 
@@ -70,7 +72,7 @@ namespace BingoMagicMayhem.Infrastructure
                 return value;
             }
 
-            if (PlayerPrefs.HasKey(key))
+            if (legacyReadThrough && PlayerPrefs.HasKey(key))
             {
                 value = PlayerPrefs.GetInt(key, defaultValue);
                 ints[key] = value;
@@ -89,7 +91,7 @@ namespace BingoMagicMayhem.Infrastructure
                 return value;
             }
 
-            if (PlayerPrefs.HasKey(key))
+            if (legacyReadThrough && PlayerPrefs.HasKey(key))
             {
                 value = PlayerPrefs.GetFloat(key, defaultValue);
                 floats[key] = value;
@@ -108,7 +110,7 @@ namespace BingoMagicMayhem.Infrastructure
                 return value;
             }
 
-            if (PlayerPrefs.HasKey(key))
+            if (legacyReadThrough && PlayerPrefs.HasKey(key))
             {
                 value = PlayerPrefs.GetString(key, defaultValue);
                 strings[key] = value;
@@ -159,7 +161,7 @@ namespace BingoMagicMayhem.Infrastructure
         public static bool HasKey(string key)
         {
             EnsureLoaded();
-            return ints.ContainsKey(key) || floats.ContainsKey(key) || strings.ContainsKey(key) || PlayerPrefs.HasKey(key);
+            return ints.ContainsKey(key) || floats.ContainsKey(key) || strings.ContainsKey(key) || (legacyReadThrough && PlayerPrefs.HasKey(key));
         }
 
         public static void DeleteKey(string key)
@@ -171,7 +173,7 @@ namespace BingoMagicMayhem.Infrastructure
             dirty |= removed;
 
             // Clear the legacy copy too, otherwise the next read would import it again.
-            if (PlayerPrefs.HasKey(key))
+            if (legacyReadThrough && PlayerPrefs.HasKey(key))
             {
                 PlayerPrefs.DeleteKey(key);
                 PlayerPrefs.Save();
@@ -189,9 +191,11 @@ namespace BingoMagicMayhem.Infrastructure
             dirty = false;
         }
 
-        // Test hook: points the store at a scratch directory and clears cached values.
-        public static void ResetForTests(string rootDirectory)
+        // Test hook: points the store at a scratch directory and clears cached values. Legacy PlayerPrefs read-through
+        // stays off unless a test is specifically about migrating legacy values, so tests never see real player data.
+        public static void ResetForTests(string rootDirectory, bool readLegacyPlayerPrefs = false)
         {
+            legacyReadThrough = readLegacyPlayerPrefs;
             storeRootOverride = rootDirectory;
             store = null;
             loaded = false;
