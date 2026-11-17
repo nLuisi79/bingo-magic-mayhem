@@ -486,6 +486,14 @@ public sealed class CovenState
         SyncLegacyPlayerInboxGifts();
     }
 
+    // QA: empties the player's Inbox. The seeded starter gifts are not re-added because the inbox stays initialized.
+    public void ClearPlayerInboxForTesting()
+    {
+        playerInboxItems.Clear();
+        playerInboxGifts.Clear();
+        SavePlayerInboxItems();
+    }
+
     private void SavePlayerInboxItems()
     {
         PrototypeInboxSaveData data = new PrototypeInboxSaveData();

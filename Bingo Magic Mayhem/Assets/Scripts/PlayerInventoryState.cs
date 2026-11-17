@@ -653,6 +653,41 @@ public sealed class PlayerInventoryState
         DurablePrefs.Save();
     }
 
+    // QA: marks the last Daily Bonus claim as yesterday, so today is claimable and the streak advances one day.
+    public void DevAdvanceDailyBonusDay()
+    {
+        LastDailyBonusClaimDate = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd");
+        Save();
+    }
+
+    // QA: back to a never-claimed Daily Bonus, including the streak and streak-save cost ladder.
+    public void DevResetDailyBonusStreak()
+    {
+        DailyBonusStreak = 0;
+        DailyBonusStreakSaveUses = 0;
+        LastDailyBonusClaimDate = "";
+        Save();
+    }
+
+    public void DevResetSocialHelpRequests()
+    {
+        SocialHelpRequestsUsedToday = 0;
+        Save();
+    }
+
+    // QA: tops the active room's ingredients up to its potion requirement so the restore flow can be tested quickly.
+    public void DevFillActiveRoomIngredients()
+    {
+        IReadOnlyList<IngredientRequirement> requirements = RealmContentCatalog.ActivePrototypeRoom.Ingredients;
+        for (int index = 0; index < requirements.Count; index++)
+        {
+            IngredientRequirement requirement = requirements[index];
+            ingredients[requirement.Name] = Mathf.Max(GetIngredientCount(requirement.Name), requirement.Required);
+        }
+
+        Save();
+    }
+
     public string GetManaCauldronCountdownText()
     {
         SyncManaCauldronFromClock();

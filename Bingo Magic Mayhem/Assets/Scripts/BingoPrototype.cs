@@ -9188,6 +9188,9 @@ public class BingoPrototype : MonoBehaviour
         Button sunpetalStates = CreateAnchoredButton(panel.transform, "Sunpetal Mixed QA", 18, 240, 42, new Color(0.12f, 0.42f, 0.24f), 0f, -142f);
         sunpetalStates.onClick.AddListener(SetSunpetalMixedStateForTesting);
 
+        Button betaQa = CreateAnchoredButton(panel.transform, "Beta QA Resets", 18, 220, 42, new Color(0.42f, 0.24f, 0.08f), 250f, -142f);
+        betaQa.onClick.AddListener(() => BuildBetaQaResetsUi(returnToMap, ""));
+
         CreateAnchoredText(panel.transform, "Fresh New Player resets progression and profile cosmetics while preserving preferences. Sunpetal Mixed QA shows restored, unlocked-incomplete, and locked room states together.", 15, FontStyle.Bold, new Color(0.86f, 0.82f, 0.95f), 680, 58, 0f, -194f);
 
         Button close = CreateAnchoredButton(panel.transform, "Close", 20, 180, 46, new Color(0.35f, 0.12f, 0.62f), 0f, -252f);
@@ -12858,13 +12861,85 @@ public class BingoPrototype : MonoBehaviour
 
     private void ResetDailySpinForTesting(bool returnToMap)
     {
+        ResetDailySpinClaimForTesting();
+        RefreshDevSettingsUi(returnToMap);
+    }
+
+    private void ResetDailySpinClaimForTesting()
+    {
         inventory.DevResetDailySpinClaim();
         lastDailySpinSummary = "";
         lastDailySpinRewardIndex = -1;
         dailySpinAnimating = false;
         dailySpinAnimationSequence++;
         dailySpinWheelRotation = 0f;
-        RefreshDevSettingsUi(returnToMap);
+    }
+
+    // Beta QA page: targeted resets so testers can recover or replay daily and social systems without wiping progress.
+    private void BuildBetaQaResetsUi(bool returnToMap, string status)
+    {
+        RemoveDevSettingsModal();
+        GameObject panel = CreateAnchoredPanel(contentRoot, "DevSettingsModal", new Color(0.1f, 0.04f, 0.16f, 0.98f), 780, 600, 0f, -18f);
+        Color gold = new Color(1f, 0.9f, 0.32f);
+        Color muted = new Color(0.85f, 0.82f, 0.95f);
+        CreateAnchoredText(panel.transform, "BETA QA RESETS", 32, FontStyle.Bold, gold, 700, 44, 0f, 254f);
+        CreateAnchoredText(panel.transform, "Targeted resets for testers. These change this device's test save only; progress elsewhere is kept.", 16, FontStyle.Bold, muted, 700, 44, 0f, 208f);
+        CreateAnchoredText(panel.transform, string.IsNullOrEmpty(status) ? "Choose a reset." : status, 18, FontStyle.Bold, Color.white, 700, 40, 0f, 160f);
+
+        AddBetaQaButton(panel.transform, "Daily Bonus: Next Day", -180f, 96f, returnToMap, () =>
+        {
+            inventory.DevAdvanceDailyBonusDay();
+            return "Daily Bonus is claimable again; claiming continues the streak.";
+        });
+        AddBetaQaButton(panel.transform, "Daily Bonus: Reset Streak", 180f, 96f, returnToMap, () =>
+        {
+            inventory.DevResetDailyBonusStreak();
+            return "Daily Bonus streak reset to day 1.";
+        });
+        AddBetaQaButton(panel.transform, "Daily Spin: Spin Again", -180f, 36f, returnToMap, () =>
+        {
+            ResetDailySpinClaimForTesting();
+            return "Daily Spin is available again.";
+        });
+        AddBetaQaButton(panel.transform, "Social Daily Limits", 180f, 36f, returnToMap, () =>
+        {
+            ResetSocialDailyLimitsForTesting();
+            return "Friend mana, card gift and help-request counters reset for today.";
+        });
+        AddBetaQaButton(panel.transform, "Clear Inbox", -180f, -24f, returnToMap, () =>
+        {
+            coven.ClearPlayerInboxForTesting();
+            return "Inbox emptied.";
+        });
+        AddBetaQaButton(panel.transform, "Reset Enchanted Trail", 180f, -24f, returnToMap, () =>
+        {
+            ResetPrototypeTrailState();
+            return "Enchanted Trail claims cleared.";
+        });
+        AddBetaQaButton(panel.transform, "Fill Room Ingredients", -180f, -84f, returnToMap, () =>
+        {
+            inventory.DevFillActiveRoomIngredients();
+            return $"{RealmContentCatalog.ActivePrototypeRoom.Name} ingredients filled to its potion requirement.";
+        });
+
+        Button back = CreateAnchoredButton(panel.transform, "Back to Settings", 20, 230, 46, new Color(0.35f, 0.12f, 0.62f), 0f, -252f);
+        back.onClick.AddListener(() => BuildDevSettingsUi(returnToMap, devSettingsReturnToDen));
+    }
+
+    private void AddBetaQaButton(Transform parent, string label, float x, float y, bool returnToMap, System.Func<string> action)
+    {
+        Button button = CreateAnchoredButton(parent, label, 17, 320, 46, new Color(0.2f, 0.16f, 0.42f), x, y);
+        button.onClick.AddListener(() => BuildBetaQaResetsUi(returnToMap, action()));
+    }
+
+    private void ResetSocialDailyLimitsForTesting()
+    {
+        prototypeFriendsSentManaToday.Clear();
+        prototypeFriendsReceivedManaToday.Clear();
+        SavePrototypeFriendsState();
+        prototypeCardGiftsSentToday = 0;
+        prototypeCardGiftsReceivedToday = 0;
+        inventory.DevResetSocialHelpRequests();
     }
 
     private void GrantPrototypePowerUpSet(bool returnToMap)
