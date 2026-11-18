@@ -73,10 +73,12 @@ public sealed class PlayerInventoryState
     public long AlbumSeasonStartedAtTicks { get; private set; } = PrototypeGlobalAlbumSeasonStartUtc.Ticks;
     public bool BookOfShadowsPurchased { get; private set; } = true;
     public int JokerWildCards { get; private set; }
-    public int DailyBonusStreak { get; private set; }
-    public string LastDailyBonusClaimDate { get; private set; } = "";
-    public int DailyBonusStreakSaveUses { get; private set; }
-    public string LastDailySpinClaimDate { get; private set; } = "";
+    // Daily Bonus / Daily Spin rules and dates live in DailyRewardsState; the inventory pays and grants rewards.
+    private readonly DailyRewardsState daily = new DailyRewardsState();
+    public int DailyBonusStreak => daily.BonusStreak;
+    public string LastDailyBonusClaimDate => daily.LastBonusClaimDate;
+    public int DailyBonusStreakSaveUses => daily.StreakSaveUses;
+    public string LastDailySpinClaimDate => daily.LastSpinClaimDate;
     public string LastSocialHelpRequestDate { get; private set; } = "";
     public int SocialHelpRequestsUsedToday { get; private set; }
     public int CurrentRoomJackpotPot { get; private set; } = RoomProgressionProfile.LevelOne.MinimumJackpotPot;
@@ -217,10 +219,7 @@ public sealed class PlayerInventoryState
         AlbumSeasonStartedAtTicks = PrototypeGlobalAlbumSeasonStartUtc.Ticks;
         BookOfShadowsPurchased = DurablePrefs.GetInt(SavePrefix + "BookOfShadowsPurchased", BookOfShadowsPurchased ? 1 : 0) == 1;
         JokerWildCards = DurablePrefs.GetInt(SavePrefix + "JokerWildCards", JokerWildCards);
-        DailyBonusStreak = DurablePrefs.GetInt(SavePrefix + "DailyBonusStreak", DailyBonusStreak);
-        LastDailyBonusClaimDate = DurablePrefs.GetString(SavePrefix + "LastDailyBonusClaimDate", LastDailyBonusClaimDate);
-        DailyBonusStreakSaveUses = DurablePrefs.GetInt(SavePrefix + "DailyBonusStreakSaveUses", DailyBonusStreakSaveUses);
-        LastDailySpinClaimDate = DurablePrefs.GetString(SavePrefix + "LastDailySpinClaimDate", LastDailySpinClaimDate);
+        daily.Load();
         LastSocialHelpRequestDate = DurablePrefs.GetString(SavePrefix + "LastSocialHelpRequestDate", LastSocialHelpRequestDate);
         SocialHelpRequestsUsedToday = DurablePrefs.GetInt(SavePrefix + "SocialHelpRequestsUsedToday", SocialHelpRequestsUsedToday);
         SyncSocialHelpRequestDate();
@@ -261,10 +260,7 @@ public sealed class PlayerInventoryState
         DurablePrefs.SetString(SavePrefix + "ManaCauldronNextFillAtTicks", ManaCauldronNextFillAtTicks.ToString());
         DurablePrefs.SetInt(SavePrefix + "BookOfShadowsPurchased", BookOfShadowsPurchased ? 1 : 0);
         DurablePrefs.SetInt(SavePrefix + "JokerWildCards", JokerWildCards);
-        DurablePrefs.SetInt(SavePrefix + "DailyBonusStreak", DailyBonusStreak);
-        DurablePrefs.SetString(SavePrefix + "LastDailyBonusClaimDate", LastDailyBonusClaimDate);
-        DurablePrefs.SetInt(SavePrefix + "DailyBonusStreakSaveUses", DailyBonusStreakSaveUses);
-        DurablePrefs.SetString(SavePrefix + "LastDailySpinClaimDate", LastDailySpinClaimDate);
+        daily.Write();
         DurablePrefs.SetString(SavePrefix + "LastSocialHelpRequestDate", LastSocialHelpRequestDate);
         DurablePrefs.SetInt(SavePrefix + "SocialHelpRequestsUsedToday", SocialHelpRequestsUsedToday);
         DurablePrefs.SetInt(SavePrefix + "AutoDropPowerUps", AutoDropPowerUps ? 1 : 0);
@@ -293,10 +289,7 @@ public sealed class PlayerInventoryState
         AlbumSeasonStartedAtTicks = PrototypeGlobalAlbumSeasonStartUtc.Ticks;
         BookOfShadowsPurchased = true;
         JokerWildCards = 0;
-        DailyBonusStreak = 0;
-        LastDailyBonusClaimDate = "";
-        DailyBonusStreakSaveUses = 0;
-        LastDailySpinClaimDate = "";
+        daily.Reset();
         LastSocialHelpRequestDate = "";
         SocialHelpRequestsUsedToday = 0;
         AutoDropPowerUps = false;
@@ -453,31 +446,11 @@ public sealed class PlayerInventoryState
         return collected;
     }
 
-    public bool CanClaimDailyBonus()
-    {
-        return LastDailyBonusClaimDate != GetTodayClaimDateKey();
-    }
+    public bool CanClaimDailyBonus() => daily.CanClaimBonus();
 
-    public bool HasMissedDailyBonusStreak()
-    {
-        if (DailyBonusStreak <= 0 || string.IsNullOrEmpty(LastDailyBonusClaimDate))
-        {
-            return false;
-        }
+    public bool HasMissedDailyBonusStreak() => daily.HasMissedStreak();
 
-        if (!DateTime.TryParse(LastDailyBonusClaimDate, out DateTime lastClaimDate))
-        {
-            return false;
-        }
-
-        return lastClaimDate.Date < DateTime.UtcNow.Date.AddDays(-1);
-    }
-
-    public int GetDailyBonusStreakSaveCost()
-    {
-        int costIndex = Mathf.Clamp(DailyBonusStreakSaveUses, 0, DailyBonusStreakSaveCosts.Length - 1);
-        return DailyBonusStreakSaveCosts[costIndex];
-    }
+    public int GetDailyBonusStreakSaveCost() => daily.GetStreakSaveCost(DailyBonusStreakSaveCosts);
 
     public bool CanUseDailyBonusStreakSave()
     {
@@ -509,42 +482,16 @@ public sealed class PlayerInventoryState
         }
 
         Crystals -= cost;
-        DailyBonusStreakSaveUses++;
-        LastDailyBonusClaimDate = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd");
+        daily.RegisterStreakSave();
         Save();
         return true;
     }
 
-    public int GetDailyBonusDisplayDay()
-    {
-        int effectiveStreak = CanClaimDailyBonus() ? DailyBonusStreak + 1 : Mathf.Max(1, DailyBonusStreak);
-        return ((effectiveStreak - 1) % 7) + 1;
-    }
+    public int GetDailyBonusDisplayDay() => daily.GetDisplayDay();
 
-    public int GetNextDailyBonusChestDay()
-    {
-        int[] milestones = { 7, 14, 30, 60, 100, 180, 365 };
-        for (int index = 0; index < milestones.Length; index++)
-        {
-            if (DailyBonusStreak < milestones[index])
-            {
-                return milestones[index];
-            }
-        }
+    public int GetNextDailyBonusChestDay() => daily.GetNextChestDay();
 
-        int overage = DailyBonusStreak - 365;
-        return 365 + ((overage / 365) + 1) * 365;
-    }
-
-    public string GetDailyBonusClaimStateText()
-    {
-        if (CanClaimDailyBonus())
-        {
-            return $"Ready: Day {GetDailyBonusDisplayDay()}";
-        }
-
-        return "Claimed today";
-    }
+    public string GetDailyBonusClaimStateText() => daily.GetBonusClaimStateText();
 
     public DailyBonusRewardDefinition GetDailyBonusRewardForDay(int day)
     {
@@ -592,32 +539,16 @@ public sealed class PlayerInventoryState
             return DailyBonusRewardDefinition.Empty;
         }
 
-        DateTime today = DateTime.UtcNow.Date;
-        if (DateTime.TryParse(LastDailyBonusClaimDate, out DateTime lastClaimDate) && lastClaimDate.Date == today.AddDays(-1))
-        {
-            DailyBonusStreak++;
-        }
-        else
-        {
-            DailyBonusStreak = 1;
-        }
-
-        DailyBonusRewardDefinition reward = GetDailyBonusRewardForDay(((DailyBonusStreak - 1) % 7) + 1);
+        int cycleDay = daily.RegisterBonusClaim();
+        DailyBonusRewardDefinition reward = GetDailyBonusRewardForDay(cycleDay);
         ApplyDailyBonusReward(reward);
-        LastDailyBonusClaimDate = GetTodayClaimDateKey();
         Save();
         return reward;
     }
 
-    public bool CanClaimDailySpin()
-    {
-        return LastDailySpinClaimDate != GetTodayClaimDateKey();
-    }
+    public bool CanClaimDailySpin() => daily.CanClaimSpin();
 
-    public string GetDailySpinClaimStateText()
-    {
-        return CanClaimDailySpin() ? "free spin ready" : "spun today";
-    }
+    public string GetDailySpinClaimStateText() => daily.GetSpinClaimStateText();
 
     public IReadOnlyList<PrototypeRewardGrant> GetDailySpinPrototypeRewards()
     {
@@ -631,34 +562,27 @@ public sealed class PlayerInventoryState
             return new PrototypeRewardGrant("Daily Spin", 0, 0, 0, 0, new List<PrototypeRewardItem>());
         }
 
-        int rewardIndex = UnityEngine.Random.Range(0, DailySpinPrototypeRewards.Length);
-        PrototypeRewardGrant reward = DailySpinPrototypeRewards[rewardIndex];
+        PrototypeRewardGrant[] rewards = DailySpinPrototypeRewards;
+        PrototypeRewardGrant reward = rewards[UnityEngine.Random.Range(0, rewards.Length)];
         ApplyRewardGrant(reward);
-        LastDailySpinClaimDate = GetTodayClaimDateKey();
+        daily.RegisterSpinClaim();
         Save();
         return reward;
     }
 
-    public void DevResetDailySpinClaim()
-    {
-        LastDailySpinClaimDate = "";
-        DurablePrefs.DeleteKey(SavePrefix + "LastDailySpinClaimDate");
-        DurablePrefs.Save();
-    }
+    public void DevResetDailySpinClaim() => daily.DevResetSpinClaim();
 
     // QA: marks the last Daily Bonus claim as yesterday, so today is claimable and the streak advances one day.
     public void DevAdvanceDailyBonusDay()
     {
-        LastDailyBonusClaimDate = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd");
+        daily.DevAdvanceBonusDay();
         Save();
     }
 
     // QA: back to a never-claimed Daily Bonus, including the streak and streak-save cost ladder.
     public void DevResetDailyBonusStreak()
     {
-        DailyBonusStreak = 0;
-        DailyBonusStreakSaveUses = 0;
-        LastDailyBonusClaimDate = "";
+        daily.DevResetBonusStreak();
         Save();
     }
 
