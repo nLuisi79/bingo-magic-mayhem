@@ -245,8 +245,9 @@ Previous numeric level ranges for these rank titles are superseded by the Aura m
 
 ## Reference Resources
 
-- Tuned potion/ingredient spreadsheet: `BMM Potions Tuned v1.xlsx`
-- Google Sheets version from prior upload: `https://docs.google.com/spreadsheets/d/1oyHHRWvOl4P3XL8JFm-cmj2_-TCeTvGRRHQVwUpBfAY/edit`
+- **Current source of truth (as of 2026-11-18):** BMM Potions Google Sheet `https://docs.google.com/spreadsheets/d/1DqMJ5OEEApMTrUETyeDbowfqiDpLdRBxOoGN6uavi-4/edit` — realm order, room names, potions, ingredients and amounts. `RealmContentCatalog.cs` mirrors it; rarities are not in the sheet yet.
+- Older tuned potion/ingredient spreadsheet (superseded by the sheet above): `BMM Potions Tuned v1.xlsx`
+- Older Google Sheets version from prior upload: `https://docs.google.com/spreadsheets/d/1oyHHRWvOl4P3XL8JFm-cmj2_-TCeTvGRRHQVwUpBfAY/edit`
 - Daily rewards notes/resource: `daily.docx`
 - Comprehensive handoff reference: `C:\Users\nLuis\OneDrive\Desktop\nLuisi Laptop\Bingo Magic Mayhem\Bingo_Magic_Mayhem_Comprehensive_Project_Handoff-jun26.md`
 - Project docs GitHub repo: `https://github.com/nLuisi79/bingo-magic-mayhem`

@@ -129,6 +129,9 @@ public static class RealmContentCatalog
     public static int ActivePrototypeRealmIndex { get; private set; }
     public static int ActivePrototypeRoomIndex { get; private set; }
 
+    // Realm, room, potion and ingredient names and amounts follow the BMM Potions Google Sheet, the current source of truth.
+    // The sheet has no rarity column; rarities and room modes keep their existing per-position values.
+    // TODO(product): rarities are not in the sheet yet. See Docs/09_OPEN_DECISIONS.md.
     public static readonly IReadOnlyList<RealmDefinition> AllRealms = new List<RealmDefinition>
     {
         new RealmDefinition("Sunpetal Conservatory",
@@ -139,8 +142,8 @@ public static class RealmContentCatalog
                     "Azalea Sunmend Essence",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Gilded Azalea Petals", 6, "Common", ""),
-                        new IngredientRequirement("Sunwarm Dewdrops", 5, "Common", ""),
+                        new IngredientRequirement("Gilded Azalea Petals", 5, "Common", ""),
+                        new IngredientRequirement("Sunwarm Dewdrops", 4, "Common", ""),
                         new IngredientRequirement("Honeyglow Pollen", 4, "Common", ""),
                         new IngredientRequirement("Amberroot Shavings", 6, "Uncommon", ""),
                         new IngredientRequirement("Golden Heartseed", 6, "Key Ingredient", ""),
@@ -154,10 +157,10 @@ public static class RealmContentCatalog
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Velvet Thorn Tips", 8, "Common", ""),
-                        new IngredientRequirement("Terrace Moss Tufts", 7, "Common", ""),
-                        new IngredientRequirement("Rosegold Sap Drops", 7, "Common", ""),
+                        new IngredientRequirement("Terrace Moss Tufts", 9, "Common", ""),
+                        new IngredientRequirement("Rosegold Sap Drops", 6, "Common", ""),
                         new IngredientRequirement("Thornheart Bud", 8, "Uncommon", ""),
-                        new IngredientRequirement("Bramblelace Fibers", 4, "Key Ingredient", ""),
+                        new IngredientRequirement("Bramblelace Fibers", 5, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -168,10 +171,10 @@ public static class RealmContentCatalog
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Spire Pollen Grains", 7, "Common", ""),
-                        new IngredientRequirement("Fountain Dewdrops", 6, "Common", ""),
-                        new IngredientRequirement("Nectarflow Ribbons", 7, "Common", ""),
+                        new IngredientRequirement("Fountain Dewdrops", 5, "Common", ""),
+                        new IngredientRequirement("Nectarflow Ribbons", 6, "Common", ""),
                         new IngredientRequirement("Lilygold Filaments", 7, "Uncommon", ""),
-                        new IngredientRequirement("Pollen Dust", 3, "Key Ingredient", ""),
+                        new IngredientRequirement("Pollen Dust", 4, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -181,7 +184,7 @@ public static class RealmContentCatalog
                     "Solstice Revival Tincture",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Sunlit Glass Slivers", 8, "Common", ""),
+                        new IngredientRequirement("Sunlit Glass Slivers", 7, "Common", ""),
                         new IngredientRequirement("Golden Hour Motes", 8, "Common", ""),
                         new IngredientRequirement("Prismvine Twine", 8, "Uncommon", ""),
                         new IngredientRequirement("Dawnmirror Fragments", 5, "Uncommon", ""),
@@ -199,12 +202,12 @@ public static class RealmContentCatalog
                     "Marina Mist Tonic",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Dewdrop Pearl", 8, "Common", ""),
+                        new IngredientRequirement("Dewdrop Pearl", 7, "Common", ""),
                         new IngredientRequirement("Marina Reed", 6, "Common", ""),
-                        new IngredientRequirement("Mistpetal Drop", 7, "Common", ""),
-                        new IngredientRequirement("Driftwood Fragment", 6, "Uncommon", ""),
+                        new IngredientRequirement("Mistpetal Drop", 6, "Common", ""),
+                        new IngredientRequirement("Driftwood Fragment", 5, "Uncommon", ""),
                         new IngredientRequirement("Silver Koi Scale", 5, "Uncommon", ""),
-                        new IngredientRequirement("Pearlmist Shell", 3, "Key Ingredient", ""),
+                        new IngredientRequirement("Pearlmist Shell", 4, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -215,8 +218,8 @@ public static class RealmContentCatalog
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Waterlily Silk", 7, "Common", ""),
-                        new IngredientRequirement("Canal Current Drop", 8, "Common", ""),
-                        new IngredientRequirement("Lotusstem Reed", 7, "Common", ""),
+                        new IngredientRequirement("Canal Current Drop", 7, "Common", ""),
+                        new IngredientRequirement("Lotusstem Reed", 6, "Common", ""),
                         new IngredientRequirement("Ripplemint Leaf", 6, "Uncommon", ""),
                         new IngredientRequirement("Blue Koi Scale", 5, "Uncommon", ""),
                         new IngredientRequirement("Canal Pearl", 5, "Key Ingredient", ""),
@@ -229,10 +232,10 @@ public static class RealmContentCatalog
                     "Opalwater Clarity Potion",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Opalwater Essence", 9, "Common", ""),
+                        new IngredientRequirement("Opalwater Essence", 8, "Common", ""),
                         new IngredientRequirement("Glasswalk Shard", 7, "Common", ""),
-                        new IngredientRequirement("Prism Dew", 8, "Common", ""),
-                        new IngredientRequirement("Lotuslight Dust", 7, "Common", ""),
+                        new IngredientRequirement("Prism Dew", 7, "Common", ""),
+                        new IngredientRequirement("Lotuslight Dust", 6, "Common", ""),
                         new IngredientRequirement("Clearpath Crystal", 6, "Uncommon", ""),
                         new IngredientRequirement("Opalstone", 5, "Uncommon", ""),
                         new IngredientRequirement("Mirrored Strand", 5, "Key Ingredient", ""),
@@ -246,12 +249,12 @@ public static class RealmContentCatalog
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Glasswater Shard", 8, "Common", ""),
-                        new IngredientRequirement("Grotto Glowcap", 9, "Common", ""),
-                        new IngredientRequirement("Opalwater Essence", 8, "Uncommon", ""),
+                        new IngredientRequirement("Grotto Glowcap", 8, "Common", ""),
+                        new IngredientRequirement("Opalwater Essence", 7, "Uncommon", ""),
                         new IngredientRequirement("Glimmerfin Scale", 7, "Uncommon", ""),
                         new IngredientRequirement("Floating Lotus Bloom", 6, "Uncommon", ""),
                         new IngredientRequirement("Stillwater Teardrop", 6, "Rare", ""),
-                        new IngredientRequirement("Pearlglow Shard", 4, "Key Ingredient", ""),
+                        new IngredientRequirement("Pearlglow Shard", 5, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -261,43 +264,43 @@ public static class RealmContentCatalog
             new List<RoomDefinition>
             {
                 new RoomDefinition(
-                    "Heartbloom petals",
-                    "Blossomveil Awakening Tonic",
+                    "Eternal Bloomspout Spring",
+                    "Gardener’s Grace Mending Balm",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Veilpetal Blossoms", 8, "Common", ""),
-                        new IngredientRequirement("Roselight Essence", 5, "Common", ""),
-                        new IngredientRequirement("Marblemoss Threads", 5, "Common", ""),
-                        new IngredientRequirement("Petalsheen Dust", 7, "Uncommon", ""),
-                        new IngredientRequirement("Heartbloom Petals", 5, "Key Ingredient", ""),
+                        new IngredientRequirement("Graceyard Soil Cakes", 9, "Common", ""),
+                        new IngredientRequirement("Moonlit Ripple Lace", 6, "Common", ""),
+                        new IngredientRequirement("Terracotta Mender’s Clay", 8, "Common", ""),
+                        new IngredientRequirement("Rootwax Binding Cord", 8, "Uncommon", ""),
+                        new IngredientRequirement("Keepsake Clover", 4, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
                     RoomProgressionProfile.Create(3, 1, 0)),
                 new RoomDefinition(
-                    "Gardener's Grace Yard",
-                    "Gardener’s Grace Mending Balm",
+                    "Luminara Garden",
+                    "Luminara Flow Essence",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Graceyard Soil Cakes", 8, "Common", ""),
-                        new IngredientRequirement("Polished Trowel Charms", 6, "Common", ""),
-                        new IngredientRequirement("Terracotta Mender’s Clay", 8, "Common", ""),
-                        new IngredientRequirement("Rootwax Binding Cord", 8, "Uncommon", ""),
-                        new IngredientRequirement("Keepsake Clover", 3, "Key Ingredient", ""),
+                        new IngredientRequirement("Luminara Waterglass", 8, "Common", ""),
+                        new IngredientRequirement("Silver Basin Coins", 6, "Common", ""),
+                        new IngredientRequirement("Polished Trowel Charms", 7, "Common", ""),
+                        new IngredientRequirement("Bluebell Chime Shells", 7, "Uncommon", ""),
+                        new IngredientRequirement("Luminous Springcore", 8, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
                     RoomProgressionProfile.Create(3, 2, 1)),
                 new RoomDefinition(
-                    "Luminara Fountain",
-                    "Luminara Flow Essence",
+                    "Primrose Petal Sanctuary",
+                    "Blossomveil Awakening Tonic",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Luminara Waterglass", 7, "Common", ""),
-                        new IngredientRequirement("Silver Basin Coins", 7, "Common", ""),
-                        new IngredientRequirement("Moonlit Ripple Lace", 8, "Common", ""),
-                        new IngredientRequirement("Bluebell Chime Shells", 7, "Uncommon", ""),
-                        new IngredientRequirement("Luminous Springcore", 7, "Key Ingredient", ""),
+                        new IngredientRequirement("Veilpetal Blossoms", 7, "Common", ""),
+                        new IngredientRequirement("Roselight Essence", 4, "Common", ""),
+                        new IngredientRequirement("Marblemoss Threads", 5, "Common", ""),
+                        new IngredientRequirement("Petalsheen Dust", 7, "Uncommon", ""),
+                        new IngredientRequirement("Heartbloom Petals", 5, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -307,12 +310,12 @@ public static class RealmContentCatalog
                     "Heartbloom Revival Mist",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Frosted Petal Plates", 6, "Common", ""),
-                        new IngredientRequirement("Sanctuary Lightwick", 7, "Common", ""),
+                        new IngredientRequirement("Frosted Petal Plates", 5, "Common", ""),
+                        new IngredientRequirement("Sanctuary Lightwick", 8, "Common", ""),
                         new IngredientRequirement("Violet Geode Nectar", 7, "Uncommon", ""),
-                        new IngredientRequirement("Halofern Ribbons", 7, "Uncommon", ""),
+                        new IngredientRequirement("Halofern Ribbons", 6, "Uncommon", ""),
                         new IngredientRequirement("Gilded Bloom Sigils", 7, "Uncommon", ""),
-                        new IngredientRequirement("Everheart Bud", 7, "Key Ingredient", ""),
+                        new IngredientRequirement("Everheart Bud", 9, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -326,12 +329,12 @@ public static class RealmContentCatalog
                     "Lanternleaf Wayfinder Essence",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Lanternleaf Sprig", 9, "Common", ""),
+                        new IngredientRequirement("Lanternleaf Sprig", 8, "Common", ""),
                         new IngredientRequirement("Wispglow Dew", 7, "Common", ""),
-                        new IngredientRequirement("Pathmoss Thread", 8, "Common", ""),
-                        new IngredientRequirement("Fernlight Dust", 7, "Uncommon", ""),
+                        new IngredientRequirement("Pathmoss Thread", 7, "Common", ""),
+                        new IngredientRequirement("Fernlight Dust", 6, "Uncommon", ""),
                         new IngredientRequirement("Glowroot Chip", 6, "Uncommon", ""),
-                        new IngredientRequirement("Silvermoth Wing", 5, "Key Ingredient", ""),
+                        new IngredientRequirement("Silvermoth Wing", 6, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -342,8 +345,8 @@ public static class RealmContentCatalog
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Glimmerfern Frond", 8, "Common", ""),
-                        new IngredientRequirement("Emerald Fernsap", 8, "Common", ""),
-                        new IngredientRequirement("Groveglow Nectar", 8, "Common", ""),
+                        new IngredientRequirement("Emerald Fernsap", 7, "Common", ""),
+                        new IngredientRequirement("Groveglow Nectar", 7, "Common", ""),
                         new IngredientRequirement("Curling Fernshoot", 6, "Uncommon", ""),
                         new IngredientRequirement("Verdant Pulse Seed", 6, "Uncommon", ""),
                         new IngredientRequirement("Softspore Pollen", 6, "Key Ingredient", ""),
@@ -358,8 +361,8 @@ public static class RealmContentCatalog
                     {
                         new IngredientRequirement("Glowcap Mushroom", 9, "Common", ""),
                         new IngredientRequirement("Thicketvine Curl", 8, "Common", ""),
-                        new IngredientRequirement("Bramblelight Thorn", 8, "Common", ""),
-                        new IngredientRequirement("Sporeglow Powder", 8, "Common", ""),
+                        new IngredientRequirement("Bramblelight Thorn", 7, "Common", ""),
+                        new IngredientRequirement("Sporeglow Powder", 7, "Common", ""),
                         new IngredientRequirement("Tanglecap Resin", 6, "Uncommon", ""),
                         new IngredientRequirement("Mushroom Veilcap", 6, "Uncommon", ""),
                         new IngredientRequirement("Briarsoft Moss", 6, "Key Ingredient", ""),
@@ -372,13 +375,13 @@ public static class RealmContentCatalog
                     "Hollowbloom Distillate",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Wispwillow Bark", 8, "Common", ""),
+                        new IngredientRequirement("Wispwillow Bark", 9, "Common", ""),
                         new IngredientRequirement("Hollowlight Seed", 9, "Common", ""),
-                        new IngredientRequirement("Willowwisp Sap", 9, "Uncommon", ""),
+                        new IngredientRequirement("Willowwisp Sap", 8, "Uncommon", ""),
                         new IngredientRequirement("Hollowbloom Petal", 8, "Uncommon", ""),
                         new IngredientRequirement("Ancient Rootdrop", 7, "Uncommon", ""),
                         new IngredientRequirement("Wispnest Fiber", 7, "Rare", ""),
-                        new IngredientRequirement("Heartwood Dew", 6, "Key Ingredient", ""),
+                        new IngredientRequirement("Heartwood Dew", 7, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -392,12 +395,12 @@ public static class RealmContentCatalog
                     "Bluebell Luminary Dew",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Bluebell Glowdrop", 10, "Common", ""),
+                        new IngredientRequirement("Bluebell Glowdrop", 9, "Common", ""),
                         new IngredientRequirement("Luminary Wick", 8, "Common", ""),
-                        new IngredientRequirement("Moonmoss", 9, "Common", ""),
-                        new IngredientRequirement("Cerulean Pollen", 8, "Uncommon", ""),
+                        new IngredientRequirement("Moonmoss", 8, "Common", ""),
+                        new IngredientRequirement("Cerulean Pollen", 7, "Uncommon", ""),
                         new IngredientRequirement("Quietlight Pearl", 7, "Uncommon", ""),
-                        new IngredientRequirement("Silverbell Petal", 6, "Key Ingredient", ""),
+                        new IngredientRequirement("Silverbell Petal", 7, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -408,8 +411,8 @@ public static class RealmContentCatalog
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Cerulean Oil", 9, "Common", ""),
-                        new IngredientRequirement("Starpetal", 9, "Common", ""),
-                        new IngredientRequirement("Blueflame Glass", 9, "Common", ""),
+                        new IngredientRequirement("Starpetal", 8, "Common", ""),
+                        new IngredientRequirement("Blueflame Glass", 8, "Common", ""),
                         new IngredientRequirement("Moonstone Thread", 7, "Uncommon", ""),
                         new IngredientRequirement("Lanternseed Husk", 7, "Uncommon", ""),
                         new IngredientRequirement("Silverstep Dust", 7, "Key Ingredient", ""),
@@ -418,14 +421,14 @@ public static class RealmContentCatalog
                     "Standard",
                     RoomProgressionProfile.Create(5, 2, 1)),
                 new RoomDefinition(
-                    "Script Dust",
+                    "Skyglass Scriptorium",
                     "Skyglass Scroll Reagent",
                     new List<IngredientRequirement>
                     {
                         new IngredientRequirement("Skyglass Shard", 10, "Common", ""),
                         new IngredientRequirement("Starink Vial", 9, "Common", ""),
-                        new IngredientRequirement("Scrollfiber", 9, "Common", ""),
-                        new IngredientRequirement("Quillmoon Feather", 9, "Common", ""),
+                        new IngredientRequirement("Scrollfiber", 8, "Common", ""),
+                        new IngredientRequirement("Quillmoon Feather", 8, "Common", ""),
                         new IngredientRequirement("Glyphdust", 7, "Uncommon", ""),
                         new IngredientRequirement("Sealblue Powder", 7, "Uncommon", ""),
                         new IngredientRequirement("Silverseal Wax", 7, "Key Ingredient", ""),
@@ -438,13 +441,13 @@ public static class RealmContentCatalog
                     "Starwell Chime Revival",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Starwell Drop", 9, "Common", ""),
+                        new IngredientRequirement("Starwell Drop", 10, "Common", ""),
                         new IngredientRequirement("Bellchime Crystal", 10, "Common", ""),
-                        new IngredientRequirement("Moonmetal", 10, "Uncommon", ""),
+                        new IngredientRequirement("Moonmetal", 9, "Uncommon", ""),
                         new IngredientRequirement("Celestial Cord", 9, "Uncommon", ""),
                         new IngredientRequirement("Echo Pearl", 8, "Uncommon", ""),
                         new IngredientRequirement("Chime Fragment", 8, "Rare", ""),
-                        new IngredientRequirement("Cerulean Resonance Dust", 7, "Key Ingredient", ""),
+                        new IngredientRequirement("Cerulean Resonance Dust", 8, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -460,10 +463,10 @@ public static class RealmContentCatalog
                     {
                         new IngredientRequirement("Amberleaf Cluster", 10, "Common", ""),
                         new IngredientRequirement("Sunamber Dew", 9, "Common", ""),
-                        new IngredientRequirement("Glassbark Sliver", 10, "Common", ""),
-                        new IngredientRequirement("Rosegold Pollen", 9, "Uncommon", ""),
+                        new IngredientRequirement("Glassbark Sliver", 9, "Common", ""),
+                        new IngredientRequirement("Rosegold Pollen", 8, "Uncommon", ""),
                         new IngredientRequirement("Kindleseed Husk", 8, "Uncommon", ""),
-                        new IngredientRequirement("Warmroot Sap", 7, "Key Ingredient", ""),
+                        new IngredientRequirement("Warmroot Sap", 8, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -473,9 +476,9 @@ public static class RealmContentCatalog
                     "Cinderglass Mending Salve",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Cinderglass Shard", 9, "Common", ""),
-                        new IngredientRequirement("Clearflame Drop", 10, "Common", ""),
-                        new IngredientRequirement("Pathglow Pebble", 10, "Common", ""),
+                        new IngredientRequirement("Cinderglass Shard", 10, "Common", ""),
+                        new IngredientRequirement("Clearflame Drop", 9, "Common", ""),
+                        new IngredientRequirement("Pathglow Pebble", 9, "Common", ""),
                         new IngredientRequirement("Ashlace Thread", 8, "Uncommon", ""),
                         new IngredientRequirement("Emberpolish Resin", 8, "Uncommon", ""),
                         new IngredientRequirement("Smokeveil Dust", 8, "Key Ingredient", ""),
@@ -488,10 +491,10 @@ public static class RealmContentCatalog
                     "Sparkstone Bloom Catalyst",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Sparkstone Pebble", 10, "Common", ""),
-                        new IngredientRequirement("Flamepetal Bloom", 9, "Common", ""),
-                        new IngredientRequirement("Amber Emberseed", 10, "Common", ""),
-                        new IngredientRequirement("Glowglass Nectar", 10, "Common", ""),
+                        new IngredientRequirement("Sparkstone Pebble", 11, "Common", ""),
+                        new IngredientRequirement("Flamepetal Bloom", 10, "Common", ""),
+                        new IngredientRequirement("Amber Emberseed", 9, "Common", ""),
+                        new IngredientRequirement("Glowglass Nectar", 9, "Common", ""),
                         new IngredientRequirement("Coppershine Moss", 8, "Uncommon", ""),
                         new IngredientRequirement("Sunflare Pollen", 8, "Uncommon", ""),
                         new IngredientRequirement("Warmthistle Thorn", 8, "Key Ingredient", ""),
@@ -504,13 +507,13 @@ public static class RealmContentCatalog
                     "Embervein Rekindling Remedy",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Embervein Root", 9, "Common", ""),
-                        new IngredientRequirement("Heartwood Ember", 10, "Common", ""),
+                        new IngredientRequirement("Embervein Root", 11, "Common", ""),
+                        new IngredientRequirement("Heartwood Ember", 11, "Common", ""),
                         new IngredientRequirement("Rootglass Thread", 10, "Uncommon", ""),
                         new IngredientRequirement("Deepwarm Resin", 10, "Uncommon", ""),
                         new IngredientRequirement("Crimson Sapstone", 9, "Uncommon", ""),
                         new IngredientRequirement("Emberline Crystal", 9, "Rare", ""),
-                        new IngredientRequirement("Glowcoal Fragment", 8, "Key Ingredient", ""),
+                        new IngredientRequirement("Glowcoal Fragment", 9, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -526,10 +529,10 @@ public static class RealmContentCatalog
                     {
                         new IngredientRequirement("Rusted Iron Filigree", 11, "Common", ""),
                         new IngredientRequirement("Mosswrought Fragment", 10, "Common", ""),
-                        new IngredientRequirement("Gatevine Oil", 11, "Common", ""),
-                        new IngredientRequirement("Tarnishroot Flake", 10, "Uncommon", ""),
+                        new IngredientRequirement("Gatevine Oil", 10, "Common", ""),
+                        new IngredientRequirement("Tarnishroot Flake", 9, "Uncommon", ""),
                         new IngredientRequirement("Ironlace Charm", 9, "Uncommon", ""),
-                        new IngredientRequirement("Weathered Iron Dust", 8, "Key Ingredient", ""),
+                        new IngredientRequirement("Weathered Iron Dust", 9, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -539,9 +542,9 @@ public static class RealmContentCatalog
                     "Topiary Teardrop Nectar",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Topiary Teardrop", 10, "Common", ""),
-                        new IngredientRequirement("Sculpted Mossleaf", 11, "Common", ""),
-                        new IngredientRequirement("Hedgecurl Sprig", 11, "Common", ""),
+                        new IngredientRequirement("Topiary Teardrop", 11, "Common", ""),
+                        new IngredientRequirement("Sculpted Mossleaf", 10, "Common", ""),
+                        new IngredientRequirement("Hedgecurl Sprig", 10, "Common", ""),
                         new IngredientRequirement("Keeper’s Thread", 9, "Uncommon", ""),
                         new IngredientRequirement("Velvetmoss Pearl", 9, "Uncommon", ""),
                         new IngredientRequirement("Trimmed Thornbud", 9, "Key Ingredient", ""),
@@ -554,10 +557,10 @@ public static class RealmContentCatalog
                     "Rootbind Restorative",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Rootsnare Strand", 11, "Common", ""),
-                        new IngredientRequirement("Hearthwood Splinter", 10, "Common", ""),
+                        new IngredientRequirement("Rootsnare Strand", 12, "Common", ""),
+                        new IngredientRequirement("Hearthwood Splinter", 11, "Common", ""),
                         new IngredientRequirement("Binding Vinecurl", 11, "Common", ""),
-                        new IngredientRequirement("Hallglow Ember", 11, "Common", ""),
+                        new IngredientRequirement("Hallglow Ember", 10, "Common", ""),
                         new IngredientRequirement("Twisted Root Resin", 10, "Uncommon", ""),
                         new IngredientRequirement("Heartwood Dust", 9, "Uncommon", ""),
                         new IngredientRequirement("Velvetshade Moss", 9, "Key Ingredient", ""),
@@ -570,13 +573,13 @@ public static class RealmContentCatalog
                     "Wayward Soul’s Elixir",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Wayward Soul Drop", 10, "Common", ""),
-                        new IngredientRequirement("Elderroot Needle", 11, "Common", ""),
+                        new IngredientRequirement("Wayward Soul Drop", 12, "Common", ""),
+                        new IngredientRequirement("Elderroot Needle", 12, "Common", ""),
                         new IngredientRequirement("Labyrinth Ivy Thread", 11, "Uncommon", ""),
                         new IngredientRequirement("Shadowmoss Pearl", 11, "Uncommon", ""),
                         new IngredientRequirement("Pathmark Shard", 10, "Uncommon", ""),
                         new IngredientRequirement("Lanternless Dew", 10, "Rare", ""),
-                        new IngredientRequirement("Labyrinth Seed", 9, "Key Ingredient", ""),
+                        new IngredientRequirement("Labyrinth Seed", 10, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -590,12 +593,12 @@ public static class RealmContentCatalog
                     "Rockheart Tincture",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Rockheart Stone Fragment", 11, "Common", ""),
-                        new IngredientRequirement("Rubyrock Splinter", 10, "Common", ""),
+                        new IngredientRequirement("Rockheart Stone Fragment", 12, "Common", ""),
+                        new IngredientRequirement("Rubyrock Splinter", 11, "Common", ""),
                         new IngredientRequirement("Crimson Mineral Dew", 11, "Common", ""),
-                        new IngredientRequirement("Glowvein Fragment", 11, "Uncommon", ""),
+                        new IngredientRequirement("Glowvein Fragment", 10, "Uncommon", ""),
                         new IngredientRequirement("Canyonroot Resin", 10, "Uncommon", ""),
-                        new IngredientRequirement("Scarlet Quartz Dust", 8, "Key Ingredient", ""),
+                        new IngredientRequirement("Scarlet Quartz Dust", 9, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -605,8 +608,8 @@ public static class RealmContentCatalog
                     "Bridgemender Brew",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Copperstone Fragment", 10, "Common", ""),
-                        new IngredientRequirement("Bridgevine Thread", 11, "Common", ""),
+                        new IngredientRequirement("Copperstone Fragment", 12, "Common", ""),
+                        new IngredientRequirement("Bridgevine Thread", 12, "Common", ""),
                         new IngredientRequirement("Copperheart Sap", 11, "Common", ""),
                         new IngredientRequirement("Spanstone Pebble", 11, "Uncommon", ""),
                         new IngredientRequirement("Rivethorn Bud", 10, "Uncommon", ""),
@@ -620,12 +623,12 @@ public static class RealmContentCatalog
                     "Twilight Trail Catalyst",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Twilight Dust", 11, "Common", ""),
-                        new IngredientRequirement("Starseed", 11, "Common", ""),
-                        new IngredientRequirement("Trailglimmer Sand", 10, "Common", ""),
+                        new IngredientRequirement("Twilight Dust", 13, "Common", ""),
+                        new IngredientRequirement("Starseed", 12, "Common", ""),
+                        new IngredientRequirement("Trailglimmer Sand", 12, "Common", ""),
                         new IngredientRequirement("Nightglass Flake", 11, "Uncommon", ""),
                         new IngredientRequirement("Falling Star Petal", 11, "Uncommon", ""),
-                        new IngredientRequirement("Duskwind Thread", 9, "Key Ingredient", ""),
+                        new IngredientRequirement("Duskwind Thread", 10, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -635,13 +638,13 @@ public static class RealmContentCatalog
                     "Starlight Prism Potion",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Starlight Prism Shard", 10, "Common", ""),
-                        new IngredientRequirement("Moonlit Flaredrop", 11, "Common", ""),
-                        new IngredientRequirement("Crimsonlight Petal", 11, "Uncommon", ""),
-                        new IngredientRequirement("Glowstone", 11, "Uncommon", ""),
+                        new IngredientRequirement("Starlight Prism Shard", 13, "Common", ""),
+                        new IngredientRequirement("Moonlit Flaredrop", 13, "Common", ""),
+                        new IngredientRequirement("Crimsonlight Petal", 12, "Uncommon", ""),
+                        new IngredientRequirement("Glowstone", 12, "Uncommon", ""),
                         new IngredientRequirement("Prismroot Strand", 11, "Uncommon", ""),
                         new IngredientRequirement("Skyfire Dust", 10, "Rare", ""),
-                        new IngredientRequirement("Lunar Quartz Bloom", 9, "Key Ingredient", ""),
+                        new IngredientRequirement("Lunar Quartz Bloom", 10, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
@@ -655,12 +658,12 @@ public static class RealmContentCatalog
                     "Skybound Counter Infusion",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Skybound Vapor", 11, "Common", ""),
-                        new IngredientRequirement("Countercloud Drop", 10, "Common", ""),
-                        new IngredientRequirement("Skycrag Stonechip", 11, "Common", ""),
+                        new IngredientRequirement("Skybound Vapor", 13, "Common", ""),
+                        new IngredientRequirement("Countercloud Drop", 12, "Common", ""),
+                        new IngredientRequirement("Skycrag Stonechip", 12, "Common", ""),
                         new IngredientRequirement("Gateweight Pebble", 11, "Uncommon", ""),
                         new IngredientRequirement("Anchorroot Dust", 10, "Uncommon", ""),
-                        new IngredientRequirement("Cloudweight Resin", 9, "Key Ingredient", ""),
+                        new IngredientRequirement("Cloudweight Resin", 10, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
@@ -670,9 +673,9 @@ public static class RealmContentCatalog
                     "Emporium Settling Serum",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Merchant Teardrop", 10, "Common", ""),
-                        new IngredientRequirement("Settling Sap", 11, "Common", ""),
-                        new IngredientRequirement("Counterfloat Pearl", 11, "Common", ""),
+                        new IngredientRequirement("Merchant Teardrop", 13, "Common", ""),
+                        new IngredientRequirement("Settling Sap", 12, "Common", ""),
+                        new IngredientRequirement("Counterfloat Pearl", 10, "Common", ""),
                         new IngredientRequirement("Driftglass Bead", 11, "Uncommon", ""),
                         new IngredientRequirement("Weightwell Wax", 11, "Uncommon", ""),
                         new IngredientRequirement("Settling Resin", 10, "Key Ingredient", ""),
@@ -685,11 +688,11 @@ public static class RealmContentCatalog
                     "Weighted Wing Antitoxin",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Weighted Feather", 11, "Common", ""),
-                        new IngredientRequirement("Gryphon Talon Shard", 10, "Common", ""),
-                        new IngredientRequirement("Antigrav Venom Drop", 11, "Common", ""),
-                        new IngredientRequirement("Shrinebase Dust", 11, "Common", ""),
-                        new IngredientRequirement("Perchstone", 11, "Uncommon", ""),
+                        new IngredientRequirement("Weighted Feather", 14, "Common", ""),
+                        new IngredientRequirement("Gryphon Talon Shard", 13, "Common", ""),
+                        new IngredientRequirement("Antigrav Venom Drop", 13, "Common", ""),
+                        new IngredientRequirement("Shrinebase Dust", 12, "Common", ""),
+                        new IngredientRequirement("Perchstone", 12, "Uncommon", ""),
                         new IngredientRequirement("Skyward Toxin Pearl", 11, "Uncommon", ""),
                         new IngredientRequirement("Wingbind Resin", 11, "Key Ingredient", ""),
                     },
@@ -701,19 +704,17 @@ public static class RealmContentCatalog
                     "Anchor’s Embrace Elixir",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Anchorheart Stone Fragment", 11, "Common", ""),
-                        new IngredientRequirement("Aerie Lodestone", 10, "Common", ""),
-                        new IngredientRequirement("Anchor Shard", 11, "Uncommon", ""),
+                        new IngredientRequirement("Anchorheart Stone Fragment", 14, "Common", ""),
+                        new IngredientRequirement("Aerie Lodestone", 14, "Common", ""),
+                        new IngredientRequirement("Anchor Shard", 13, "Uncommon", ""),
                         new IngredientRequirement("Gravitywell Bloom", 11, "Uncommon", ""),
-                        new IngredientRequirement("Settling Stone Dust", 11, "Uncommon", ""),
-                        new IngredientRequirement("Downward Star Resin", 10, "Key Ingredient", ""),
+                        new IngredientRequirement("Settling Stone Dust", 12, "Uncommon", ""),
+                        new IngredientRequirement("Downward Star Resin", 12, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
                     RoomProgressionProfile.Create(9, 4, 3)),
             }),
-        // Realm 10 per the BMM Potions sheet. TODO(product): ingredient amounts are the sheet's raw values and rarities follow
-        // the Everfrost Vale pattern; neither has been tuned like the earlier realms. See Docs/09_OPEN_DECISIONS.md.
         new RealmDefinition("Crystalline Chanterelle Colony",
             new List<RoomDefinition>
             {
@@ -793,61 +794,61 @@ public static class RealmContentCatalog
                     "Shimmerroot Revival Infusion",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Shimmerroot Strand", 10, "Common", ""),
-                        new IngredientRequirement("Frostfruit Pearl", 11, "Common", ""),
-                        new IngredientRequirement("Orchard Chilldrop", 11, "Common", ""),
-                        new IngredientRequirement("Snowcrisp Bark", 10, "Common", ""),
-                        new IngredientRequirement("Flurryblossom Pollen", 11, "Uncommon", ""),
+                        new IngredientRequirement("Shimmerroot Strand", 14, "Common", ""),
+                        new IngredientRequirement("Frostfruit Pearl", 13, "Common", ""),
+                        new IngredientRequirement("Orchard Chilldrop", 13, "Common", ""),
+                        new IngredientRequirement("Snowcrisp Bark", 12, "Common", ""),
+                        new IngredientRequirement("Flurryblossom Pollen", 12, "Uncommon", ""),
                         new IngredientRequirement("Slushbane Resin", 11, "Uncommon", ""),
-                        new IngredientRequirement("Everfrost Sap", 10, "Key Ingredient", ""),
+                        new IngredientRequirement("Everfrost Sap", 11, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
                     RoomProgressionProfile.Create(11, 1, 0)),
                 new RoomDefinition(
-                    "Crystalline Creatures Carousel",
+                    "Crystalline Court",
                     "Crystalline Frostform Catalyst",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Crystalline Mane Shard", 11, "Common", ""),
-                        new IngredientRequirement("Frostform Dust", 11, "Common", ""),
-                        new IngredientRequirement("Ground Frostturn Pearl", 10, "Common", ""),
-                        new IngredientRequirement("Icecreature Chip", 11, "Common", ""),
-                        new IngredientRequirement("Refreezing Spark", 11, "Uncommon", ""),
-                        new IngredientRequirement("Mirrorfrost Flake", 11, "Uncommon", ""),
-                        new IngredientRequirement("Snowturn Resin", 10, "Key Ingredient", ""),
+                        new IngredientRequirement("Crystalline Mane Shard", 14, "Common", ""),
+                        new IngredientRequirement("Frostform Dust", 14, "Common", ""),
+                        new IngredientRequirement("Ground Frostturn Pearl", 13, "Common", ""),
+                        new IngredientRequirement("Icecreature Chip", 13, "Common", ""),
+                        new IngredientRequirement("Refreezing Spark", 12, "Uncommon", ""),
+                        new IngredientRequirement("Mirrorfrost Flake", 12, "Uncommon", ""),
+                        new IngredientRequirement("Snowturn Resin", 11, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
                     RoomProgressionProfile.Create(11, 2, 1)),
                 new RoomDefinition(
-                    "Grand Glacial Bigtop",
+                    "Grand Glacier",
                     "Showstopper Stabilizing Salve",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Showstopper Snowflake", 11, "Common", ""),
-                        new IngredientRequirement("Stabilizing Frostwax", 10, "Common", ""),
-                        new IngredientRequirement("Canopy Thread", 11, "Common", ""),
-                        new IngredientRequirement("Arctic Trim Fragment", 11, "Common", ""),
-                        new IngredientRequirement("Snowring Powder", 11, "Uncommon", ""),
-                        new IngredientRequirement("Curtainfrost Pearl", 11, "Uncommon", ""),
-                        new IngredientRequirement("Slushseal Resin", 11, "Key Ingredient", ""),
+                        new IngredientRequirement("Showstopper Snowflake", 15, "Common", ""),
+                        new IngredientRequirement("Stabilizing Frostwax", 14, "Common", ""),
+                        new IngredientRequirement("Canopy Thread", 14, "Common", ""),
+                        new IngredientRequirement("Arctic Trim Fragment", 13, "Common", ""),
+                        new IngredientRequirement("Snowring Powder", 13, "Uncommon", ""),
+                        new IngredientRequirement("Curtainfrost Pearl", 12, "Uncommon", ""),
+                        new IngredientRequirement("Slushseal Resin", 12, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Standard,
                     "Standard",
                     RoomProgressionProfile.Create(11, 3, 2)),
                 new RoomDefinition(
-                    "Alabaster Wonder Garden",
+                    "Winter Wonder Garden",
                     "Frosted Formweave Reagent",
                     new List<IngredientRequirement>
                     {
-                        new IngredientRequirement("Frosted Formthread", 10, "Common", ""),
-                        new IngredientRequirement("Alabaster Snowdust", 11, "Common", ""),
-                        new IngredientRequirement("Alabaster Pearl", 11, "Uncommon", ""),
-                        new IngredientRequirement("Icebloom Filament", 11, "Uncommon", ""),
-                        new IngredientRequirement("Sunwane Crystal", 11, "Uncommon", ""),
-                        new IngredientRequirement("Winterweave Resin", 11, "Rare", ""),
-                        new IngredientRequirement("Everchill Seed", 10, "Key Ingredient", ""),
+                        new IngredientRequirement("Frosted Formthread", 15, "Common", ""),
+                        new IngredientRequirement("Alabaster Snowdust", 15, "Common", ""),
+                        new IngredientRequirement("Alabaster Pearl", 14, "Uncommon", ""),
+                        new IngredientRequirement("Icebloom Filament", 14, "Uncommon", ""),
+                        new IngredientRequirement("Sunwane Crystal", 13, "Uncommon", ""),
+                        new IngredientRequirement("Winterweave Resin", 13, "Rare", ""),
+                        new IngredientRequirement("Everchill Seed", 12, "Key Ingredient", ""),
                     },
                     BingoRoomMode.Special,
                     "Blackout",
