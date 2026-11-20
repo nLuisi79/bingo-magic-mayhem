@@ -50,7 +50,10 @@ public sealed class RoomDefinition
 
 public sealed class RoomProgressionProfile
 {
-    public static readonly RoomProgressionProfile LevelOne = Create(1, 1, 0);
+    private static RoomProgressionProfile levelOne;
+
+    // Lazy so that touching this type never loads the tuning Resource from a static initializer.
+    public static RoomProgressionProfile LevelOne => levelOne ??= Create(1, 1, 0);
 
     public RoomProgressionProfile(
         int level,

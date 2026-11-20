@@ -144,7 +144,9 @@ public partial class BingoPrototype : MonoBehaviour
     private BingoRoundFlowController roundFlow;
     private readonly PowerUpRuntimeState powerUps = new PowerUpRuntimeState();
     private readonly CellRewardTracker cellRewards = new CellRewardTracker();
-    private readonly PlayerInventoryState inventory = new PlayerInventoryState();
+    // Created in EnsureRuntimeState (from Awake), not here: its starting values read EconomyTuning, which loads a
+    // Resource, and Unity forbids Resources.Load while a MonoBehaviour is being constructed.
+    private PlayerInventoryState inventory;
     private readonly CovenState coven = new CovenState();
     private BingoRewardTracker rewards;
     private readonly BingoRoundEndCoordinator roundEndCoordinator = new BingoRoundEndCoordinator();
@@ -361,8 +363,18 @@ public partial class BingoPrototype : MonoBehaviour
         TickAutoCaller();
     }
 
+    private void Awake()
+    {
+        EnsureRuntimeState();
+    }
+
     private void EnsureRuntimeState()
     {
+        if (inventory == null)
+        {
+            inventory = new PlayerInventoryState();
+        }
+
         if (roundFlow == null)
         {
             roundFlow = new BingoRoundFlowController(roomRules);

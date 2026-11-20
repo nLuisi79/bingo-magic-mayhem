@@ -32,7 +32,29 @@ public sealed class EconomyTuning
 
     private static EconomyTuning current;
 
-    public static EconomyTuning Current => current ??= Load();
+    // Loaded on first use. If that first use happens somewhere Unity forbids Resources.Load (a MonoBehaviour constructor
+    // or field initializer), the built-in defaults are returned for that call only and the file is loaded next time.
+    public static EconomyTuning Current
+    {
+        get
+        {
+            if (current != null)
+            {
+                return current;
+            }
+
+            EconomyTuning loaded = Load(out bool loadAllowed);
+            if (loadAllowed)
+            {
+                current = loaded;
+            }
+
+            return loaded;
+        }
+    }
+
+    // How many reads fell back to defaults because they happened during object construction (should stay 0).
+    public static int DeferredLoadCount { get; private set; }
 
     // Test hook: replace (or clear, with null) the active tuning.
     public static void OverrideForTests(EconomyTuning tuning)
@@ -42,8 +64,26 @@ public sealed class EconomyTuning
 
     public static EconomyTuning Load()
     {
+        return Load(out _);
+    }
+
+    private static EconomyTuning Load(out bool loadAllowed)
+    {
+        loadAllowed = true;
         EconomyTuning tuning = new EconomyTuning();
-        TextAsset asset = Resources.Load<TextAsset>(ResourcePath);
+        TextAsset asset;
+        try
+        {
+            asset = Resources.Load<TextAsset>(ResourcePath);
+        }
+        catch (UnityException exception)
+        {
+            loadAllowed = false;
+            DeferredLoadCount++;
+            Debug.LogWarning($"{ResourcePath}.json was requested during object construction; using built-in defaults for this read. Move the read to Awake/Start. {exception.Message}");
+            return tuning;
+        }
+
         if (asset == null || string.IsNullOrWhiteSpace(asset.text))
         {
             return tuning;
