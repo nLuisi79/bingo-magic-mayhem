@@ -11,7 +11,8 @@ public sealed class PlayerCardSet
 
     public int Count => Numbers.Count;
 
-    public void Generate(int count)
+    // potionMultiplier comes from the mana bet (IngredientMultiplier.ForBet); every card in a round shares it.
+    public void Generate(int count, int potionMultiplier = 1)
     {
         Numbers.Clear();
         Marks.Clear();
@@ -27,7 +28,7 @@ public sealed class PlayerCardSet
             Numbers.Add(generatedNumbers);
             Marks.Add(generatedMarks);
             BingoCounts.Add(0);
-            PotionMultipliers.Add(Random.Range(1, 5));
+            PotionMultipliers.Add(Mathf.Max(1, potionMultiplier));
             WinningCells.Add(new HashSet<string>());
         }
     }

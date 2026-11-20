@@ -210,7 +210,7 @@ Room 4: Solstice Bloom Glasshouse
 
 Ingredient drop direction:
 
-- Each card loads with a visible potion multiplier from 1-4.
+- Each card loads with a visible potion multiplier from 1-4, set by the mana bet (locked rule, 2026-11-20): 1x by default, 2x past 50% of the room's max bet, 3x past 75%, 4x at the max bet. It is no longer random. Thresholds live in `economy_tuning.json` (`IngredientMultiplier`).
 - The multiplier represents the ingredient strength for that card.
 - A card must earn at least one bingo to award ingredients.
 - No bingo on a card means no ingredient reward from that card.

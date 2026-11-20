@@ -77,6 +77,10 @@ public partial class BingoPrototype
         Button minus = CreateAnchoredButton(betRow.transform, "-", 30, 72, 58, new Color(0.35f, 0.12f, 0.62f), -230f, 0f);
         Button plus = CreateAnchoredButton(betRow.transform, "+", 30, 72, 58, new Color(0.35f, 0.12f, 0.62f), 230f, 0f);
         roomText = CreateAnchoredText(betRow.transform, "", 24, FontStyle.Bold, new Color(0.15f, 0.1f, 0.32f), 300, 56, 0f, 0f);
+        // Potion multiplier earned at this bet (locked rule: higher bet -> more ingredients per bingo).
+        lobbyBetMultiplierText = CreateAnchoredText(betRow.transform, "", 30, FontStyle.Bold, new Color(0.35f, 0.12f, 0.62f), 80, 62, 308f, 0f);
+        lobbyBetMultiplierText.supportRichText = true;
+        lobbyBetMultiplierText.lineSpacing = 0.8f;
 
         RoomEntryBetRowView betRowView = betRow.AddComponent<RoomEntryBetRowView>();
         betRowView.ResetRuntimeBindings();

@@ -25,6 +25,7 @@ public sealed class EconomyTuning
     };
     public JackpotWheelSettings JackpotWheel = new JackpotWheelSettings();
     public IngredientDropSettings IngredientDrops = new IngredientDropSettings();
+    public IngredientMultiplierSettings IngredientMultiplier = new IngredientMultiplierSettings();
     public RoomProgressionSettings RoomProgression = new RoomProgressionSettings();
     public SocialSettings Social = new SocialSettings();
     public PowerUpSettings PowerUps = new PowerUpSettings();
@@ -143,6 +144,17 @@ public sealed class EconomyTuning
         public float RareWeight = 0.18f;
         public float KeyIngredientWeight = 0.10f;
         public float OtherWeight = 0.5f;
+    }
+
+    // Locked rule (LOCKED_DECISIONS.md, Ingredients and Potion Restoration): the card potion multiplier follows the mana
+    // bet. Past DoubleAbove of the room's max bet -> 2x, past TripleAbove -> 3x, the max bet -> MaxMultiplier (4x).
+    // TODO(product): "of possible bet" is read as a fraction of the room's max bet; confirm vs. position in the min-max range.
+    [Serializable]
+    public sealed class IngredientMultiplierSettings
+    {
+        public float DoubleAboveBetFraction = 0.5f;
+        public float TripleAboveBetFraction = 0.75f;
+        public int MaxMultiplier = 4;
     }
 
     [Serializable]

@@ -57,6 +57,11 @@
         "KeyIngredientWeight": 0.1,
         "OtherWeight": 0.5
     },
+    "IngredientMultiplier": {
+        "DoubleAboveBetFraction": 0.5,
+        "TripleAboveBetFraction": 0.75,
+        "MaxMultiplier": 4
+    },
     "RoomProgression": {
         "MinBetBase": 25,
         "MinBetPerRealm": 25,

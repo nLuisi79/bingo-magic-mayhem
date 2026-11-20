@@ -176,6 +176,7 @@ public partial class BingoPrototype : MonoBehaviour
     private float activeStageHeight = StageHeight;
     private bool activeStageFillsViewport;
     private Text roomText;
+    private Text lobbyBetMultiplierText;
     private Text calledNumberText;
     private Text calledHistoryText;
     private Text statusText;
@@ -466,7 +467,7 @@ public partial class BingoPrototype : MonoBehaviour
 
     private void GenerateCards(int count)
     {
-        playerCards.Generate(count);
+        playerCards.Generate(count, GetBetIngredientMultiplier());
         currentCardIndex = 0;
         LoadCurrentCard();
     }
@@ -774,6 +775,15 @@ public partial class BingoPrototype : MonoBehaviour
         }
 
         roomEntryPanelView?.SetBetSummary(summary);
+        if (lobbyBetMultiplierText != null)
+        {
+            lobbyBetMultiplierText.text = $"<size=30>x{GetBetIngredientMultiplier()}</size>\n<size=12>POTION</size>";
+        }
+    }
+
+    private int GetBetIngredientMultiplier()
+    {
+        return IngredientMultiplier.ForBet(manaBetPerCard, GetActiveProgression().MaxManaBet);
     }
 
     private void AdjustBet(int delta)
