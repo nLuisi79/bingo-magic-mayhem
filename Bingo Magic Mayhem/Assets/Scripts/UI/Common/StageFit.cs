@@ -10,6 +10,18 @@ namespace BingoMagicMayhem.UI.Common
         public const float MinScale = 0.55f;
         public const float MaxScale = 1.15f;
 
+        // Wide "bleed" background envelope in stage units: the 1600x900 composition sits unchanged in the centre and the
+        // scene extends 300 left/right and 225 top/bottom. Covers 21:9 phones (incl. side camera cutouts) and 4:3 /
+        // near-square tablets and foldables. Delivered at 1.2 px per unit = 2640x1620 px (Docs/REALM_HOME_WIDE_ART_SPEC.md).
+        public static readonly Vector2 WideArtSize = new Vector2(2200f, 1350f);
+        public const string WideArtResourceSuffix = "-wide";
+
+        // Visible screen area, in stage units, around a stage fitted with the given result.
+        public static Vector2 VisibleStageUnits(Vector2 rootSize, Result fit)
+        {
+            return rootSize / Mathf.Max(0.0001f, fit.Scale);
+        }
+
         public readonly struct Insets
         {
             public Insets(float left, float right, float bottom, float top)

@@ -461,11 +461,16 @@ public partial class BingoPrototype
             return;
         }
 
+        // Optional wide "bleed" art (see Docs/REALM_HOME_WIDE_ART_SPEC.md): same scene painted out to 2200x1350 stage
+        // units with the original 1600x900 composition untouched in the centre, so rooms stay aligned and wide phones /
+        // tablets show real scenery instead of the dimmed side bands. Falls back to the 16:9 art when not delivered.
+        string wideResource = backgroundResource + StageFit.WideArtResourceSuffix;
+        bool hasWideArt = RealmHomeArtExists(wideResource);
         Image background = CreateAnchoredImage(
             contentRoot,
-            backgroundResource,
-            StageWidth,
-            StageHeight,
+            hasWideArt ? wideResource : backgroundResource,
+            hasWideArt ? StageFit.WideArtSize.x : StageWidth,
+            hasWideArt ? StageFit.WideArtSize.y : StageHeight,
             0f,
             0f);
         background.name = RealmHomeBackgroundObjectPrefix + stateAssetName;
@@ -475,6 +480,8 @@ public partial class BingoPrototype
 
         // On screens wider or taller than 16:9 the stage is fit (so rooms stay aligned with the art); a dimmed,
         // enlarged copy of the same art fills the leftover bands instead of plain bars. Sized in ApplyStageScale.
+        // With wide art this only shows on screens beyond the wide-art envelope. Uses the 16:9 art, which matches the
+        // cover sizing in ApplyStageScale.
         Image ambient = CreateAnchoredImage(transform, backgroundResource, StageWidth, StageHeight, 0f, 0f);
         ambient.name = "Realm home ambient backdrop";
         ambient.preserveAspect = false;

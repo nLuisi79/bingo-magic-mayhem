@@ -41,6 +41,7 @@ public sealed class StageFitTests
         yield return new Device("iPad 10th gen", 2360, 1640, new Rect(0, 40, 2360, 1600));
         yield return new Device("iPad Pro 12.9", 2732, 2048, new Rect(0, 40, 2732, 2008));
         yield return new Device("Desktop 1080p", 1920, 1080, new Rect(0, 0, 1920, 1080));
+        yield return new Device("Sony Xperia 1 (21:9)", 3840, 1644, new Rect(0, 0, 3840, 1644));
     }
 
     [TestCaseSource(nameof(Devices))]
@@ -53,6 +54,24 @@ public sealed class StageFitTests
     public void FullBleedStageFitsInsideTheSafeArea(Device device)
     {
         AssertFits(device, fillsViewport: true);
+    }
+
+    // The realm home is full-bleed; wide "bleed" art (StageFit.WideArtSize) must cover the whole visible screen,
+    // including notch and home-indicator areas, on every device so no dimmed bands remain.
+    [TestCaseSource(nameof(Devices))]
+    public void WideRealmArtCoversTheWholeScreen(Device device)
+    {
+        Vector2 root = StageFit.CanvasSizeFor(device.Screen, Reference, Match);
+        StageFit.Result fit = StageFit.Compute(root, device.Screen, device.SafeArea, Stage, SafePadding, fillsViewport: true);
+        Vector2 visible = StageFit.VisibleStageUnits(root, fit);
+
+        // The stage is offset by the safe-area insets, so the far edge on each axis is half the screen plus the offset.
+        float neededWidth = (visible.x * 0.5f + Mathf.Abs(fit.Offset.x) / fit.Scale) * 2f;
+        float neededHeight = (visible.y * 0.5f + Mathf.Abs(fit.Offset.y) / fit.Scale) * 2f;
+        TestContext.WriteLine($"{device.Name}: needs {neededWidth:0}x{neededHeight:0} stage units of art");
+
+        Assert.LessOrEqual(neededWidth, StageFit.WideArtSize.x, $"{device.Name}: wide art too narrow");
+        Assert.LessOrEqual(neededHeight, StageFit.WideArtSize.y, $"{device.Name}: wide art too short");
     }
 
     [Test]
