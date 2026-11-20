@@ -52,7 +52,7 @@ public static class PotionsSheetSnapshotTool
         List<List<string>> rows = ParseCsv(csv);
         StringBuilder builder = new StringBuilder();
         builder.Append("# Snapshot of the BMM Potions Google Sheet (source of truth for realm/room/potion content).\n");
-        builder.Append("# Refresh with Tools > Bingo Magic Mayhem > Refresh Potions Sheet Snapshot. Format: '## Realm' then 'Room | Potion | Ingredient=Amount; ...'.\n");
+        builder.Append("# Refresh with Tools > Bingo Magic Mayhem > Refresh Potions Sheet Snapshot. Format: '## Realm' then 'Room | Potion | Ingredient=Amount=Rarity; ...'.\n");
         builder.Append($"# Captured {DateTime.UtcNow:yyyy-MM-dd}.\n");
 
         realmCount = 0;
@@ -88,7 +88,7 @@ public static class PotionsSheetSnapshotTool
                 string ingredient = Cell(row, column);
                 if (ingredient.Length > 0)
                 {
-                    ingredients.Add($"{ingredient}={Cell(row, column + 1)}");
+                    ingredients.Add($"{ingredient}={Cell(row, column + 1)}={Cell(row, column + 2)}");
                 }
             }
 

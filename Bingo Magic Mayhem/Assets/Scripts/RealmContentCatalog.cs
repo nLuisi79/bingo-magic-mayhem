@@ -130,8 +130,8 @@ public static class RealmContentCatalog
     public static int ActivePrototypeRoomIndex { get; private set; }
 
     // Realm, room, potion and ingredient names and amounts follow the BMM Potions Google Sheet, the current source of truth.
-    // The sheet has no rarity column; rarities and room modes keep their existing per-position values.
-    // TODO(product): rarities are not in the sheet yet. See Docs/09_OPEN_DECISIONS.md.
+    // Rarities follow the sheet's Rarity column (filled 2026-11-20). Room modes and progression are per-position (room 4 =
+    // Blackout). PotionsSheetCatalogTests checks this file against the sheet snapshot.
     public static readonly IReadOnlyList<RealmDefinition> AllRealms = new List<RealmDefinition>
     {
         new RealmDefinition("Sunpetal Conservatory",

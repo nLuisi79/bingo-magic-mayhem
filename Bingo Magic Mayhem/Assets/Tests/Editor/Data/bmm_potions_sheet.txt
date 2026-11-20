@@ -1,58 +1,58 @@
 # Snapshot of the BMM Potions Google Sheet (source of truth for realm/room/potion content).
-# Refresh with Tools > Bingo Magic Mayhem > Refresh Potions Sheet Snapshot. Format: '## Realm' then 'Room | Potion | Ingredient=Amount; ...'.
-# Captured 2026-11-18.
+# Refresh with Tools > Bingo Magic Mayhem > Refresh Potions Sheet Snapshot. Format: '## Realm' then 'Room | Potion | Ingredient=Amount=Rarity; ...'.
+# Captured 2026-11-20.
 ## Sunpetal Conservatory
-Gilded Azalea Arboretum | Azalea Sunmend Essence | Gilded Azalea Petals=5; Sunwarm Dewdrops=4; Honeyglow Pollen=4; Amberroot Shavings=6; Golden Heartseed=6
-Thorn-Tangled Terrace | Thornweave Taming Elixir | Velvet Thorn Tips=8; Terrace Moss Tufts=9; Rosegold Sap Drops=6; Thornheart Bud=8; Bramblelace Fibers=5
-Pollenspire Fountain | Pollenspire Renewal Tonic | Spire Pollen Grains=7; Fountain Dewdrops=5; Nectarflow Ribbons=6; Lilygold Filaments=7; Pollen Dust=4
-Solstice Bloom Glasshouse | Solstice Revival Tincture | Sunlit Glass Slivers=7; Golden Hour Motes=8; Prismvine Twine=8; Dawnmirror Fragments=5; Golden Stamen=7
+Gilded Azalea Arboretum | Azalea Sunmend Essence | Gilded Azalea Petals=5=Common; Sunwarm Dewdrops=4=Common; Honeyglow Pollen=4=Common; Amberroot Shavings=6=Uncommon; Golden Heartseed=6=Key Ingredient
+Thorn-Tangled Terrace | Thornweave Taming Elixir | Velvet Thorn Tips=8=Common; Terrace Moss Tufts=9=Common; Rosegold Sap Drops=6=Common; Thornheart Bud=8=Uncommon; Bramblelace Fibers=5=Key Ingredient
+Pollenspire Fountain | Pollenspire Renewal Tonic | Spire Pollen Grains=7=Common; Fountain Dewdrops=5=Common; Nectarflow Ribbons=6=Common; Lilygold Filaments=7=Uncommon; Pollen Dust=4=Key Ingredient
+Solstice Bloom Glasshouse | Solstice Revival Tincture | Sunlit Glass Slivers=7=Common; Golden Hour Motes=8=Common; Prismvine Twine=8=Uncommon; Dawnmirror Fragments=5=Uncommon; Golden Stamen=7=Key Ingredient
 ## Floating Lotus Lagoon
-Dewdrop Marina | Marina Mist Tonic | Dewdrop Pearl=7; Marina Reed=6; Mistpetal Drop=6; Driftwood Fragment=5; Silver Koi Scale=5; Pearlmist Shell=4
-Waterlily Canal | Waterlily Flow Draught | Waterlily Silk=7; Canal Current Drop=7; Lotusstem Reed=6; Ripplemint Leaf=6; Blue Koi Scale=5; Canal Pearl=5
-Opalwater Glasswalk | Opalwater Clarity Potion | Opalwater Essence=8; Glasswalk Shard=7; Prism Dew=7; Lotuslight Dust=6; Clearpath Crystal=6; Opalstone=5; Mirrored Strand=5
-Glasswater Grotto | Grotto Glow Elixir | Glasswater Shard=8; Grotto Glowcap=8; Opalwater Essence=7; Glimmerfin Scale=7; Floating Lotus Bloom=6; Stillwater Teardrop=6; Pearlglow Shard=5
+Dewdrop Marina | Marina Mist Tonic | Dewdrop Pearl=7=Common; Marina Reed=6=Common; Mistpetal Drop=6=Common; Driftwood Fragment=5=Uncommon; Silver Koi Scale=5=Uncommon; Pearlmist Shell=4=Key Ingredient
+Waterlily Canal | Waterlily Flow Draught | Waterlily Silk=7=Common; Canal Current Drop=7=Common; Lotusstem Reed=6=Common; Ripplemint Leaf=6=Uncommon; Blue Koi Scale=5=Uncommon; Canal Pearl=5=Key Ingredient
+Opalwater Glasswalk | Opalwater Clarity Potion | Opalwater Essence=8=Common; Glasswalk Shard=7=Common; Prism Dew=7=Common; Lotuslight Dust=6=Common; Clearpath Crystal=6=Uncommon; Opalstone=5=Uncommon; Mirrored Strand=5=Key Ingredient
+Glasswater Grotto | Grotto Glow Elixir | Glasswater Shard=8=Common; Grotto Glowcap=8=Common; Opalwater Essence=7=Uncommon; Glimmerfin Scale=7=Uncommon; Floating Lotus Bloom=6=Uncommon; Stillwater Teardrop=6=Rare; Pearlglow Shard=5=Key Ingredient
 ## Everbloom Sanctuary
-Eternal Bloomspout Spring | Gardener’s Grace Mending Balm | Graceyard Soil Cakes=9; Moonlit Ripple Lace=6; Terracotta Mender’s Clay=8; Rootwax Binding Cord=8; Keepsake Clover=4
-Luminara Garden | Luminara Flow Essence | Luminara Waterglass=8; Silver Basin Coins=6; Polished Trowel Charms=7; Bluebell Chime Shells=7; Luminous Springcore=8
-Primrose Petal Sanctuary | Blossomveil Awakening Tonic | Veilpetal Blossoms=7; Roselight Essence=4; Marblemoss Threads=5; Petalsheen Dust=7; Heartbloom Petals=5
-Everbloom Shrine | Heartbloom Revival Mist | Frosted Petal Plates=5; Sanctuary Lightwick=8; Violet Geode Nectar=7; Halofern Ribbons=6; Gilded Bloom Sigils=7; Everheart Bud=9
+eternal bloomspout spring | Gardener’s Grace Mending Balm | Graceyard Soil Cakes=9=Common; Moonlit Ripple Lace=6=Common; Terracotta Mender’s Clay=8=Common; Rootwax Binding Cord=8=Uncommon; Keepsake Clover=4=Key Ingredient
+Luminara garden | Luminara Flow Essence | Luminara Waterglass=8=Common; Silver Basin Coins=6=Common; Polished Trowel Charms=7=Common; Bluebell Chime Shells=7=Uncommon; Luminous Springcore=8=Key Ingredient
+primrose petal sanctuary | Blossomveil Awakening Tonic | Veilpetal Blossoms=7=Common; Roselight Essence=4=Common; Marblemoss Threads=5=Common; Petalsheen Dust=7=Uncommon; Heartbloom Petals=5=Key Ingredient
+Everbloom Shrine | Heartbloom Revival Mist | Frosted Petal Plates=5=Common; Sanctuary Lightwick=8=Common; Violet Geode Nectar=7=Uncommon; Halofern Ribbons=6=Uncommon; Gilded Bloom Sigils=7=Uncommon; Everheart Bud=9=Key Ingredient
 ## Glimmerwisp Forest
-Lanternleaf Path | Lanternleaf Wayfinder Essence | Lanternleaf Sprig=8; Wispglow Dew=7; Pathmoss Thread=7; Fernlight Dust=6; Glowroot Chip=6; Silvermoth Wing=6
-Glimmerfern Grove | Glimmerfern Vitality Serum | Glimmerfern Frond=8; Emerald Fernsap=7; Groveglow Nectar=7; Curling Fernshoot=6; Verdant Pulse Seed=6; Softspore Pollen=6
-Glowcap Thicket | Glowcap Bramble Balm | Glowcap Mushroom=9; Thicketvine Curl=8; Bramblelight Thorn=7; Sporeglow Powder=7; Tanglecap Resin=6; Mushroom Veilcap=6; Briarsoft Moss=6
-Wispwillow Hollow | Hollowbloom Distillate | Wispwillow Bark=9; Hollowlight Seed=9; Willowwisp Sap=8; Hollowbloom Petal=8; Ancient Rootdrop=7; Wispnest Fiber=7; Heartwood Dew=7
+Lanternleaf Path | Lanternleaf Wayfinder Essence | Lanternleaf Sprig=8=Common; Wispglow Dew=7=Common; Pathmoss Thread=7=Common; Fernlight Dust=6=Uncommon; Glowroot Chip=6=Uncommon; Silvermoth Wing=6=Key Ingredient
+Glimmerfern Grove | Glimmerfern Vitality Serum | Glimmerfern Frond=8=Common; Emerald Fernsap=7=Common; Groveglow Nectar=7=Common; Curling Fernshoot=6=Uncommon; Verdant Pulse Seed=6=Uncommon; Softspore Pollen=6=Key Ingredient
+Glowcap Thicket | Glowcap Bramble Balm | Glowcap Mushroom=9=Common; Thicketvine Curl=8=Common; Bramblelight Thorn=7=Common; Sporeglow Powder=7=Common; Tanglecap Resin=6=Uncommon; Mushroom Veilcap=6=Uncommon; Briarsoft Moss=6=Key Ingredient
+Wispwillow Hollow | Hollowbloom Distillate | Wispwillow Bark=9=Common; Hollowlight Seed=9=Common; Willowwisp Sap=8=Uncommon; Hollowbloom Petal=8=Uncommon; Ancient Rootdrop=7=Uncommon; Wispnest Fiber=7=Rare; Heartwood Dew=7=Key Ingredient
 ## Cerulean Moon Monastery
-Bluebell Luminary Alcove | Bluebell Luminary Dew | Bluebell Glowdrop=9; Luminary Wick=8; Moonmoss=8; Cerulean Pollen=7; Quietlight Pearl=7; Silverbell Petal=7
-Cerulean Lantern Courtyard | Cerulean Lantern Infusion | Cerulean Oil=9; Starpetal=8; Blueflame Glass=8; Moonstone Thread=7; Lanternseed Husk=7; Silverstep Dust=7
-Skyglass Scriptorium | Skyglass Scroll Reagent | Skyglass Shard=10; Starink Vial=9; Scrollfiber=8; Quillmoon Feather=8; Glyphdust=7; Sealblue Powder=7; Silverseal Wax=7
-Starwell Bell Tower | Starwell Chime Revival | Starwell Drop=10; Bellchime Crystal=10; Moonmetal=9; Celestial Cord=9; Echo Pearl=8; Chime Fragment=8; Cerulean Resonance Dust=8
+Bluebell Luminary Alcove | Bluebell Luminary Dew | Bluebell Glowdrop=9=Common; Luminary Wick=8=Common; Moonmoss=8=Common; Cerulean Pollen=7=Uncommon; Quietlight Pearl=7=Uncommon; Silverbell Petal=7=Key Ingredient
+Cerulean Lantern Courtyard | Cerulean Lantern Infusion | Cerulean Oil=9=Common; Starpetal=8=Common; Blueflame Glass=8=Common; Moonstone Thread=7=Uncommon; Lanternseed Husk=7=Uncommon; Silverstep Dust=7=Key Ingredient
+Skyglass Scriptorium | Skyglass Scroll Reagent | Skyglass Shard=10=Common; Starink Vial=9=Common; Scrollfiber=8=Common; Quillmoon Feather=8=Common; Glyphdust=7=Uncommon; Sealblue Powder=7=Uncommon; Silverseal Wax=7=Key Ingredient
+Starwell Bell Tower | Starwell Chime Revival | Starwell Drop=10=Common; Bellchime Crystal=10=Common; Moonmetal=9=Uncommon; Celestial Cord=9=Uncommon; Echo Pearl=8=Uncommon; Chime Fragment=8=Rare; Cerulean Resonance Dust=8=Key Ingredient
 ## Emberglass Grove
-Amberleaf Arbor | Amberleaf Sunbrew | Amberleaf Cluster=10; Sunamber Dew=9; Glassbark Sliver=9; Rosegold Pollen=8; Kindleseed Husk=8; Warmroot Sap=8
-Cinderglass Path | Cinderglass Mending Salve | Cinderglass Shard=10; Clearflame Drop=9; Pathglow Pebble=9; Ashlace Thread=8; Emberpolish Resin=8; Smokeveil Dust=8
-Sparkstone Garden | Sparkstone Bloom Catalyst | Sparkstone Pebble=11; Flamepetal Bloom=10; Amber Emberseed=9; Glowglass Nectar=9; Coppershine Moss=8; Sunflare Pollen=8; Warmthistle Thorn=8
-Embervein Rootway | Embervein Rekindling Remedy | Embervein Root=11; Heartwood Ember=11; Rootglass Thread=10; Deepwarm Resin=10; Crimson Sapstone=9; Emberline Crystal=9; Glowcoal Fragment=9
+Amberleaf Arbor | Amberleaf Sunbrew | Amberleaf Cluster=10=Common; Sunamber Dew=9=Common; Glassbark Sliver=9=Common; Rosegold Pollen=8=Uncommon; Kindleseed Husk=8=Uncommon; Warmroot Sap=8=Key Ingredient
+Cinderglass Path | Cinderglass Mending Salve | Cinderglass Shard=10=Common; Clearflame Drop=9=Common; Pathglow Pebble=9=Common; Ashlace Thread=8=Uncommon; Emberpolish Resin=8=Uncommon; Smokeveil Dust=8=Key Ingredient
+Sparkstone Garden | Sparkstone Bloom Catalyst | Sparkstone Pebble=11=Common; Flamepetal Bloom=10=Common; Amber Emberseed=9=Common; Glowglass Nectar=9=Common; Coppershine Moss=8=Uncommon; Sunflare Pollen=8=Uncommon; Warmthistle Thorn=8=Key Ingredient
+Embervein Rootway | Embervein Rekindling Remedy | Embervein Root=11=Common; Heartwood Ember=11=Common; Rootglass Thread=10=Uncommon; Deepwarm Resin=10=Uncommon; Crimson Sapstone=9=Uncommon; Emberline Crystal=9=Rare; Glowcoal Fragment=9=Key Ingredient
 ## Howling Hollows Manor
-Mosswrought Gateway | Rustbreaker Revival | Rusted Iron Filigree=11; Mosswrought Fragment=10; Gatevine Oil=10; Tarnishroot Flake=9; Ironlace Charm=9; Weathered Iron Dust=9
-Hollowmoss Topiary Grounds | Topiary Teardrop Nectar | Topiary Teardrop=11; Sculpted Mossleaf=10; Hedgecurl Sprig=10; Keeper’s Thread=9; Velvetmoss Pearl=9; Trimmed Thornbud=9
-Hollowheart Hall | Rootbind Restorative | Rootsnare Strand=12; Hearthwood Splinter=11; Binding Vinecurl=11; Hallglow Ember=10; Twisted Root Resin=10; Heartwood Dust=9; Velvetshade Moss=9
-Elderhollow Labyrinth | Wayward Soul’s Elixir | Wayward Soul Drop=12; Elderroot Needle=12; Labyrinth Ivy Thread=11; Shadowmoss Pearl=11; Pathmark Shard=10; Lanternless Dew=10; Labyrinth Seed=10
+Mosswrought Gateway | Rustbreaker Revival | Rusted Iron Filigree=11=Common; Mosswrought Fragment=10=Common; Gatevine Oil=10=Common; Tarnishroot Flake=9=Uncommon; Ironlace Charm=9=Uncommon; Weathered Iron Dust=9=Key Ingredient
+Hollowmoss Topiary Grounds | Topiary Teardrop Nectar | Topiary Teardrop=11=Common; Sculpted Mossleaf=10=Common; Hedgecurl Sprig=10=Common; Keeper’s Thread=9=Uncommon; Velvetmoss Pearl=9=Uncommon; Trimmed Thornbud=9=Key Ingredient
+Hollowheart Hall | Rootbind Restorative | Rootsnare Strand=12=Common; Hearthwood Splinter=11=Common; Binding Vinecurl=11=Common; Hallglow Ember=10=Common; Twisted Root Resin=10=Uncommon; Heartwood Dust=9=Uncommon; Velvetshade Moss=9=Key Ingredient
+Elderhollow Labyrinth | Wayward Soul’s Elixir | Wayward Soul Drop=12=Common; Elderroot Needle=12=Common; Labyrinth Ivy Thread=11=Uncommon; Shadowmoss Pearl=11=Uncommon; Pathmark Shard=10=Uncommon; Lanternless Dew=10=Rare; Labyrinth Seed=10=Key Ingredient
 ## Crimson Moon Canyon
-Rubyrock Pass | Rockheart Tincture | Rockheart Stone Fragment=12; Rubyrock Splinter=11; Crimson Mineral Dew=11; Glowvein Fragment=10; Canyonroot Resin=10; Scarlet Quartz Dust=9
-Coppercliff Crossing | Bridgemender Brew | Copperstone Fragment=12; Bridgevine Thread=12; Copperheart Sap=11; Spanstone Pebble=11; Rivethorn Bud=10; Copper Glowdrop=10
-Stardust Ravine | Twilight Trail Catalyst | Twilight Dust=13; Starseed=12; Trailglimmer Sand=12; Nightglass Flake=11; Falling Star Petal=11; Duskwind Thread=10
-Moonflare Mesa | Starlight Prism Potion | Starlight Prism Shard=13; Moonlit Flaredrop=13; Crimsonlight Petal=12; Glowstone=12; Prismroot Strand=11; Skyfire Dust=10; Lunar Quartz Bloom=10
+Rubyrock Pass | Rockheart Tincture | Rockheart Stone Fragment=12=Common; Rubyrock Splinter=11=Common; Crimson Mineral Dew=11=Common; Glowvein Fragment=10=Uncommon; Canyonroot Resin=10=Uncommon; Scarlet Quartz Dust=9=Key Ingredient
+Coppercliff Crossing | Bridgemender Brew | Copperstone Fragment=12=Common; Bridgevine Thread=12=Common; Copperheart Sap=11=Common; Spanstone Pebble=11=Uncommon; Rivethorn Bud=10=Uncommon; Copper Glowdrop=10=Key Ingredient
+Stardust Ravine | Twilight Trail Catalyst | Twilight Dust=13=Common; Starseed=12=Common; Trailglimmer Sand=12=Common; Nightglass Flake=11=Uncommon; Falling Star Petal=11=Uncommon; Duskwind Thread=10=Key Ingredient
+Moonflare Mesa | Starlight Prism Potion | Starlight Prism Shard=13=Common; Moonlit Flaredrop=13=Common; Crimsonlight Petal=12=Uncommon; Glowstone=12=Uncommon; Prismroot Strand=11=Uncommon; Skyfire Dust=10=Rare; Lunar Quartz Bloom=10=Key Ingredient
 ## Arcane Aerie Heights
-Arcane Aerie Gate | Skybound Counter Infusion | Skybound Vapor=13; Countercloud Drop=12; Skycrag Stonechip=12; Gateweight Pebble=11; Anchorroot Dust=10; Cloudweight Resin=10
-The Aerie Emporium | Emporium Settling Serum | Merchant Teardrop=13; Settling Sap=12; Counterfloat Pearl=10; Driftglass Bead=11; Weightwell Wax=11; Settling Resin=10
-Gryphon Lantern Shrine | Weighted Wing Antitoxin | Weighted Feather=14; Gryphon Talon Shard=13; Antigrav Venom Drop=13; Shrinebase Dust=12; Perchstone=12; Skyward Toxin Pearl=11; Wingbind Resin=11
-Aerie Anchor Hall | Anchor’s Embrace Elixir | Anchorheart Stone Fragment=14; Aerie Lodestone=14; Anchor Shard=13; Gravitywell Bloom=11; Settling Stone Dust=12; Downward Star Resin=12
+Arcane Aerie Gate | Skybound Counter Infusion | Skybound Vapor=13=Common; Countercloud Drop=12=Common; Skycrag Stonechip=12=Common; Gateweight Pebble=11=Uncommon; Anchorroot Dust=10=Uncommon; Cloudweight Resin=10=Key Ingredient
+The Aerie Emporium | Emporium Settling Serum | Merchant Teardrop=13=Common; Settling Sap=12=Common; Counterfloat Pearl=10=Common; Driftglass Bead=11=Uncommon; Weightwell Wax=11=Uncommon; Settling Resin=10=Key Ingredient
+Gryphon Lantern Shrine | Weighted Wing Antitoxin | Weighted Feather=14=Common; Gryphon Talon Shard=13=Common; Antigrav Venom Drop=13=Common; Shrinebase Dust=12=Common; Perchstone=12=Uncommon; Skyward Toxin Pearl=11=Uncommon; Wingbind Resin=11=Key Ingredient
+Aerie Anchor Hall | Anchor’s Embrace Elixir | Anchorheart Stone Fragment=14=Common; Aerie Lodestone=14=Common; Anchor Shard=13=Uncommon; Gravitywell Bloom=11=Uncommon; Settling Stone Dust=12=Uncommon; Downward Star Resin=12=Key Ingredient
 ## Crystalline Chanterelle Colony
-Sparkleborough Settlement | Spore-Spine Awakening Brew | Lumenroot Extract=14; Phosphor-Spore Dust=13; Shardneedle Sliver=13; Stiff-Stalk Elm Sap=12; Spore-Cap Pebble=12; Mycelium Pod=11; Glint-Shell Snail Horn=11
-Lostleaf Library | Shard-Sparked Arid Serum | Arid-Bloom Petal=14; Sun-Baked Ink Stone=14; Royal Papyrus Shred=13; Memoryglass Quill Tip=13; Crown-Shard Cluster=12; Salt-Crust Conch=12; Dried Reed Ring=11
-Milkweed Municipal Hall | Withering Strand Spritz | Emerald Chameleon Venom=15; Silk-Core Milkweed Pod=14; Starlight Tendril Spool=14; Gryphon-Nest Twig=13; Dew-Locked Amber Drop=13; Weaver-Spider Egg Casing=12; Braid-Root Crown=12
-Luminous Loopwater Lagoon | Infinity Cascade Catalyst | Upcurrent Droplet=15; Whispering Lagoon Dew=15; Prism Polarity Beads=14; Cloud-Silk Cocoon=14; Fountain-Core Seed=13; Reverse-Tide Mist=13; Echoing Ripple Orb=12
+Sparkleborough Settlement | Spore-Spine Awakening Brew | Lumenroot Extract=14=Common; Phosphor-Spore Dust=13=Common; Shardneedle Sliver=13=Common; Stiff-Stalk Elm Sap=12=Common; Spore-Cap Pebble=12=Uncommon; Mycelium Pod=11=Uncommon; Glint-Shell Snail Horn=11=Key Ingredient
+Lostleaf Library | Shard-Sparked Arid Serum | Arid-Bloom Petal=14=Common; Sun-Baked Ink Stone=14=Common; Royal Papyrus Shred=13=Common; Memoryglass Quill Tip=13=Common; Crown-Shard Cluster=12=Uncommon; Salt-Crust Conch=12=Uncommon; Dried Reed Ring=11=Key Ingredient
+Milkweed Municipal Hall | Withering Strand Spritz | Emerald Chameleon Venom=15=Common; Silk-Core Milkweed Pod=14=Common; Starlight Tendril Spool=14=Common; Gryphon-Nest Twig=13=Common; Dew-Locked Amber Drop=13=Uncommon; Weaver-Spider Egg Casing=12=Uncommon; Braid-Root Crown=12=Key Ingredient
+Luminous Loopwater Lagoon | Infinity Cascade Catalyst | Upcurrent Droplet=15=Common; Whispering Lagoon Dew=15=Common; Prism Polarity Beads=14=Uncommon; Cloud-Silk Cocoon=14=Uncommon; Fountain-Core Seed=13=Uncommon; Reverse-Tide Mist=13=Rare; Echoing Ripple Orb=12=Key Ingredient
 ## Everfrost Vale
-Shimmerflurry Orchard | Shimmerroot Revival Infusion | Shimmerroot Strand=14; Frostfruit Pearl=13; Orchard Chilldrop=13; Snowcrisp Bark=12; Flurryblossom Pollen=12; Slushbane Resin=11; Everfrost Sap=11
-Crystalline Court | Crystalline Frostform Catalyst | Crystalline Mane Shard=14; Frostform Dust=14; Ground Frostturn Pearl=13; Icecreature Chip=13; Refreezing Spark=12; Mirrorfrost Flake=12; Snowturn Resin=11
-Grand Glacier | Showstopper Stabilizing Salve | Showstopper Snowflake=15; Stabilizing Frostwax=14; Canopy Thread=14; Arctic Trim Fragment=13; Snowring Powder=13; Curtainfrost Pearl=12; Slushseal Resin=12
-Winter Wonder Garden | Frosted Formweave Reagent | Frosted Formthread=15; Alabaster Snowdust=15; Alabaster Pearl=14; Icebloom Filament=14; Sunwane Crystal=13; Winterweave Resin=13; Everchill Seed=12
+Shimmerflurry Orchard | Shimmerroot Revival Infusion | Shimmerroot Strand=14=Common; Frostfruit Pearl=13=Common; Orchard Chilldrop=13=Common; Snowcrisp Bark=12=Common; Flurryblossom Pollen=12=Uncommon; Slushbane Resin=11=Uncommon; Everfrost Sap=11=Key Ingredient
+Crystalline Court | Crystalline Frostform Catalyst | Crystalline Mane Shard=14=Common; Frostform Dust=14=Common; Ground Frostturn Pearl=13=Common; Icecreature Chip=13=Common; Refreezing Spark=12=Uncommon; Mirrorfrost Flake=12=Uncommon; Snowturn Resin=11=Key Ingredient
+Grand Glacier | Showstopper Stabilizing Salve | Showstopper Snowflake=15=Common; Stabilizing Frostwax=14=Common; Canopy Thread=14=Common; Arctic Trim Fragment=13=Common; Snowring Powder=13=Uncommon; Curtainfrost Pearl=12=Uncommon; Slushseal Resin=12=Key Ingredient
+Winter Wonder Garden | Frosted Formweave Reagent | Frosted Formthread=15=Common; Alabaster Snowdust=15=Common; Alabaster Pearl=14=Uncommon; Icebloom Filament=14=Uncommon; Sunwane Crystal=13=Uncommon; Winterweave Resin=13=Rare; Everchill Seed=12=Key Ingredient

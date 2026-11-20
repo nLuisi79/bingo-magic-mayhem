@@ -8,7 +8,7 @@ using UnityEngine;
 // These tests compare RealmContentCatalog against the checked-in snapshot (Tests/Editor/Data/bmm_potions_sheet.txt).
 // When the sheet changes: refresh the snapshot (Tools > Bingo Magic Mayhem > Refresh Potions Sheet Snapshot), run these
 // tests, and update RealmContentCatalog until they pass. Names compare case-insensitively because the sheet has a few
-// lowercase room names that the game shows capitalised. Rarities are not in the sheet yet, so they are not compared.
+// lowercase room names that the game shows capitalised. Rarity is compared too (filled into the sheet 2026-11-20).
 public sealed class PotionsSheetCatalogTests
 {
     private const int LaunchRealmCount = 10;
@@ -17,7 +17,14 @@ public sealed class PotionsSheetCatalogTests
     {
         public string Name;
         public string Potion;
-        public List<KeyValuePair<string, int>> Ingredients = new List<KeyValuePair<string, int>>();
+        public List<SheetIngredient> Ingredients = new List<SheetIngredient>();
+    }
+
+    private sealed class SheetIngredient
+    {
+        public string Name;
+        public int Amount;
+        public string Rarity;
     }
 
     private sealed class SheetRealm
@@ -64,10 +71,12 @@ public sealed class PotionsSheetCatalogTests
 
             for (int ingredientIndex = 0; ingredientIndex < sheetRoom.Ingredients.Count; ingredientIndex++)
             {
-                KeyValuePair<string, int> sheetIngredient = sheetRoom.Ingredients[ingredientIndex];
+                SheetIngredient sheetIngredient = sheetRoom.Ingredients[ingredientIndex];
                 IngredientRequirement ingredient = room.Ingredients[ingredientIndex];
-                AssertSameName(sheetIngredient.Key, ingredient.Name, $"{room.Name} ingredient {ingredientIndex + 1}");
-                Assert.AreEqual(sheetIngredient.Value, ingredient.Required, $"{room.Name} / {ingredient.Name} amount");
+                AssertSameName(sheetIngredient.Name, ingredient.Name, $"{room.Name} ingredient {ingredientIndex + 1}");
+                Assert.AreEqual(sheetIngredient.Amount, ingredient.Required, $"{room.Name} / {ingredient.Name} amount");
+                Assert.IsNotEmpty(sheetIngredient.Rarity, $"{room.Name} / {ingredient.Name}: the sheet has no rarity");
+                AssertSameName(sheetIngredient.Rarity, ingredient.Rarity, $"{room.Name} / {ingredient.Name} rarity");
             }
         }
     }
@@ -109,9 +118,15 @@ public sealed class PotionsSheetCatalogTests
             SheetRoom room = new SheetRoom { Name = parts[0].Trim(), Potion = parts[1].Trim() };
             foreach (string entry in parts[2].Split(new[] { "; " }, StringSplitOptions.RemoveEmptyEntries))
             {
-                int equals = entry.LastIndexOf('=');
-                Assert.Greater(equals, 0, $"bad ingredient entry: {entry}");
-                room.Ingredients.Add(new KeyValuePair<string, int>(entry.Substring(0, equals).Trim(), int.Parse(entry.Substring(equals + 1).Trim())));
+                // Name=Amount=Rarity (rarity may be blank in older snapshots).
+                string[] fields = entry.Split('=');
+                Assert.GreaterOrEqual(fields.Length, 2, $"bad ingredient entry: {entry}");
+                room.Ingredients.Add(new SheetIngredient
+                {
+                    Name = fields[0].Trim(),
+                    Amount = int.Parse(fields[1].Trim()),
+                    Rarity = fields.Length > 2 ? fields[2].Trim() : string.Empty
+                });
             }
 
             realms[realms.Count - 1].Rooms.Add(room);
