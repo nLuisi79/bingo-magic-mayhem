@@ -133,6 +133,12 @@ public sealed class PlayerInventoryState
         IReadOnlyList<RealmDefinition> realms = RealmContentCatalog.AllRealms;
         for (int realmIndex = 0; realmIndex < realms.Count; realmIndex++)
         {
+            // Room Controls set rooms out of order on purpose; leave those realms as the tester arranged them.
+            if (HasRoomStateOverride(realms[realmIndex]))
+            {
+                continue;
+            }
+
             IReadOnlyList<RoomDefinition> rooms = realms[realmIndex].Rooms;
             int furthestRestoredRoom = -1;
             for (int roomIndex = 0; roomIndex < rooms.Count; roomIndex++)
@@ -373,6 +379,62 @@ public sealed class PlayerInventoryState
         DurablePrefs.SetInt(GetRoomRestoreKey(previousRooms[previousRooms.Count - 1]), 1);
         ActiveRoomRestored = IsRoomRestored(RealmContentCatalog.ActivePrototypeRoom);
         DurablePrefs.Save();
+    }
+
+    // Prototype Settings > Room Controls. See RoomAccessRules for how overrides combine with normal progression.
+    public RoomStateOverride GetRoomStateOverride(RoomDefinition room)
+    {
+        int value = DurablePrefs.GetInt(GetRoomStateOverrideKey(room), 0);
+        return value >= (int)RoomStateOverride.Locked && value <= (int)RoomStateOverride.Complete
+            ? (RoomStateOverride)value
+            : RoomStateOverride.None;
+    }
+
+    public bool HasRoomStateOverride(RealmDefinition realm)
+    {
+        IReadOnlyList<RoomDefinition> rooms = realm.Rooms;
+        for (int index = 0; index < rooms.Count; index++)
+        {
+            if (GetRoomStateOverride(rooms[index]) != RoomStateOverride.None)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void SetRoomStateForTesting(RoomDefinition room, RoomProgressState state)
+    {
+        // Persist in-memory state first: Save() writes ActiveRoomRestored over the active room's restore flag.
+        Save();
+        DurablePrefs.SetInt(GetRoomStateOverrideKey(room), (int)RoomAccessRules.ToOverride(state));
+        if (state == RoomProgressState.Complete)
+        {
+            DurablePrefs.SetInt(GetRoomRestoreKey(room), 1);
+        }
+        else
+        {
+            DurablePrefs.DeleteKey(GetRoomRestoreKey(room));
+        }
+
+        DurablePrefs.Save();
+        RefreshActiveRoomState();
+    }
+
+    // Drops overrides and restore flags for one realm so it follows normal progression from scratch.
+    public void ClearRoomStatesForTesting(RealmDefinition realm)
+    {
+        Save();
+        IReadOnlyList<RoomDefinition> rooms = realm.Rooms;
+        for (int index = 0; index < rooms.Count; index++)
+        {
+            DurablePrefs.DeleteKey(GetRoomStateOverrideKey(rooms[index]));
+            DurablePrefs.DeleteKey(GetRoomRestoreKey(rooms[index]));
+        }
+
+        DurablePrefs.Save();
+        RefreshActiveRoomState();
     }
 
     public bool TrySpendMana(int amount)
@@ -2296,6 +2358,7 @@ public sealed class PlayerInventoryState
         foreach (RoomDefinition room in RealmContentCatalog.AllRooms)
         {
             DurablePrefs.DeleteKey(GetRoomRestoreKey(room));
+            DurablePrefs.DeleteKey(GetRoomStateOverrideKey(room));
         }
     }
 
@@ -2334,6 +2397,11 @@ public sealed class PlayerInventoryState
     private static string GetRoomRestoreKey(RoomDefinition room)
     {
         return SavePrefix + "Restored." + room.Name;
+    }
+
+    private static string GetRoomStateOverrideKey(RoomDefinition room)
+    {
+        return SavePrefix + "DevRoomState." + room.Name;
     }
 
     private static string GetRoomJackpotPotKey(RoomDefinition room)

@@ -527,19 +527,30 @@ public partial class BingoPrototype
 
     private bool IsRoomUnlocked(int roomIndex)
     {
-        if (!IsRealmUnlocked(RealmContentCatalog.ActivePrototypeRealmIndex))
+        return GetRoomProgressState(RealmContentCatalog.ActivePrototypeRealmIndex, roomIndex) != RoomProgressState.Locked;
+    }
+
+    // Normal progression plus any Prototype Settings > Room Controls override (RoomAccessRules).
+    private RoomProgressState GetRoomProgressState(int realmIndex, int roomIndex)
+    {
+        if (realmIndex < 0 || realmIndex >= RealmContentCatalog.AllRealms.Count)
         {
-            return false;
+            return RoomProgressState.Locked;
         }
 
-        if (roomIndex <= 0)
+        IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.AllRealms[realmIndex].Rooms;
+        if (roomIndex < 0 || roomIndex >= rooms.Count)
         {
-            return true;
+            return RoomProgressState.Locked;
         }
 
-        IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.ActivePrototypeRealm.Rooms;
-        return inventory.IsRoomRestored(rooms[roomIndex])
-            || inventory.IsRoomRestored(rooms[roomIndex - 1]);
+        RoomDefinition room = rooms[roomIndex];
+        return RoomAccessRules.ResolveRoom(
+            inventory.IsRoomRestored(room),
+            inventory.GetRoomStateOverride(room),
+            IsRealmUnlocked(realmIndex),
+            roomIndex == 0,
+            roomIndex > 0 && inventory.IsRoomRestored(rooms[roomIndex - 1]));
     }
 
     private string GetRoomMapStatus(RoomDefinition room, int roomIndex, bool available)
@@ -601,7 +612,22 @@ public partial class BingoPrototype
             return false;
         }
 
-        return IsRealmComplete(realmIndex - 1);
+        return RoomAccessRules.IsRealmUnlocked(false, IsRealmComplete(realmIndex - 1), HasForcedAccessibleRoom(realmIndex));
+    }
+
+    private bool HasForcedAccessibleRoom(int realmIndex)
+    {
+        IReadOnlyList<RoomDefinition> rooms = RealmContentCatalog.AllRealms[realmIndex].Rooms;
+        for (int index = 0; index < rooms.Count; index++)
+        {
+            RoomStateOverride roomOverride = inventory.GetRoomStateOverride(rooms[index]);
+            if (roomOverride == RoomStateOverride.Open || roomOverride == RoomStateOverride.Complete)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool IsRealmComplete(int realmIndex)

@@ -82,7 +82,14 @@ public partial class BingoPrototype
         Button albumDebug = CreateAnchoredButton(panel.transform, "Album Debug", 18, 220, 42, new Color(0.2f, 0.16f, 0.42f), 250f, -86f);
         albumDebug.onClick.AddListener(() => BuildAlbumDebugUi(returnToMap));
 
-        Button sunpetalStates = CreateAnchoredButton(panel.transform, "Sunpetal Mixed QA", 18, 240, 42, new Color(0.12f, 0.42f, 0.24f), 0f, -142f);
+        Button roomControls = CreateAnchoredButton(panel.transform, "Room Controls", 18, 220, 42, new Color(0.12f, 0.36f, 0.5f), -250f, -142f);
+        roomControls.onClick.AddListener(() =>
+        {
+            roomControlsRealmIndex = RealmContentCatalog.ActivePrototypeRealmIndex;
+            BuildRoomControlsUi(returnToMap);
+        });
+
+        Button sunpetalStates =CreateAnchoredButton(panel.transform, "Sunpetal Mixed QA", 18, 240, 42, new Color(0.12f, 0.42f, 0.24f), 0f, -142f);
         sunpetalStates.onClick.AddListener(SetSunpetalMixedStateForTesting);
 
         Button betaQa = CreateAnchoredButton(panel.transform, "Beta QA Resets", 18, 220, 42, new Color(0.42f, 0.24f, 0.08f), 250f, -142f);
